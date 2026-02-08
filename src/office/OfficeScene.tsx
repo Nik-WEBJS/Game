@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Suspense, useEffect, useRef } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { useGameStore } from '@/game/store';
 import { OfficeModel } from './OfficeModel';
 import { Employee } from './Employee';
@@ -20,14 +20,39 @@ import {
 const ISO_CAM: [number, number, number] = [10, 10, 10];
 const ISO_TARGET: [number, number, number] = [0, 0, 0];
 
-// Static camera that looks at the office from a fixed isometric angle
+const ZOOM_MIN = 25;
+const ZOOM_MAX = 120;
+const ZOOM_SPEED = 5;
+
+// Static camera that looks at the office from a fixed isometric angle, with scroll zoom
 function StaticCamera() {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
+  const zoomRef = useRef(55);
+
   useEffect(() => {
     camera.position.set(...ISO_CAM);
     camera.lookAt(...ISO_TARGET);
     camera.updateProjectionMatrix();
   }, [camera]);
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
+      zoomRef.current = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomRef.current + delta));
+    };
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
+  }, [gl]);
+
+  useFrame(() => {
+    if (camera.zoom !== zoomRef.current) {
+      camera.zoom += (zoomRef.current - camera.zoom) * 0.15;
+      camera.updateProjectionMatrix();
+    }
+  });
+
   return null;
 }
 
@@ -44,7 +69,7 @@ export function OfficeScene() {
   );
 
   return (
-    <div className="w-full h-full overflow-hidden bg-zinc-900/50 relative">
+    <div className="w-full h-full overflow-hidden relative">
       <Canvas
         shadows
         orthographic
@@ -55,17 +80,18 @@ export function OfficeScene() {
           far: 200,
         }}
         gl={{ antialias: true, alpha: false }}
-        style={{ background: '#0a0a0f' }}
+        style={{ background: '#c8d6e5' }}
       >
         <Suspense fallback={null}>
           <StaticCamera />
 
-          {/* Lighting */}
-          <ambientLight intensity={0.35} color="#94a3b8" />
+          {/* Lighting — bright daylight */}
+          <ambientLight intensity={0.7} color="#ffffff" />
+          <hemisphereLight args={['#87ceeb', '#b0c4a8', 0.5]} />
           <directionalLight
-            position={[8, 12, 8]}
-            intensity={0.7}
-            color="#e2e8f0"
+            position={[10, 15, 8]}
+            intensity={1.2}
+            color="#fff5e6"
             castShadow
             shadow-mapSize-width={2048}
             shadow-mapSize-height={2048}
@@ -75,9 +101,9 @@ export function OfficeScene() {
             shadow-camera-bottom={-15}
           />
           <directionalLight
-            position={[-4, 6, -4]}
-            intensity={0.15}
-            color="#818cf8"
+            position={[-6, 8, -4]}
+            intensity={0.4}
+            color="#e0e7ff"
           />
 
           {/* Office structure */}
