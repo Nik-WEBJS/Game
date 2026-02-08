@@ -9,14 +9,31 @@ import { Badge } from '@/components/ui/badge';
 import { LangSwitcher } from '@/components/ui/lang-switcher';
 import { formatMoney } from '@/lib/utils';
 import {
-  Building2, ShoppingBag, CreditCard, Cpu, Rocket,
+  Building2, ShoppingBag, CreditCard, Cpu, Rocket, Pencil,
+  Zap, Shield, Diamond, Flame, Globe, Star, Crown, Target, Hexagon, Atom, Leaf,
 } from 'lucide-react';
+import type { LogoId } from '@/game/types';
+
+const LOGO_PRESETS: { id: LogoId; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; color: string }[] = [
+  { id: 'rocket',  icon: Rocket,  color: '#f43f5e' },
+  { id: 'zap',     icon: Zap,     color: '#eab308' },
+  { id: 'shield',  icon: Shield,  color: '#3b82f6' },
+  { id: 'diamond', icon: Diamond, color: '#8b5cf6' },
+  { id: 'flame',   icon: Flame,   color: '#f97316' },
+  { id: 'globe',   icon: Globe,   color: '#06b6d4' },
+  { id: 'star',    icon: Star,    color: '#fbbf24' },
+  { id: 'crown',   icon: Crown,   color: '#a855f7' },
+  { id: 'target',  icon: Target,  color: '#ef4444' },
+  { id: 'hexagon', icon: Hexagon, color: '#14b8a6' },
+  { id: 'atom',    icon: Atom,    color: '#6366f1' },
+  { id: 'leaf',    icon: Leaf,    color: '#22c55e' },
+];
 
 export function SetupScreen() {
   const {
     business, player, availableNiches, availableProducts, availableMonetizations,
     availableTechnologies, setNiche, setProduct, setMonetization, adoptTechnology,
-    removeTechnology, startGame,
+    removeTechnology, startGame, setCompanyName, setCompanyLogo,
   } = useGameStore();
   const { t } = useI18n();
 
@@ -38,6 +55,47 @@ export function SetupScreen() {
             <Badge variant="info">{t.startingCapital}: {formatMoney(player.money)}</Badge>
           </div>
         </div>
+
+        {/* Step 0: Company Name & Logo */}
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Pencil className="w-5 h-5 text-pink-400" />
+            <h2 className="text-xl font-semibold">{t.companyName}</h2>
+          </div>
+          <div className="flex flex-col md:flex-column gap-4 items-start">
+            <input
+              type="text"
+              maxLength={24}
+              value={business.companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder={t.companyNamePlaceholder}
+              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-colors"
+            />
+            <div className="flex flex-col gap-2">
+              <span className="text-sm text-zinc-400">{t.chooseLogo}</span>
+              <div className="flex flex-wrap gap-2">
+                {LOGO_PRESETS.map((preset) => {
+                  const Icon = preset.icon;
+                  const selected = business.logoId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      onClick={() => setCompanyLogo(preset.id)}
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-150 border-2 ${
+                        selected
+                          ? 'border-white scale-110 shadow-lg'
+                          : 'border-zinc-700 hover:border-zinc-500 hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: selected ? preset.color + '30' : 'rgba(39,39,42,0.8)' }}
+                    >
+                      <Icon className="w-5 h-5" style={{ color: preset.color }} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Step 1: Choose Niche */}
         <section className="mb-8">

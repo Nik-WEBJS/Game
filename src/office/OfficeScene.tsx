@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { useGameStore } from '@/game/store';
 import { OfficeModel } from './OfficeModel';
+import { CompanySign } from './CompanySign';
 import { Employee } from './Employee';
 import { FurnitureObject3D, gridToWorld } from './FurnitureObjects';
 import { PlacementGrid } from './PlacementGrid';
@@ -113,6 +114,13 @@ export function OfficeScene() {
             isoState={isoState}
             riskIntensity={riskIntensity}
             profitGlow={profitGlow}
+          />
+
+          {/* Company sign on back wall */}
+          <CompanySign
+            companyName={business.companyName}
+            logoId={business.logoId}
+            wallZ={-(8 + activeZones * 1.5) / 2}
           />
 
           {/* Placement grid */}

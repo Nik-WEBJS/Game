@@ -9,6 +9,9 @@ export const en = {
   // Setup Screen
   setupSubtitle: 'Build your empire. Make strategic decisions. Dominate the market.',
   startingCapital: 'Starting Capital',
+  companyName: 'Company Name',
+  companyNamePlaceholder: 'Enter your company name...',
+  chooseLogo: 'Logo',
   chooseNiche: '1. Choose Your Niche',
   chooseProduct: '2. Choose Your Product',
   chooseMonetization: '3. Monetization Strategy',

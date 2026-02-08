@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem } from './types';
+import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId } from './types';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, MARKET_REFRESH_INTERVAL, FURNITURE_CATALOG } from './data-advanced';
 import { applyEconomy, calculateEconomy } from './engines/economy';
@@ -25,6 +25,8 @@ function createInitialState(): GameState {
       totalTimePlayed: 0,
     },
     business: {
+      companyName: 'My Company',
+      logoId: 'rocket' as LogoId,
       nicheId: null,
       nicheVariantId: null,
       productId: null,
@@ -87,6 +89,8 @@ function toGameState(s: GameStore | GameState): GameState {
 
 interface GameStore extends GameState {
   // Setup actions
+  setCompanyName: (name: string) => void;
+  setCompanyLogo: (logoId: LogoId) => void;
   setNiche: (nicheId: string) => void;
   setNicheVariant: (variantId: string | null) => void;
   setProduct: (productId: string) => void;
@@ -124,6 +128,14 @@ interface GameStore extends GameState {
 
 export const useGameStore = create<GameStore>((set, get) => ({
   ...createInitialState(),
+
+  setCompanyName: (name) => {
+    set(s => ({ business: { ...s.business, companyName: name } }));
+  },
+
+  setCompanyLogo: (logoId) => {
+    set(s => ({ business: { ...s.business, logoId } }));
+  },
 
   setNiche: (nicheId) => {
     set(s => ({ business: { ...s.business, nicheId, nicheVariantId: null } }));

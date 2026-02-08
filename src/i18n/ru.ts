@@ -11,6 +11,9 @@ export const ru: TranslationKeys = {
   // Setup Screen
   setupSubtitle: 'Постройте империю. Принимайте стратегические решения. Захватите рынок.',
   startingCapital: 'Стартовый капитал',
+  companyName: 'Название компании',
+  companyNamePlaceholder: 'Введите название компании...',
+  chooseLogo: 'Логотип',
   chooseNiche: '1. Выберите нишу',
   chooseProduct: '2. Выберите продукт',
   chooseMonetization: '3. Стратегия монетизации',

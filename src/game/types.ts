@@ -278,7 +278,11 @@ export interface BusinessMetrics {
   teamEfficiency: number;   // 0..1
 }
 
+export type LogoId = 'rocket' | 'zap' | 'shield' | 'diamond' | 'flame' | 'globe' | 'star' | 'crown' | 'target' | 'hexagon' | 'atom' | 'leaf';
+
 export interface Business {
+  companyName: string;
+  logoId: LogoId;
   nicheId: string | null;
   nicheVariantId: string | null;
   productId: string | null;
