@@ -89,6 +89,20 @@ export const ru: TranslationKeys = {
   researchTree: 'Дерево исследований',
   techCore: 'Технологическое ядро',
   marketingInfluence: 'Маркетинг и влияние',
+  operationsProcess: 'Операции и процессы',
+
+  // Employee Levels
+  employeeLevel: 'Уровень',
+  levelUp: 'Повышение!',
+
+  // Product Lifecycle
+  productStage: 'Стадия',
+  prototype: 'Прототип',
+  beta: 'Бета',
+  releaseStage: 'Релиз',
+  growthStage: 'Рост',
+  maturityStage: 'Зрелость',
+  declineStage: 'Упадок',
   done: 'Готово',
   researching: 'Исследуется',
   research: 'Исследовать',

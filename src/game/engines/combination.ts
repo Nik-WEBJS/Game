@@ -1,4 +1,4 @@
-import { GameState, CombinationResult } from '../types';
+import { GameState, CombinationResult, LIFECYCLE_REVENUE_MULT, EMPLOYEE_LEVEL_OUTPUT_MULT } from '../types';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS } from '../data';
 
 export function calculateCombination(state: GameState): CombinationResult {
@@ -36,7 +36,18 @@ export function calculateCombination(state: GameState): CombinationResult {
     }
   }
   synergyCount = Math.floor(synergyCount / 2); // each pair counted twice
-  const techSynergy = 1.0 + synergyCount * 0.1;
+  const techSynergy = 1.0 + synergyCount * 0.08;
+
+  // Tech tree bonuses from completed research
+  let ttQuality = 0;
+  let ttGrowth = 0;
+  let ttRisk = 0;
+  for (const node of business.techTree) {
+    if (!node.completed) continue;
+    ttQuality += node.effects.qualityMod ?? 0;
+    ttGrowth += node.effects.growthMod ?? 0;
+    ttRisk += node.effects.riskMod ?? 0;
+  }
 
   // Market modifier
   const marketAccess = market.accessModifier * market.demandMultiplier;
@@ -49,32 +60,49 @@ export function calculateCombination(state: GameState): CombinationResult {
     }
   }
 
-  // Quality = base product quality + tech bonuses + team efficiency, capped at 1
-  const teamEff = business.metrics.teamEfficiency || 0.5;
-  const quality = Math.min(1, product.quality + totalQualityBonus + teamEff * 0.2);
+  // Team efficiency with employee levels
+  const teamEff = business.metrics.teamEfficiency || 0.3;
+  const avgLevelMult = business.team.length > 0
+    ? business.team.reduce((s, m) => s + (EMPLOYEE_LEVEL_OUTPUT_MULT[(m.level || 1) - 1] ?? 1), 0) / business.team.length
+    : 1;
+
+  // Quality = base product quality + tech bonuses + team efficiency + tech tree
+  const quality = Math.min(1, Math.max(0,
+    product.quality + totalQualityBonus + teamEff * 0.15 * avgLevelMult + ttQuality
+  ));
 
   // Demand = baseDemand * productFit * marketAccess, capped at 1
   const demand = Math.min(1, baseDemand * productFit * marketAccess);
 
-  // Revenue = demand * quality * monetization efficiency * base scale
-  const BASE_REVENUE_SCALE = 50000;
-  const revenue = demand * quality * monetization.efficiency * techSynergy * BASE_REVENUE_SCALE;
+  // Product lifecycle revenue multiplier (from company products)
+  let lifecycleMult = 0;
+  if (business.companyProducts.length > 0) {
+    lifecycleMult = business.companyProducts.reduce((sum, cp) => {
+      return sum + (LIFECYCLE_REVENUE_MULT[cp.lifecycle] ?? 0);
+    }, 0) / business.companyProducts.length;
+  }
 
-  // Growth = revenue potential relative to current state
-  const growth = (demand * productFit * techSynergy - 0.5) * 0.1;
+  // Revenue = demand * quality * monetization * techSynergy * lifecycle * scale
+  // Much lower base scale — revenue must be earned through good product + team
+  const BASE_REVENUE_SCALE = 15000;
+  const revenue = demand * quality * monetization.efficiency * techSynergy * lifecycleMult * BASE_REVENUE_SCALE;
 
-  // Risk = complexity + growth aggression - ISO stabilization
-  const growthAggression = Math.max(0, growth) * 2;
+  // Growth = revenue potential relative to current state + tech tree growth
+  const growth = (demand * productFit * techSynergy - 0.5) * 0.08 + ttGrowth;
+
+  // Risk = complexity + growth aggression - ISO stabilization - tech tree risk reduction
+  const growthAggression = Math.max(0, growth) * 1.5;
   const teamLoad = business.team.length > 0
     ? business.team.reduce((sum, m) => sum + m.burnout, 0) / (business.team.length * 100)
-    : 0.2;
+    : 0.3;
   const risk = Math.max(0, Math.min(1,
     baseComplexity * 0.3
-    + totalComplexity * 0.5
+    + totalComplexity * 0.4
     + growthAggression
     + teamLoad * 0.3
     + monetization.riskModifier
     - isoStabilization
+    + ttRisk
   ));
 
   return { revenue, growth, risk, quality, demand };

@@ -72,6 +72,7 @@ export interface TeamMember {
   role: TeamRole;
   name: string;
   salary: number;
+  level: number;            // 1..5, employee skill level
   experience: number;       // 0..100
   burnout: number;          // 0..100, high = bad
   morale: number;           // 0..100
@@ -81,6 +82,11 @@ export interface TeamMember {
   zoneId: ZoneId | null;    // assigned office zone
   deskId: string | null;    // id of furniture item (desk) this employee is assigned to
 }
+
+// Employee level thresholds: experience needed to reach each level
+export const EMPLOYEE_LEVEL_THRESHOLDS = [0, 20, 45, 70, 90]; // level 1..5
+export const EMPLOYEE_LEVEL_SALARY_MULT = [1.0, 1.15, 1.35, 1.6, 2.0]; // salary multiplier per level
+export const EMPLOYEE_LEVEL_OUTPUT_MULT = [1.0, 1.25, 1.55, 1.9, 2.5]; // output multiplier per level
 
 // --- Employee Market ---
 export type CandidateRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
@@ -130,7 +136,27 @@ export interface BusinessStyleModifiers {
 }
 
 // --- Company Product (multi-product system) ---
-export type ProductLifecycle = 'mvp' | 'growth' | 'maturity' | 'decline';
+export type ProductLifecycle = 'prototype' | 'beta' | 'release' | 'growth' | 'maturity' | 'decline';
+
+// Weeks required per lifecycle stage
+export const LIFECYCLE_WEEKS: Record<ProductLifecycle, number> = {
+  prototype: 4,
+  beta: 3,
+  release: 0, // stays until manually advanced or auto
+  growth: 0,
+  maturity: 0,
+  decline: 0,
+};
+
+// Revenue multiplier per lifecycle stage
+export const LIFECYCLE_REVENUE_MULT: Record<ProductLifecycle, number> = {
+  prototype: 0,
+  beta: 0.15,   // early-access revenue
+  release: 0.7,
+  growth: 1.0,
+  maturity: 0.85,
+  decline: 0.5,
+};
 export type CompanyProductType = 'saas' | 'app' | 'media' | 'platform';
 
 export interface CompanyProduct {
@@ -146,7 +172,7 @@ export interface CompanyProduct {
 }
 
 // --- Technology / Influence Tree ---
-export type TechBranch = 'tech_core' | 'marketing_influence';
+export type TechBranch = 'tech_core' | 'marketing_influence' | 'operations_process';
 
 export interface TechTreeNode {
   id: string;

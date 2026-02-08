@@ -1,4 +1,4 @@
-import { GameState, TeamMember, TeamRole, MarketCandidate, OFFICE_LEVELS } from '../types';
+import { GameState, TeamMember, TeamRole, MarketCandidate, OFFICE_LEVELS, EMPLOYEE_LEVEL_THRESHOLDS, EMPLOYEE_LEVEL_SALARY_MULT } from '../types';
 import { generateTeamMemberName, ROLE_SALARIES } from '../data';
 
 let nextTeamId = 1;
@@ -8,7 +8,8 @@ export function createTeamMember(role: TeamRole): TeamMember {
     id: `team_${nextTeamId++}`,
     role,
     name: generateTeamMemberName(),
-    salary: ROLE_SALARIES[role] || 3000,
+    salary: ROLE_SALARIES[role] || 2000,
+    level: 1,
     experience: 20 + Math.floor(Math.random() * 30),
     burnout: 0,
     morale: 70 + Math.floor(Math.random() * 20),
@@ -32,6 +33,7 @@ export function hireFromMarket(state: GameState, candidateId: string): GameState
     role: candidate.role,
     name: candidate.name,
     salary: candidate.salary,
+    level: 1,
     experience: candidate.experience,
     burnout: 0,
     morale: 75,
@@ -184,8 +186,22 @@ export function tickTeam(state: GameState): GameState {
     const burnoutEffect = newBurnout > 60 ? -3 : newBurnout > 30 ? -1 : 1;
     const newMorale = Math.max(10, Math.min(100, member.morale + profitEffect + burnoutEffect));
 
+    // Level up check
+    let newLevel = member.level;
+    for (let i = EMPLOYEE_LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+      if (newExp >= EMPLOYEE_LEVEL_THRESHOLDS[i]) {
+        newLevel = i + 1;
+        break;
+      }
+    }
+    // Salary increases with level
+    const baseSalary = ROLE_SALARIES[member.role] || 2000;
+    const newSalary = Math.round(baseSalary * EMPLOYEE_LEVEL_SALARY_MULT[newLevel - 1]);
+
     return {
       ...member,
+      level: newLevel,
+      salary: newSalary,
       experience: newExp,
       burnout: Math.round(newBurnout),
       morale: Math.round(newMorale),

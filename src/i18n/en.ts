@@ -87,6 +87,20 @@ export const en = {
   researchTree: 'Research Tree',
   techCore: 'Technology Core',
   marketingInfluence: 'Marketing & Influence',
+  operationsProcess: 'Operations & Process',
+
+  // Employee Levels
+  employeeLevel: 'Level',
+  levelUp: 'Level Up!',
+
+  // Product Lifecycle
+  productStage: 'Stage',
+  prototype: 'Prototype',
+  beta: 'Beta',
+  releaseStage: 'Release',
+  growthStage: 'Growth',
+  maturityStage: 'Maturity',
+  declineStage: 'Decline',
   done: 'Done',
   researching: 'Researching',
   research: 'Research',

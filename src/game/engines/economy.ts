@@ -13,7 +13,7 @@ export function calculateEconomy(state: GameState): BusinessMetrics {
   const teamSalaries = business.team.reduce((sum, m) => sum + m.salary, 0);
 
   const adoptedTechs = TECHNOLOGIES.filter(t => business.technologies.includes(t.id));
-  const infrastructure = adoptedTechs.reduce((sum, t) => sum + t.cost * 0.1, 0); // 10% of cost per turn
+  const infrastructure = adoptedTechs.reduce((sum, t) => sum + t.cost * 0.03, 0); // 3% of cost per turn
 
   const isoMaintenance = business.isoStandards
     .filter(iso => iso.currentStage !== 'none')
@@ -22,7 +22,7 @@ export function calculateEconomy(state: GameState): BusinessMetrics {
       return sum + iso.maintenanceCost * 0.5; // half cost during implementation
     }, 0);
 
-  const techComplexityCost = adoptedTechs.reduce((sum, t) => sum + t.complexityAdd * 2000, 0);
+  const techComplexityCost = adoptedTechs.reduce((sum, t) => sum + t.complexityAdd * 500, 0);
 
   const costs = teamSalaries + infrastructure + isoMaintenance + techComplexityCost;
 

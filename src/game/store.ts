@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS } from './types';
+import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT } from './types';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, MARKET_REFRESH_INTERVAL, FURNITURE_CATALOG } from './data-advanced';
 import { applyEconomy, calculateEconomy } from './engines/economy';
@@ -7,8 +7,9 @@ import { tickISO, startISO, advanceISO, canStartISO, canAdvanceISO } from './eng
 import { rollEvents, applyEvents } from './engines/events';
 import { tickTeam, hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone, assignDesk } from './engines/team';
 import { checkWinLose, gainExperience } from './engines/progression';
+import { tickProducts, createInitialProduct } from './engines/product';
 
-const INITIAL_MONEY = 50000;
+const INITIAL_MONEY = 25000;
 
 function createInitialState(): GameState {
   return {
@@ -16,8 +17,8 @@ function createInitialState(): GameState {
       money: INITIAL_MONEY,
       reputation: 50,
       experience: 0,
-      unlockedNiches: ['fintech', 'healthtech', 'edtech'],
-      unlockedProducts: ['saas_platform', 'mobile_app', 'marketplace'],
+      unlockedNiches: ['fintech', 'healthtech', 'edtech', 'gamedev', 'ecommerce', 'cybersec'],
+      unlockedProducts: ['saas_platform', 'mobile_app', 'marketplace', 'api_service', 'desktop_app'],
       unlockedTechnologies: ['cloud_infra', 'microservices', 'ai_ml', 'blockchain', 'cybersecurity'],
       currentWeek: 0,
       gameSpeed: 0 as GameSpeed,
@@ -191,13 +192,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
   startGame: () => {
     const state = get();
     if (!state.business.nicheId || !state.business.productId || !state.business.monetizationId) return;
-    const gs = toGameState({ ...state, phase: 'playing', activeEvents: [], weekHistory: [] });
+    // Create initial company product in prototype stage
+    const productDef = PRODUCTS.find(p => p.id === state.business.productId);
+    const initialProduct = createInitialProduct(
+      state.business.productId!,
+      productDef?.name ?? 'My Product',
+      state.business.monetizationId!,
+    );
+    const gs = toGameState({
+      ...state,
+      phase: 'playing',
+      activeEvents: [],
+      weekHistory: [],
+      business: { ...state.business, companyProducts: [initialProduct] },
+    });
     const withEconomy = applyEconomy(gs);
     set({
       ...withEconomy,
       phase: 'playing',
       player: { ...withEconomy.player, currentWeek: 1, gameSpeed: 1 as GameSpeed, weekProgress: 0, totalTimePlayed: 0 },
-      logs: [...withEconomy.logs, { week: 1, message: '🚀 Your business is launched! Good luck!', type: 'success' }],
+      logs: [...withEconomy.logs, { week: 1, message: '🚀 Your business is launched! Your product starts in prototype stage.', type: 'success' }],
     });
   },
 
@@ -226,6 +240,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       gs = { ...gs, player: { ...gs.player, currentWeek: gs.player.currentWeek + 1, weekProgress: newProgress - 1, totalTimePlayed: newTotalTime } };
 
       gs = tickTeam(gs);
+      gs = tickProducts(gs);
       gs = tickISO(gs);
       gs = applyEconomy(gs);
 
@@ -432,8 +447,9 @@ function tickEmployeePointGeneration(state: GameState, weekFraction: number): Ga
     const desk = state.business.furniture.find(f => f.id === member.deskId && f.position);
     if (!desk) continue;
 
+    const levelMult = EMPLOYEE_LEVEL_OUTPUT_MULT[(member.level || 1) - 1] ?? 1;
     const efficiency = (member.experience / 100) * (1 - member.burnout / 200) * (member.morale / 100);
-    const output = POINTS_PER_WEEK * weekFraction * efficiency * (1 + member.talent);
+    const output = POINTS_PER_WEEK * weekFraction * efficiency * (1 + member.talent) * levelMult;
 
     switch (member.zoneId) {
       case 'development':

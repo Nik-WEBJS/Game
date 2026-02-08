@@ -33,6 +33,33 @@ export const NICHES: Niche[] = [
     trendDecayRate: 0.004,
     unlocked: true,
   },
+  {
+    id: 'gamedev',
+    name: 'GameDev',
+    description: 'Game development — mobile, PC, console games.',
+    baseDemand: 0.75,
+    baseComplexity: 0.55,
+    trendDecayRate: 0.006,
+    unlocked: true,
+  },
+  {
+    id: 'ecommerce',
+    name: 'E-Commerce',
+    description: 'Online retail — storefronts, logistics, delivery.',
+    baseDemand: 0.8,
+    baseComplexity: 0.45,
+    trendDecayRate: 0.004,
+    unlocked: true,
+  },
+  {
+    id: 'cybersec',
+    name: 'CyberSecurity',
+    description: 'Security solutions — threat detection, compliance, audits.',
+    baseDemand: 0.6,
+    baseComplexity: 0.7,
+    trendDecayRate: 0.002,
+    unlocked: true,
+  },
 ];
 
 // ============================================================
@@ -43,24 +70,40 @@ export const PRODUCTS: Product[] = [
     id: 'saas_platform',
     name: 'SaaS Platform',
     description: 'Cloud-based subscription software.',
-    quality: 0.5,
-    nicheFit: { fintech: 1.4, healthtech: 1.1, edtech: 1.3 },
+    quality: 0.3,
+    nicheFit: { fintech: 1.4, healthtech: 1.1, edtech: 1.3, gamedev: 0.6, ecommerce: 1.2, cybersec: 1.3 },
     monetizationEfficiency: 0.7,
   },
   {
     id: 'mobile_app',
     name: 'Mobile App',
     description: 'Consumer-facing mobile application.',
-    quality: 0.5,
-    nicheFit: { fintech: 1.0, healthtech: 1.4, edtech: 1.2 },
+    quality: 0.25,
+    nicheFit: { fintech: 1.0, healthtech: 1.4, edtech: 1.2, gamedev: 1.5, ecommerce: 1.1, cybersec: 0.7 },
     monetizationEfficiency: 0.6,
   },
   {
     id: 'marketplace',
     name: 'Marketplace',
     description: 'Two-sided platform connecting buyers and sellers.',
-    quality: 0.5,
-    nicheFit: { fintech: 1.1, healthtech: 0.9, edtech: 1.5 },
+    quality: 0.25,
+    nicheFit: { fintech: 1.1, healthtech: 0.9, edtech: 1.5, gamedev: 0.8, ecommerce: 1.6, cybersec: 0.5 },
+    monetizationEfficiency: 0.65,
+  },
+  {
+    id: 'api_service',
+    name: 'API Service',
+    description: 'Developer-facing API and SDK platform.',
+    quality: 0.3,
+    nicheFit: { fintech: 1.3, healthtech: 1.0, edtech: 0.8, gamedev: 1.0, ecommerce: 1.1, cybersec: 1.5 },
+    monetizationEfficiency: 0.75,
+  },
+  {
+    id: 'desktop_app',
+    name: 'Desktop Application',
+    description: 'Native desktop software for power users.',
+    quality: 0.35,
+    nicheFit: { fintech: 1.0, healthtech: 0.8, edtech: 1.0, gamedev: 1.3, ecommerce: 0.6, cybersec: 1.4 },
     monetizationEfficiency: 0.65,
   },
 ];
@@ -128,6 +171,22 @@ export const MARKETS: Market[] = [
     demandMultiplier: 1.0,
     isoRequired: [],
   },
+  {
+    id: 'europe',
+    name: 'European Market',
+    description: 'EU market. High demand, requires ISO compliance.',
+    accessModifier: 0.8,
+    demandMultiplier: 1.4,
+    isoRequired: ['iso_9001'],
+  },
+  {
+    id: 'asia',
+    name: 'Asian Market',
+    description: 'Fast-growing Asian markets. High competition, huge potential.',
+    accessModifier: 0.6,
+    demandMultiplier: 1.8,
+    isoRequired: [],
+  },
 ];
 
 // ============================================================
@@ -137,23 +196,37 @@ export const MONETIZATIONS: MonetizationStrategy[] = [
   {
     id: 'subscription',
     name: 'Subscription (SaaS)',
-    description: 'Recurring monthly/annual fees.',
+    description: 'Recurring monthly/annual fees. Stable, predictable.',
     efficiency: 0.75,
     riskModifier: -0.05,
   },
   {
     id: 'freemium',
     name: 'Freemium',
-    description: 'Free base + paid premium features.',
-    efficiency: 0.55,
+    description: 'Free base + paid premium features. High reach, low conversion.',
+    efficiency: 0.45,
     riskModifier: 0.05,
   },
   {
     id: 'transaction_fee',
     name: 'Transaction Fee',
-    description: 'Take a cut of each transaction.',
+    description: 'Take a cut of each transaction. Scales with volume.',
     efficiency: 0.65,
     riskModifier: 0.0,
+  },
+  {
+    id: 'advertising',
+    name: 'Advertising',
+    description: 'Ad-supported model. Free for users, revenue from impressions.',
+    efficiency: 0.35,
+    riskModifier: 0.1,
+  },
+  {
+    id: 'licensing',
+    name: 'Enterprise Licensing',
+    description: 'Sell licenses to businesses. High revenue per deal, slow sales.',
+    efficiency: 0.85,
+    riskModifier: -0.08,
   },
 ];
 
@@ -321,11 +394,11 @@ export function generateTeamMemberName(): string {
 }
 
 export const ROLE_SALARIES: Record<string, number> = {
-  developer: 4000,
-  manager: 3500,
-  qa: 3000,
-  security: 3800,
-  marketing: 3200,
+  developer: 1200,
+  manager: 1000,
+  qa: 800,
+  security: 1100,
+  marketing: 900,
 };
 
 export const ROLE_LABELS: Record<string, string> = {
