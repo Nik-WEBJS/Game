@@ -61,7 +61,7 @@ export function OfficeModel({
   );
 }
 
-// --- Floor ---
+// --- Floor with tile pattern ---
 function Floor({ width, depth, isoState }: { width: number; depth: number; isoState: ISOVisualState }) {
   const floorColor = useMemo(() => {
     switch (isoState) {
@@ -72,18 +72,50 @@ function Floor({ width, depth, isoState }: { width: number; depth: number; isoSt
     }
   }, [isoState]);
 
+  const floorColor2 = useMemo(() => {
+    switch (isoState) {
+      case 'certified': return '#24242e';
+      case 'in_progress': return '#20202a';
+      case 'problem': return '#281f1f';
+      default: return '#1d1d22';
+    }
+  }, [isoState]);
+
+  // Generate tile grid
+  const tileSize = 1;
+  const tilesX = Math.ceil(width / tileSize);
+  const tilesZ = Math.ceil(depth / tileSize);
+
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-      <planeGeometry args={[width, depth]} />
-      <meshStandardMaterial color={floorColor} roughness={0.9} />
-    </mesh>
+    <group>
+      {/* Base floor */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
+        <planeGeometry args={[width, depth]} />
+        <meshStandardMaterial color={floorColor} roughness={0.9} />
+      </mesh>
+      {/* Tile pattern overlay */}
+      {Array.from({ length: tilesX }, (_, ix) =>
+        Array.from({ length: tilesZ }, (_, iz) => {
+          const isAlt = (ix + iz) % 2 === 0;
+          const x = -width / 2 + ix * tileSize + tileSize / 2;
+          const z = -depth / 2 + iz * tileSize + tileSize / 2;
+          return (
+            <mesh key={`tile-${ix}-${iz}`} rotation={[-Math.PI / 2, 0, 0]} position={[x, -0.01, z]} receiveShadow>
+              <planeGeometry args={[tileSize - 0.02, tileSize - 0.02]} />
+              <meshStandardMaterial color={isAlt ? floorColor : floorColor2} roughness={0.85} />
+            </mesh>
+          );
+        })
+      )}
+    </group>
   );
 }
 
-// --- Walls ---
+// --- Walls with windows and baseboards ---
 function Walls({ width, depth }: { width: number; depth: number }) {
   const wallHeight = 3;
   const wallColor = '#1a1a22';
+  const windowCount = Math.max(2, Math.floor(width / 3));
 
   return (
     <group>
@@ -102,6 +134,84 @@ function Walls({ width, depth }: { width: number; depth: number }) {
         <boxGeometry args={[0.1, wallHeight, depth]} />
         <meshStandardMaterial color={wallColor} roughness={0.85} />
       </mesh>
+
+      {/* Baseboard trim — back wall */}
+      <mesh position={[0, 0.05, -depth / 2 + 0.06]}>
+        <boxGeometry args={[width, 0.1, 0.02]} />
+        <meshStandardMaterial color="#27272a" roughness={0.6} />
+      </mesh>
+      {/* Baseboard trim — left wall */}
+      <mesh position={[-width / 2 + 0.06, 0.05, 0]}>
+        <boxGeometry args={[0.02, 0.1, depth]} />
+        <meshStandardMaterial color="#27272a" roughness={0.6} />
+      </mesh>
+      {/* Baseboard trim — right wall */}
+      <mesh position={[width / 2 - 0.06, 0.05, 0]}>
+        <boxGeometry args={[0.02, 0.1, depth]} />
+        <meshStandardMaterial color="#27272a" roughness={0.6} />
+      </mesh>
+
+      {/* Windows on back wall */}
+      {Array.from({ length: windowCount }, (_, i) => {
+        const x = -width / 2 + (i + 0.5) * (width / windowCount);
+        return (
+          <group key={`win-${i}`} position={[x, 1.8, -depth / 2 + 0.06]}>
+            {/* Window frame */}
+            <mesh>
+              <boxGeometry args={[1.0, 1.2, 0.02]} />
+              <meshStandardMaterial color="#334155" roughness={0.3} metalness={0.4} />
+            </mesh>
+            {/* Glass pane */}
+            <mesh position={[0, 0, 0.01]}>
+              <boxGeometry args={[0.9, 1.1, 0.005]} />
+              <meshStandardMaterial
+                color="#60a5fa"
+                transparent
+                opacity={0.12}
+                roughness={0.05}
+                metalness={0.3}
+              />
+            </mesh>
+            {/* Window cross divider — horizontal */}
+            <mesh position={[0, 0, 0.015]}>
+              <boxGeometry args={[0.9, 0.02, 0.01]} />
+              <meshStandardMaterial color="#475569" roughness={0.3} metalness={0.4} />
+            </mesh>
+            {/* Window cross divider — vertical */}
+            <mesh position={[0, 0, 0.015]}>
+              <boxGeometry args={[0.02, 1.1, 0.01]} />
+              <meshStandardMaterial color="#475569" roughness={0.3} metalness={0.4} />
+            </mesh>
+            {/* Window sill */}
+            <mesh position={[0, -0.62, 0.04]}>
+              <boxGeometry args={[1.05, 0.03, 0.08]} />
+              <meshStandardMaterial color="#3f3f46" roughness={0.5} metalness={0.3} />
+            </mesh>
+            {/* Daylight glow from window */}
+            <pointLight position={[0, 0, 0.3]} color="#bfdbfe" intensity={0.12} distance={4} />
+          </group>
+        );
+      })}
+
+      {/* Ceiling lights (fluorescent panels) */}
+      {Array.from({ length: Math.max(2, Math.floor(width / 4)) }, (_, i) => {
+        const x = -width / 2 + (i + 0.5) * (width / Math.max(2, Math.floor(width / 4)));
+        return (
+          <group key={`ceil-${i}`} position={[x, wallHeight - 0.05, 0]}>
+            {/* Light panel housing */}
+            <mesh>
+              <boxGeometry args={[0.8, 0.04, 0.3]} />
+              <meshStandardMaterial color="#d4d4d8" roughness={0.3} metalness={0.2} />
+            </mesh>
+            {/* Light surface */}
+            <mesh position={[0, -0.025, 0]}>
+              <boxGeometry args={[0.75, 0.005, 0.25]} />
+              <meshStandardMaterial color="#f8fafc" emissive="#f8fafc" emissiveIntensity={0.3} roughness={0.1} />
+            </mesh>
+            <pointLight position={[0, -0.2, 0]} color="#f1f5f9" intensity={0.25} distance={5} />
+          </group>
+        );
+      })}
     </group>
   );
 }
