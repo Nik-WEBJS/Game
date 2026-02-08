@@ -26,13 +26,78 @@ export const ru: TranslationKeys = {
   quality: 'Качество',
   cost: 'Стоимость',
 
-  // Dashboard Tabs
+  // Dashboard Tabs / Menu
   tabOverview: 'Обзор',
   tabTeam: 'Команда',
   tabTech: 'Технологии',
   tabISO: 'ISO',
   tabLog: 'Журнал',
+  tabMarket: 'Рынок',
+  tabResearch: 'Исследования',
+  tabOffice: 'Офис',
   nextWeek: 'Следующая неделя',
+
+  // Time Controls
+  weekShort: 'Н',
+  paused: 'Пауза',
+  speed1x: '1x',
+  speed2x: '2x',
+  speed3x: '3x',
+
+  // Furniture
+  furniture: 'Мебель',
+  buy: 'Купить',
+  place: 'Поставить',
+  move: 'Переместить',
+  unplace: 'Убрать',
+  owned: 'В наличии',
+  placementMode: 'Нажмите на сетку, чтобы разместить мебель',
+  noFurniture: 'Мебели пока нет. Купите что-нибудь!',
+  desk: 'Стол',
+  meetingRoom: 'Переговорная',
+  serverRoom: 'Серверная',
+  lounge: 'Зона отдыха',
+  stage: 'Сцена',
+
+  // Employee-Desk
+  noDesk: 'Нет стола',
+  occupied: 'занято',
+  noZone: 'Нет зоны',
+
+  // Language
+  language: 'Язык',
+
+  // Market Panel
+  employeeMarket: 'Рынок сотрудников',
+  refreshesIn: (weeks: number) => `Обновление через ${weeks} нед.`,
+  noCandidates: 'Нет кандидатов. Дождитесь обновления рынка.',
+  talent: 'Талант',
+  resist: 'Стойкость',
+  salary: 'Зарплата',
+  hireFor: 'Нанять',
+
+  // Rarity
+  common: 'обычный',
+  uncommon: 'необычный',
+  rare: 'редкий',
+  legendary: 'легендарный',
+
+  // Research / Tech Tree
+  researchTree: 'Дерево исследований',
+  techCore: 'Технологическое ядро',
+  marketingInfluence: 'Маркетинг и влияние',
+  done: 'Готово',
+  researching: 'Исследуется',
+  research: 'Исследовать',
+  repRequired: (rep: number) => `Реп. ≥ ${rep}`,
+  weeksShort: (w: number) => `${w}н`,
+
+  // Furniture Panel
+  officeCustomization: 'Обустройство офиса',
+  clickToPlace: 'Нажмите на зелёную клетку в офисе, чтобы разместить предмет',
+  placed: 'Размещено',
+  removeFromOffice: 'Убрать из офиса',
+  shop: 'Магазин',
 
   // Metrics Panel
   businessMetrics: 'Метрики бизнеса',

@@ -24,13 +24,78 @@ export const en = {
   quality: 'Quality',
   cost: 'Cost',
 
-  // Dashboard Tabs
+  // Dashboard Tabs / Menu
   tabOverview: 'Overview',
   tabTeam: 'Team',
   tabTech: 'Tech',
   tabISO: 'ISO',
   tabLog: 'Log',
+  tabMarket: 'Market',
+  tabResearch: 'Research',
+  tabOffice: 'Office',
   nextWeek: 'Next Week',
+
+  // Time Controls
+  weekShort: 'W',
+  paused: 'Paused',
+  speed1x: '1x',
+  speed2x: '2x',
+  speed3x: '3x',
+
+  // Furniture
+  furniture: 'Furniture',
+  buy: 'Buy',
+  place: 'Place',
+  move: 'Move',
+  unplace: 'Remove',
+  owned: 'Owned',
+  placementMode: 'Click on the grid to place furniture',
+  noFurniture: 'No furniture yet. Buy some!',
+  desk: 'Desk',
+  meetingRoom: 'Meeting Room',
+  serverRoom: 'Server Room',
+  lounge: 'Lounge',
+  stage: 'Stage',
+
+  // Employee-Desk
+  noDesk: 'No desk',
+  occupied: 'occupied',
+  noZone: 'No zone',
+
+  // Language
+  language: 'Language',
+
+  // Market Panel
+  employeeMarket: 'Employee Market',
+  refreshesIn: (weeks: number) => `Refreshes in ${weeks} weeks`,
+  noCandidates: 'No candidates available. Wait for market refresh.',
+  talent: 'Talent',
+  resist: 'Resist',
+  salary: 'Salary',
+  hireFor: 'Hire',
+
+  // Rarity
+  common: 'common',
+  uncommon: 'uncommon',
+  rare: 'rare',
+  legendary: 'legendary',
+
+  // Research / Tech Tree
+  researchTree: 'Research Tree',
+  techCore: 'Technology Core',
+  marketingInfluence: 'Marketing & Influence',
+  done: 'Done',
+  researching: 'Researching',
+  research: 'Research',
+  repRequired: (rep: number) => `Rep ≥ ${rep}`,
+  weeksShort: (w: number) => `${w}w`,
+
+  // Furniture Panel
+  officeCustomization: 'Office Customization',
+  clickToPlace: 'Click a green cell in the office to place the item',
+  placed: 'Placed',
+  removeFromOffice: 'Remove from office',
+  shop: 'Shop',
 
   // Metrics Panel
   businessMetrics: 'Business Metrics',

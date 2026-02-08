@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '@/game/store';
-import { useI18n } from '@/i18n';
+import { useI18n, Locale } from '@/i18n';
 import { eventTitle as getEventTitle, eventDesc as getEventDesc, roleName, isoName } from '@/i18n/game-text';
 import { ToastContainer, pushToast } from '@/components/ui/toast';
 import { GameLoop } from './GameLoop';
 import { TimeControls } from './TimeControls';
-import { TopBar } from './TopBar';
 import { MetricsPanel } from './MetricsPanel';
 import { TeamPanel } from './TeamPanel';
 import { ISOPanel } from './ISOPanel';
@@ -18,19 +17,34 @@ import { MarketPanel } from './MarketPanel';
 import { TechTreePanel } from './TechTreePanel';
 import { FurniturePanel } from './FurniturePanel';
 import { OfficeScene } from '@/office/OfficeScene';
+import { subscribePlacement, furniturePlacement } from '@/office/furnitureState';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { formatMoney } from '@/lib/utils';
 import {
-  BarChart3, Users, ClipboardCheck, Cpu, ScrollText, Building2,
-  ShoppingBag, FlaskConical, Armchair,
+  BarChart3, Users, ClipboardCheck, Cpu, ScrollText,
+  ShoppingBag, FlaskConical, Armchair, X, DollarSign, Star, Globe,
 } from 'lucide-react';
 
-type Tab = 'overview' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log';
+type MenuId = 'overview' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log' | null;
+
+type MenuItem = { id: Exclude<MenuId, null>; icon: typeof BarChart3; color: string; labelKey: string };
+
+const MENU_ITEMS: MenuItem[] = [
+  { id: 'overview', icon: BarChart3, color: 'from-emerald-500 to-emerald-700', labelKey: 'tabOverview' },
+  { id: 'team', icon: Users, color: 'from-cyan-500 to-cyan-700', labelKey: 'tabTeam' },
+  { id: 'market', icon: ShoppingBag, color: 'from-purple-500 to-purple-700', labelKey: 'tabMarket' },
+  { id: 'tech', icon: Cpu, color: 'from-blue-500 to-blue-700', labelKey: 'tabTech' },
+  { id: 'research', icon: FlaskConical, color: 'from-indigo-500 to-indigo-700', labelKey: 'tabResearch' },
+  { id: 'iso', icon: ClipboardCheck, color: 'from-amber-500 to-amber-700', labelKey: 'tabISO' },
+  { id: 'office', icon: Armchair, color: 'from-orange-500 to-orange-700', labelKey: 'tabOffice' },
+  { id: 'log', icon: ScrollText, color: 'from-zinc-400 to-zinc-600', labelKey: 'tabLog' },
+];
 
 export function GameDashboard() {
   const { player, activeEvents } = useGameStore();
-  const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const { t, locale, setLocale } = useI18n();
+  const [openMenu, setOpenMenu] = useState<MenuId>(null);
   const prevEventsRef = useRef<string[]>([]);
 
   // Push toast notifications when new events appear
@@ -47,161 +61,192 @@ export function GameDashboard() {
     prevEventsRef.current = activeEvents.map(e => e.id);
   }, [activeEvents, t]);
 
-  const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: 'overview', label: t.tabOverview, icon: BarChart3 },
-    { id: 'team', label: t.tabTeam, icon: Users },
-    { id: 'market', label: 'Market', icon: ShoppingBag },
-    { id: 'tech', label: t.tabTech, icon: Cpu },
-    { id: 'research', label: 'Research', icon: FlaskConical },
-    { id: 'iso', label: t.tabISO, icon: ClipboardCheck },
-    { id: 'office', label: 'Office', icon: Armchair },
-    { id: 'log', label: t.tabLog, icon: ScrollText },
-  ];
+  // ESC to close modal
+  useEffect(() => {
+    if (!openMenu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenMenu(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [openMenu]);
+
+  // Close modal when furniture placement starts
+  useEffect(() => {
+    return subscribePlacement(() => {
+      if (furniturePlacement.active) setOpenMenu(null);
+    });
+  }, []);
+
+  const toggleMenu = useCallback((id: Exclude<MenuId, null>) => {
+    setOpenMenu(prev => prev === id ? null : id);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
+    <div className="h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden relative">
       {/* Real-time game loop */}
       <GameLoop />
       <ToastContainer />
-      <TopBar />
 
-      {/* Office view — always visible, Game Dev Tycoon style */}
-      <div className="flex-shrink-0">
+      {/* Full-screen office view */}
+      <div className="absolute inset-0">
         <OfficeScene />
       </div>
 
-      {/* Bottom bar: tabs + time controls */}
-      <div className="flex-shrink-0 bg-zinc-900/95 border-t border-zinc-700/50 backdrop-blur-sm">
-        <div className="max-w-[1600px] mx-auto px-4 py-2 flex items-center justify-between">
-          {/* Tab buttons */}
-          <div className="flex gap-0.5">
-            {TABS.map(tab => {
-              const Icon = tab.icon;
+      {/* Top HUD — money, reputation, round menu buttons */}
+      <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
+        <div className="flex items-start justify-between px-4 pt-3">
+          {/* Left: stats */}
+          <div className="pointer-events-auto flex items-center gap-3">
+            <div className="flex items-center gap-1.5 bg-zinc-900/70 backdrop-blur-md rounded-full px-3 py-1.5 border border-zinc-700/40">
+              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-sm font-semibold text-emerald-400">{formatMoney(player.money)}</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-zinc-900/70 backdrop-blur-md rounded-full px-3 py-1.5 border border-zinc-700/40">
+              <Star className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-sm font-semibold text-amber-400">{player.reputation}</span>
+            </div>
+          </div>
+
+          {/* Center: round menu buttons */}
+          <div className="pointer-events-auto flex items-center gap-2">
+            {MENU_ITEMS.map(item => {
+              const Icon = item.icon;
+              const isActive = openMenu === item.id;
               return (
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all min-w-[56px] ${
-                    activeTab === tab.id
-                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 border border-transparent'
+                  key={item.id}
+                  onClick={() => toggleMenu(item.id)}
+                  className={`group relative w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 border-2 shadow-lg ${
+                    isActive
+                      ? `bg-gradient-to-br ${item.color} border-white/30 scale-110 shadow-xl`
+                      : 'bg-zinc-900/70 backdrop-blur-md border-zinc-600/40 hover:border-zinc-400/60 hover:scale-105'
                   }`}
+                  title={(t as any)[item.labelKey]}
                 >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`} />
+                  {/* Label tooltip on hover */}
+                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-medium text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                    {(t as any)[item.labelKey]}
+                  </span>
                 </button>
               );
             })}
           </div>
 
-          {/* Time controls */}
-          <TimeControls />
-        </div>
-      </div>
-
-      {/* Scrollable panel content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[1600px] mx-auto px-4 py-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {activeTab === 'overview' && (
-              <>
-                <div className="lg:col-span-2 space-y-4">
-                  <MetricsPanel />
-                  <EventLog />
-                </div>
-                <div className="space-y-4">
-                  <BusinessInfo />
-                  <QuickStats />
-                </div>
-              </>
-            )}
-
-            {activeTab === 'team' && (
-              <>
-                <div className="lg:col-span-2">
-                  <TeamPanel />
-                </div>
-                <div className="space-y-4">
-                  <BusinessInfo />
-                  <MetricsPanel />
-                </div>
-              </>
-            )}
-
-            {activeTab === 'tech' && (
-              <>
-                <div className="lg:col-span-2">
-                  <TechPanel />
-                </div>
-                <div className="space-y-4">
-                  <BusinessInfo />
-                  <MetricsPanel />
-                </div>
-              </>
-            )}
-
-            {activeTab === 'iso' && (
-              <>
-                <div className="lg:col-span-2">
-                  <ISOPanel />
-                </div>
-                <div className="space-y-4">
-                  <BusinessInfo />
-                  <MetricsPanel />
-                </div>
-              </>
-            )}
-
-            {activeTab === 'market' && (
-              <>
-                <div className="lg:col-span-2">
-                  <MarketPanel />
-                </div>
-                <div className="space-y-4">
-                  <BusinessInfo />
-                  <MetricsPanel />
-                </div>
-              </>
-            )}
-
-            {activeTab === 'research' && (
-              <>
-                <div className="lg:col-span-2">
-                  <TechTreePanel />
-                </div>
-                <div className="space-y-4">
-                  <BusinessInfo />
-                  <MetricsPanel />
-                </div>
-              </>
-            )}
-
-            {activeTab === 'office' && (
-              <>
-                <div className="lg:col-span-2 space-y-4">
-                  <FurniturePanel />
-                </div>
-                <div className="space-y-4">
-                  <BusinessInfo />
-                  <MetricsPanel />
-                </div>
-              </>
-            )}
-
-            {activeTab === 'log' && (
-              <>
-                <div className="lg:col-span-2">
-                  <EventLog />
-                </div>
-                <div className="space-y-4">
-                  <BusinessInfo />
-                  <MetricsPanel />
-                </div>
-              </>
-            )}
+          {/* Right: time controls + language */}
+          <div className="pointer-events-auto flex items-center gap-2">
+            <TimeControls />
+            <button
+              onClick={() => setLocale(locale === 'en' ? 'ru' : 'en')}
+              className="flex items-center gap-1.5 bg-zinc-900/70 backdrop-blur-md rounded-full px-2.5 py-1.5 border border-zinc-700/40 hover:border-zinc-500/60 transition-all"
+              title={t.language}
+            >
+              <Globe className="w-3.5 h-3.5 text-zinc-400" />
+              <span className="text-xs font-semibold text-zinc-300">{t.lang}</span>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Glassmorphism modal overlay */}
+      {openMenu && (
+        <div
+          className="absolute inset-0 z-30 flex items-center justify-center"
+          onClick={(e) => { if (e.target === e.currentTarget) setOpenMenu(null); }}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+          {/* Modal panel */}
+          <div className="relative w-[90%] max-w-[1100px] max-h-[80vh] rounded-2xl overflow-hidden border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Glassmorphism background */}
+            <div className="absolute inset-0 bg-zinc-900/60 backdrop-blur-xl" />
+
+            {/* Header */}
+            <div className="relative flex items-center justify-between px-6 py-4 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                {(() => {
+                  const item = MENU_ITEMS.find(m => m.id === openMenu);
+                  if (!item) return null;
+                  const Icon = item.icon;
+                  return (
+                    <>
+                      <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${item.color} flex items-center justify-center`}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <h2 className="text-lg font-semibold text-zinc-100">{(t as any)[item.labelKey]}</h2>
+                    </>
+                  );
+                })()}
+              </div>
+              <button
+                onClick={() => setOpenMenu(null)}
+                className="w-8 h-8 rounded-full bg-zinc-800/60 hover:bg-zinc-700/80 flex items-center justify-center transition-colors border border-zinc-600/30"
+              >
+                <X className="w-4 h-4 text-zinc-400" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="relative overflow-y-auto max-h-[calc(80vh-64px)] p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {openMenu === 'overview' && (
+                  <>
+                    <div className="lg:col-span-2 space-y-4">
+                      <MetricsPanel />
+                      <BusinessInfo />
+                    </div>
+                    <div className="space-y-4">
+                      <QuickStats />
+                      <EventLog />
+                    </div>
+                  </>
+                )}
+                {openMenu === 'team' && (
+                  <>
+                    <div className="lg:col-span-2"><TeamPanel /></div>
+                    <div className="space-y-4"><MetricsPanel /></div>
+                  </>
+                )}
+                {openMenu === 'market' && (
+                  <>
+                    <div className="lg:col-span-2"><MarketPanel /></div>
+                    <div className="space-y-4"><MetricsPanel /></div>
+                  </>
+                )}
+                {openMenu === 'tech' && (
+                  <>
+                    <div className="lg:col-span-2"><TechPanel /></div>
+                    <div className="space-y-4"><MetricsPanel /></div>
+                  </>
+                )}
+                {openMenu === 'research' && (
+                  <>
+                    <div className="lg:col-span-2"><TechTreePanel /></div>
+                    <div className="space-y-4"><MetricsPanel /></div>
+                  </>
+                )}
+                {openMenu === 'iso' && (
+                  <>
+                    <div className="lg:col-span-2"><ISOPanel /></div>
+                    <div className="space-y-4"><MetricsPanel /></div>
+                  </>
+                )}
+                {openMenu === 'office' && (
+                  <>
+                    <div className="lg:col-span-2"><FurniturePanel /></div>
+                    <div className="space-y-4"><MetricsPanel /></div>
+                  </>
+                )}
+                {openMenu === 'log' && (
+                  <div className="lg:col-span-3"><EventLog /></div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -225,7 +270,6 @@ function QuickStats() {
   return (
     <Card>
       <CardTitle className="flex items-center gap-2 mb-3">
-        <Building2 className="w-5 h-5 text-zinc-400" />
         {t.quickStats}
       </CardTitle>
 

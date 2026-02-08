@@ -88,7 +88,7 @@ export function TeamPanel() {
                     onChange={(e) => assignEmployeeZone(member.id, (e.target.value || null) as ZoneId | null)}
                     className="text-xs bg-zinc-700/50 border border-zinc-600/50 rounded px-2 py-0.5 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
                   >
-                    <option value="">No zone</option>
+                    <option value="">{t.noZone}</option>
                     {ZONES.map(z => (
                       <option key={z.id} value={z.id}>{z.name}</option>
                     ))}
@@ -101,16 +101,16 @@ export function TeamPanel() {
                     onChange={(e) => assignEmployeeDesk(member.id, e.target.value || null)}
                     className="text-xs bg-zinc-700/50 border border-zinc-600/50 rounded px-2 py-0.5 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
                   >
-                    <option value="">No desk</option>
+                    <option value="">{t.noDesk}</option>
                     {placedDesks.map(d => (
                       <option key={d.id} value={d.id} disabled={!!d.assignedEmployeeId && d.assignedEmployeeId !== member.id}>
-                        {d.name} {d.assignedEmployeeId && d.assignedEmployeeId !== member.id ? '(occupied)' : ''}
+                        {d.name} {d.assignedEmployeeId && d.assignedEmployeeId !== member.id ? `(${t.occupied})` : ''}
                       </option>
                     ))}
                   </select>
                 </div>
                 {member.talent > 0.6 && (
-                  <span className="text-[10px] text-purple-400">Talent: {Math.round(member.talent * 100)}%</span>
+                  <span className="text-[10px] text-purple-400">{t.talent}: {Math.round(member.talent * 100)}%</span>
                 )}
               </div>
               <div className="space-y-1.5">

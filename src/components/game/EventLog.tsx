@@ -41,7 +41,7 @@ export function EventLog() {
       >
         {recentLogs.map((log, i) => (
           <div key={i} className="flex gap-2 text-xs py-0.5">
-            <span className="text-zinc-600 shrink-0 w-10 text-right">W{log.week}</span>
+            <span className="text-zinc-600 shrink-0 w-10 text-right">{t.weekShort}{log.week}</span>
             <span className={cn(typeColors[log.type] || 'text-zinc-400')}>
               {log.message}
             </span>

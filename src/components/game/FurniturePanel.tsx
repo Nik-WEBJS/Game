@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useGameStore } from '@/game/store';
+import { useI18n } from '@/i18n';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ const TYPE_ICONS: Record<FurnitureType, typeof Monitor> = {
 
 export function FurniturePanel() {
   const { business, player, buyFurniture, unplaceFurniture } = useGameStore();
+  const { t } = useI18n();
   const owned = business.furniture;
   const [placingId, setPlacingId] = useState<string | null>(null);
 
@@ -35,14 +37,14 @@ export function FurniturePanel() {
     <Card className="p-4">
       <CardTitle className="flex items-center gap-2 text-base mb-4">
         <Armchair className="w-4 h-4 text-amber-400" />
-        Office Customization
+        {t.officeCustomization}
       </CardTitle>
 
       {/* Placement mode banner */}
       {placingId && (
         <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-900/20 p-2.5">
           <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
-          <span className="text-xs text-amber-300 flex-1">Click a green cell in the office to place the item</span>
+          <span className="text-xs text-amber-300 flex-1">{t.clickToPlace}</span>
           <Button size="sm" variant="ghost" onClick={() => cancelPlacement()} className="!p-1">
             <X className="w-3.5 h-3.5 text-zinc-400" />
           </Button>
@@ -52,7 +54,7 @@ export function FurniturePanel() {
       {/* Owned furniture */}
       {owned.length > 0 && (
         <div className="mb-4">
-          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Owned ({owned.length})</h3>
+          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">{t.owned} ({owned.length})</h3>
           <div className="space-y-1.5">
             {owned.map(f => {
               const Icon = TYPE_ICONS[f.type];
@@ -70,13 +72,13 @@ export function FurniturePanel() {
                   <span className="text-xs text-zinc-200 flex-1">{f.name}</span>
                   {f.position ? (
                     <div className="flex items-center gap-1">
-                      <Badge variant="success" className="text-[9px]">Placed</Badge>
+                      <Badge variant="success" className="text-[9px]">{t.placed}</Badge>
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => startPlacement(f.id)}
                         className="!p-1"
-                        title="Move"
+                        title={t.move}
                       >
                         <Move className="w-3 h-3 text-zinc-400" />
                       </Button>
@@ -85,7 +87,7 @@ export function FurniturePanel() {
                         variant="ghost"
                         onClick={() => { cancelPlacement(); unplaceFurniture(f.id); }}
                         className="!p-1"
-                        title="Remove from office"
+                        title={t.removeFromOffice}
                       >
                         <X className="w-3 h-3 text-red-400" />
                       </Button>
@@ -98,7 +100,7 @@ export function FurniturePanel() {
                       className="text-[10px] !px-2 !py-1"
                     >
                       <MapPin className="w-3 h-3 mr-1" />
-                      Place
+                      {t.place}
                     </Button>
                   )}
                 </div>
@@ -109,7 +111,7 @@ export function FurniturePanel() {
       )}
 
       {/* Catalog */}
-      <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Shop</h3>
+      <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">{t.shop}</h3>
       <div className="space-y-2">
         {FURNITURE_CATALOG.map(item => {
           const Icon = TYPE_ICONS[item.type];

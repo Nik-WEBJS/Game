@@ -2,6 +2,7 @@
 
 import { useGameStore } from '@/game/store';
 import { useI18n } from '@/i18n';
+import { roleName } from '@/i18n/game-text';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,15 +36,15 @@ export function MarketPanel() {
       <div className="flex items-center justify-between mb-4">
         <CardTitle className="flex items-center gap-2 text-base">
           <ShoppingBag className="w-4 h-4 text-purple-400" />
-          Employee Market
+          {t.employeeMarket}
         </CardTitle>
         <Badge variant="info" className="text-xs">
-          Refreshes in {weeksUntilRefresh} weeks
+          {t.refreshesIn(weeksUntilRefresh)}
         </Badge>
       </div>
 
       {candidates.length === 0 ? (
-        <p className="text-sm text-zinc-500 text-center py-6">No candidates available. Wait for market refresh.</p>
+        <p className="text-sm text-zinc-500 text-center py-6">{t.noCandidates}</p>
       ) : (
         <div className="space-y-3">
           {candidates.map(c => {
@@ -62,14 +63,14 @@ export function MarketPanel() {
                     <div className="flex items-center gap-2 mb-1">
                       <Icon className={`w-3.5 h-3.5 ${style.text}`} />
                       <span className="font-medium text-sm text-zinc-100 truncate">{c.name}</span>
-                      <Badge className={`text-[10px] ${style.text} ${style.bg}`}>{c.rarity}</Badge>
+                      <Badge className={`text-[10px] ${style.text} ${style.bg}`}>{(t as any)[c.rarity]}</Badge>
                     </div>
-                    <div className="text-xs text-zinc-400 capitalize mb-1.5">{c.role}</div>
+                    <div className="text-xs text-zinc-400 capitalize mb-1.5">{roleName(c.role, t)}</div>
                     <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-[11px]">
-                      <div><span className="text-zinc-500">EXP:</span> <span className="text-zinc-300">{c.experience}</span></div>
-                      <div><span className="text-zinc-500">Talent:</span> <span className="text-zinc-300">{Math.round(c.talent * 100)}%</span></div>
-                      <div><span className="text-zinc-500">Resist:</span> <span className="text-zinc-300">{Math.round(c.burnoutResistance * 100)}%</span></div>
-                      <div><span className="text-zinc-500">Salary:</span> <span className="text-zinc-300">{formatMoney(c.salary)}/w</span></div>
+                      <div><span className="text-zinc-500">{t.experience}:</span> <span className="text-zinc-300">{c.experience}</span></div>
+                      <div><span className="text-zinc-500">{t.talent}:</span> <span className="text-zinc-300">{Math.round(c.talent * 100)}%</span></div>
+                      <div><span className="text-zinc-500">{t.resist}:</span> <span className="text-zinc-300">{Math.round(c.burnoutResistance * 100)}%</span></div>
+                      <div><span className="text-zinc-500">{t.salary}:</span> <span className="text-zinc-300">{formatMoney(c.salary)}{t.perWeek}</span></div>
                       <div className="col-span-2">
                         {traitDef && (
                           <span className="text-amber-400" title={traitDef.description}>
@@ -86,7 +87,7 @@ export function MarketPanel() {
                     onClick={() => hireFromMarket(c.id)}
                     className="shrink-0 text-xs"
                   >
-                    Hire {formatMoney(c.hireCost)}
+                    {t.hireFor} {formatMoney(c.hireCost)}
                   </Button>
                 </div>
               </div>

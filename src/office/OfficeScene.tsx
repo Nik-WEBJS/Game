@@ -44,7 +44,7 @@ export function OfficeScene() {
   );
 
   return (
-    <div className="w-full h-[400px] rounded-xl overflow-hidden border border-zinc-700/50 bg-zinc-900/50 relative">
+    <div className="w-full h-full overflow-hidden bg-zinc-900/50 relative">
       <Canvas
         shadows
         orthographic

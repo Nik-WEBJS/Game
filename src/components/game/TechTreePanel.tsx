@@ -1,6 +1,7 @@
 'use client';
 
 import { useGameStore } from '@/game/store';
+import { useI18n } from '@/i18n';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,13 +10,14 @@ import { formatMoney } from '@/lib/utils';
 import { GitBranch, Megaphone, Lock, FlaskConical, Check } from 'lucide-react';
 import { TechBranch } from '@/game/types';
 
-const BRANCH_META: Record<TechBranch, { label: string; color: string; icon: typeof GitBranch }> = {
-  tech_core: { label: 'Technology Core', color: 'text-cyan-400', icon: GitBranch },
-  marketing_influence: { label: 'Marketing & Influence', color: 'text-purple-400', icon: Megaphone },
+const BRANCH_META: Record<TechBranch, { labelKey: string; color: string; icon: typeof GitBranch }> = {
+  tech_core: { labelKey: 'techCore', color: 'text-cyan-400', icon: GitBranch },
+  marketing_influence: { labelKey: 'marketingInfluence', color: 'text-purple-400', icon: Megaphone },
 };
 
 export function TechTreePanel() {
   const { business, player, startResearch } = useGameStore();
+  const { t } = useI18n();
   const tree = business.techTree;
   const isResearching = tree.some(n => n.researching);
 
@@ -25,7 +27,7 @@ export function TechTreePanel() {
     <Card className="p-4">
       <CardTitle className="flex items-center gap-2 text-base mb-4">
         <FlaskConical className="w-4 h-4 text-cyan-400" />
-        Research Tree
+        {t.researchTree}
       </CardTitle>
 
       <div className="space-y-6">
@@ -38,7 +40,7 @@ export function TechTreePanel() {
             <div key={branchId}>
               <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${meta.color}`}>
                 <BranchIcon className="w-3.5 h-3.5" />
-                {meta.label}
+                {(t as any)[meta.labelKey]}
               </h3>
               <div className="space-y-2">
                 {nodes.map(node => {
@@ -68,8 +70,8 @@ export function TechTreePanel() {
                               <Lock className="w-3.5 h-3.5 text-zinc-500" />
                             ) : null}
                             <span className="font-medium text-sm text-zinc-100">{node.name}</span>
-                            {node.completed && <Badge variant="success" className="text-[10px]">Done</Badge>}
-                            {node.researching && <Badge variant="info" className="text-[10px]">Researching</Badge>}
+                            {node.completed && <Badge variant="success" className="text-[10px]">{t.done}</Badge>}
+                            {node.researching && <Badge variant="info" className="text-[10px]">{t.researching}</Badge>}
                           </div>
                           <p className="text-[11px] text-zinc-400 mb-1.5">{node.description}</p>
 
@@ -83,11 +85,11 @@ export function TechTreePanel() {
                           )}
 
                           <div className="flex gap-3 text-[11px] text-zinc-500">
-                            <span>Cost: {formatMoney(node.cost)}</span>
-                            <span>{node.weeksToResearch}w</span>
+                            <span>{t.cost}: {formatMoney(node.cost)}</span>
+                            <span>{t.weeksShort(node.weeksToResearch)}</span>
                             {node.requiredReputation && (
                               <span className={player.reputation >= node.requiredReputation ? 'text-emerald-400' : 'text-red-400'}>
-                                Rep ≥ {node.requiredReputation}
+                                {t.repRequired(node.requiredReputation)}
                               </span>
                             )}
                           </div>
@@ -111,7 +113,7 @@ export function TechTreePanel() {
                             onClick={() => startResearch(node.id)}
                             className="shrink-0 text-xs"
                           >
-                            Research
+                            {t.research}
                           </Button>
                         )}
                       </div>
