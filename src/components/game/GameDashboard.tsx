@@ -17,6 +17,7 @@ import { MarketPanel } from './MarketPanel';
 import { TechTreePanel } from './TechTreePanel';
 import { FurniturePanel } from './FurniturePanel';
 import { WikiPanel } from './WikiPanel';
+import { MiniMetrics } from './MiniMetrics';
 import { OfficeScene } from '@/office/OfficeScene';
 import { subscribePlacement, furniturePlacement } from '@/office/furnitureState';
 import { Card, CardTitle } from '@/components/ui/card';
@@ -136,17 +137,20 @@ export function GameDashboard() {
             })}
           </div>
 
-          {/* Right: time controls + language */}
-          <div className="pointer-events-auto flex items-center gap-2">
-            <TimeControls />
-            <button
-              onClick={() => setLocale(locale === 'en' ? 'ru' : 'en')}
-              className="flex items-center gap-1.5 bg-zinc-900/70 backdrop-blur-md rounded-full px-2.5 py-1.5 border border-zinc-700/40 hover:border-zinc-500/60 transition-all"
-              title={t.language}
-            >
-              <Globe className="w-3.5 h-3.5 text-zinc-400" />
-              <span className="text-xs font-semibold text-zinc-300">{t.lang}</span>
-            </button>
+          {/* Right: time controls + language + mini metrics */}
+          <div className="pointer-events-auto flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              <TimeControls />
+              <button
+                onClick={() => setLocale(locale === 'en' ? 'ru' : 'en')}
+                className="flex items-center gap-1.5 bg-zinc-900/70 backdrop-blur-md rounded-full px-2.5 py-1.5 border border-zinc-700/40 hover:border-zinc-500/60 transition-all"
+                title={t.language}
+              >
+                <Globe className="w-3.5 h-3.5 text-zinc-400" />
+                <span className="text-xs font-semibold text-zinc-300">{t.lang}</span>
+              </button>
+            </div>
+            <MiniMetrics />
           </div>
         </div>
       </div>

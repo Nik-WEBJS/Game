@@ -32,9 +32,12 @@ export function Employee({ member, position }: EmployeeProps) {
   const rightLegRef = useRef<THREE.Group>(null);
   const progressFillRef = useRef<THREE.Mesh>(null);
   const laptopLedRef = useRef<THREE.Mesh>(null);
+  const workFillRef = useRef<THREE.Mesh>(null);
 
   const isFreelance = member.status === 'freelance';
   const freelanceProgress = member.freelanceTask?.progress ?? 0;
+  const isWorking = !isFreelance && !!member.deskId;
+  const workProgress = member.workProgress ?? 0;
 
   const burnoutState = getBurnoutVisual(member.burnout);
   const moraleSpeed = getMoraleSpeedFactor(member.morale);
@@ -67,6 +70,14 @@ export function Employee({ member, position }: EmployeeProps) {
         (laptopLedRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = blink;
       }
       return;
+    }
+
+    // Work progress bar for office employees at desks
+    if (workFillRef.current && isWorking) {
+      const BAR_W = 0.4;
+      const fillW = Math.max(0.001, workProgress * BAR_W);
+      workFillRef.current.scale.x = fillW / BAR_W;
+      workFillRef.current.position.x = -(BAR_W - fillW) / 2;
     }
 
     // Vertical bob
@@ -273,6 +284,27 @@ export function Employee({ member, position }: EmployeeProps) {
           intensity={0.2}
           distance={1}
         />
+      )}
+
+      {/* --- Work progress bar (office employees at desks) --- */}
+      {isWorking && !isFreelance && (
+        <group position={[0, 1.25, 0]}>
+          {/* Background bar */}
+          <mesh>
+            <boxGeometry args={[0.4, 0.045, 0.015]} />
+            <meshStandardMaterial color="#27272a" roughness={0.5} opacity={0.85} transparent />
+          </mesh>
+          {/* Fill bar */}
+          <mesh ref={workFillRef} position={[0, 0, 0.004]}>
+            <boxGeometry args={[0.4, 0.035, 0.01]} />
+            <meshStandardMaterial
+              color="#22c55e"
+              emissive="#22c55e"
+              emissiveIntensity={0.25}
+              roughness={0.3}
+            />
+          </mesh>
+        </group>
       )}
 
       {/* --- Freelance overlay --- */}

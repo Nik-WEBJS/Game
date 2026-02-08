@@ -33,7 +33,8 @@ export function OfficeModel({
     <group>
       {/* Floor */}
       <Floor width={floorWidth} depth={floorDepth} isoState={isoState} />
-
+      {/* ISO decorations */}
+      <ISODecorations isoState={isoState} floorWidth={floorWidth} floorDepth={floorDepth} />
       {/* Walls */}
       <Walls width={floorWidth} depth={floorDepth} wallMaterials={wallMaterials} />
 
@@ -50,12 +51,11 @@ export function OfficeModel({
         <RiskLight intensity={riskIntensity} />
       )}
 
-      {/* ISO decorations */}
-      <ISODecorations isoState={isoState} floorWidth={floorWidth} floorDepth={floorDepth} />
 
-      {/* Technology decorations */}
+
+      {/* Technology decorations — all on back wall */}
       {TECH_DECORATIONS.filter(d => technologies.includes(d.techId)).map(deco => (
-        <TechDecoration key={deco.techId} decoration={deco} />
+        <TechDecoration key={deco.techId} decoration={deco} floorWidth={floorWidth} floorDepth={floorDepth} />
       ))}
     </group>
   );
@@ -269,48 +269,36 @@ function ISODecorations({
   floorWidth: number;
   floorDepth: number;
 }) {
+  const leftWallX = -floorWidth / 2;
+  const wallZ = -floorDepth / 2;
+
   if (isoState === 'absent') {
-    return (
-      <group>
-        {Array.from({ length: ISO_ABSENT.clutter }, (_, i) => {
-          const x = (Math.sin(i * 2.3) * floorWidth * 0.35);
-          const z = (Math.cos(i * 1.7) * floorDepth * 0.3);
-          return (
-            <mesh key={`clutter-${i}`} position={[x, 0.06, z]} rotation={[0, i * 0.8, 0]}>
-              <boxGeometry args={[0.2, 0.12, 0.15]} />
-              <meshStandardMaterial color="#78716c" roughness={0.95} />
-            </mesh>
-          );
-        })}
-        {Array.from({ length: ISO_ABSENT.paperStacks }, (_, i) => {
-          const x = (Math.sin(i * 3.1 + 1) * floorWidth * 0.25);
-          const z = (Math.cos(i * 2.1 + 1) * floorDepth * 0.2);
-          return (
-            <mesh key={`paper-${i}`} position={[x, 0.08, z]}>
-              <boxGeometry args={[0.15, 0.16, 0.1]} />
-              <meshStandardMaterial color="#d6d3d1" roughness={0.9} />
-            </mesh>
-          );
-        })}
-      </group>
-    );
+    return null;
   }
 
   if (isoState === 'in_progress') {
     return (
       <group>
-        {Array.from({ length: ISO_IN_PROGRESS.documents }, (_, i) => (
-          <mesh key={`doc-${i}`} position={[(i - 1.5) * 1.5, 1.5, -floorDepth / 2 + 0.1]}>
-            <boxGeometry args={[0.5, 0.7, 0.02]} />
-            <meshStandardMaterial color="#fef3c7" roughness={0.8} />
-          </mesh>
-        ))}
-        {Array.from({ length: ISO_IN_PROGRESS.diagrams }, (_, i) => (
-          <mesh key={`diag-${i}`} position={[(i - 0.5) * 2, 1.8, -floorDepth / 2 + 0.1]}>
-            <boxGeometry args={[0.8, 0.5, 0.02]} />
-            <meshStandardMaterial color="#dbeafe" emissive="#3b82f6" emissiveIntensity={0.05} roughness={0.7} />
-          </mesh>
-        ))}
+        {/* Documents on LEFT wall */}
+        {Array.from({ length: ISO_IN_PROGRESS.documents }, (_, i) => {
+          const z = (i - (ISO_IN_PROGRESS.documents - 1) / 2) * 1.2;
+          return (
+            <mesh key={`doc-${i}`} position={[leftWallX + 0.06, 1.5, z]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.5, 0.7, 0.02]} />
+              <meshStandardMaterial color="#fef3c7" roughness={0.8} />
+            </mesh>
+          );
+        })}
+        {/* Diagrams on LEFT wall (higher row) */}
+        {Array.from({ length: ISO_IN_PROGRESS.diagrams }, (_, i) => {
+          const z = (i - (ISO_IN_PROGRESS.diagrams - 1) / 2) * 1.8;
+          return (
+            <mesh key={`diag-${i}`} position={[leftWallX + 0.06, 2.2, z]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.8, 0.5, 0.02]} />
+              <meshStandardMaterial color="#dbeafe" emissive="#3b82f6" emissiveIntensity={0.05} roughness={0.7} />
+            </mesh>
+          );
+        })}
       </group>
     );
   }
@@ -318,16 +306,38 @@ function ISODecorations({
   if (isoState === 'certified') {
     return (
       <group>
-        {Array.from({ length: ISO_CERTIFIED.plants }, (_, i) => {
-          const x = (i - 1) * (floorWidth * 0.3);
+        {/* Many documents on LEFT wall — certified = full wall */}
+        {Array.from({ length: ISO_CERTIFIED.documents }, (_, i) => {
+          const row = Math.floor(i / 3);
+          const col = i % 3;
+          const z = (col - 1) * 1.2;
+          const y = 1.3 + row * 0.85;
           return (
-            <group key={`plant-${i}`} position={[x, 0, floorDepth * 0.35]}>
-              {/* Pot */}
+            <mesh key={`doc-${i}`} position={[leftWallX + 0.06, y, z]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.5, 0.7, 0.02]} />
+              <meshStandardMaterial color="#fef3c7" roughness={0.8} />
+            </mesh>
+          );
+        })}
+        {/* Diagrams on LEFT wall (top row) */}
+        {Array.from({ length: ISO_CERTIFIED.diagrams }, (_, i) => {
+          const z = (i - (ISO_CERTIFIED.diagrams - 1) / 2) * 1.4;
+          return (
+            <mesh key={`diag-${i}`} position={[leftWallX + 0.06, 2.5, z]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.8, 0.5, 0.02]} />
+              <meshStandardMaterial color="#d1fae5" emissive="#22c55e" emissiveIntensity={0.08} roughness={0.7} />
+            </mesh>
+          );
+        })}
+        {/* Plants along left wall */}
+        {Array.from({ length: ISO_CERTIFIED.plants }, (_, i) => {
+          const z = (i - 1) * (floorDepth * 0.25);
+          return (
+            <group key={`plant-${i}`} position={[leftWallX + 0.4, 0, z]}>
               <mesh position={[0, 0.12, 0]}>
                 <cylinderGeometry args={[0.12, 0.1, 0.24, 8]} />
                 <meshStandardMaterial color="#78716c" roughness={0.9} />
               </mesh>
-              {/* Plant */}
               <mesh position={[0, 0.35, 0]}>
                 <sphereGeometry args={[0.18, 6, 6]} />
                 <meshStandardMaterial color="#22c55e" roughness={0.8} />
@@ -335,10 +345,10 @@ function ISODecorations({
             </group>
           );
         })}
-        {/* Certificate on wall */}
-        <mesh position={[0, 2, -floorDepth / 2 + 0.1]}>
-          <boxGeometry args={[0.6, 0.45, 0.02]} />
-          <meshStandardMaterial color="#fef9c3" emissive="#fbbf24" emissiveIntensity={0.1} roughness={0.5} />
+        {/* Gold certificate on LEFT wall (center, prominent) */}
+        <mesh position={[leftWallX + 0.06, 2.0, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <boxGeometry args={[0.7, 0.5, 0.025]} />
+          <meshStandardMaterial color="#fef9c3" emissive="#fbbf24" emissiveIntensity={0.15} roughness={0.4} metalness={0.2} />
         </mesh>
       </group>
     );
@@ -347,8 +357,29 @@ function ISODecorations({
   if (isoState === 'problem') {
     return (
       <group>
-        {/* Inspector */}
-        <group position={[2, 0, -2]}>
+        {/* Documents on LEFT wall (some crooked) */}
+        {Array.from({ length: ISO_PROBLEM.documents }, (_, i) => {
+          const z = (i - (ISO_PROBLEM.documents - 1) / 2) * 1.2;
+          const tilt = (i % 2 === 0 ? 0.05 : -0.08);
+          return (
+            <mesh key={`doc-${i}`} position={[leftWallX + 0.06, 1.5, z]} rotation={[tilt, Math.PI / 2, tilt * 0.5]}>
+              <boxGeometry args={[0.5, 0.7, 0.02]} />
+              <meshStandardMaterial color="#fef3c7" roughness={0.8} />
+            </mesh>
+          );
+        })}
+        {/* Diagrams on LEFT wall */}
+        {Array.from({ length: ISO_PROBLEM.diagrams }, (_, i) => {
+          const z = (i - (ISO_PROBLEM.diagrams - 1) / 2) * 1.8;
+          return (
+            <mesh key={`diag-${i}`} position={[leftWallX + 0.06, 2.2, z]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.8, 0.5, 0.02]} />
+              <meshStandardMaterial color="#fde68a" emissive="#f59e0b" emissiveIntensity={0.08} roughness={0.7} />
+            </mesh>
+          );
+        })}
+        {/* Inspector near left wall */}
+        <group position={[leftWallX + 0.8, 0, 0]}>
           <mesh position={[0, 0.55, 0]}>
             <boxGeometry args={[0.35, 0.5, 0.25]} />
             <meshStandardMaterial color="#1e293b" roughness={0.7} />
@@ -357,17 +388,16 @@ function ISODecorations({
             <sphereGeometry args={[0.15, 8, 8]} />
             <meshStandardMaterial color="#fcd9b6" roughness={0.6} />
           </mesh>
-          {/* Clipboard */}
           <mesh position={[0.22, 0.5, 0.05]}>
             <boxGeometry args={[0.12, 0.16, 0.02]} />
             <meshStandardMaterial color="#fef3c7" roughness={0.9} />
           </mesh>
         </group>
-        {/* Warning lights */}
+        {/* Warning lights on LEFT wall */}
         {Array.from({ length: ISO_PROBLEM.warningLights }, (_, i) => (
           <PulsingLight
             key={`warn-${i}`}
-            position={[(i - 0.5) * 3, 2.8, -floorDepth / 2 + 0.3]}
+            position={[leftWallX + 0.3, 2.8, (i - 0.5) * 3]}
             color="#f59e0b"
           />
         ))}
@@ -391,22 +421,38 @@ function PulsingLight({ position, color }: { position: [number, number, number];
   return <pointLight ref={ref} position={position} color={color} intensity={0} distance={4} />;
 }
 
-// --- Technology decorations ---
-function TechDecoration({ decoration }: { decoration: typeof TECH_DECORATIONS[number] }) {
+// --- Technology decorations (all positioned along back wall) ---
+function TechDecoration({
+  decoration,
+  floorWidth,
+  floorDepth,
+}: {
+  decoration: typeof TECH_DECORATIONS[number];
+  floorWidth: number;
+  floorDepth: number;
+}) {
+  const wallZ = -floorDepth / 2;
+
   return (
     <group>
-      {decoration.positions.map((pos, i) => (
-        <mesh key={i} position={pos} castShadow>
-          <boxGeometry args={decoration.scale} />
-          <meshStandardMaterial
-            color={decoration.color}
-            emissive={decoration.emissive}
-            emissiveIntensity={decoration.emissiveIntensity}
-            roughness={0.6}
-            metalness={0.3}
-          />
-        </mesh>
-      ))}
+      {decoration.items.map((item, i) => {
+        const x = item.xOffset * floorWidth;
+        const y = item.yBase + decoration.scale[1] / 2;
+        // Wall-mounted: flush against back wall; floor items: slightly in front
+        const z = decoration.wallMounted ? wallZ + 0.05 : wallZ + decoration.scale[2] / 2 + 0.15;
+        return (
+          <mesh key={i} position={[x, y, z]} castShadow>
+            <boxGeometry args={decoration.scale} />
+            <meshStandardMaterial
+              color={decoration.color}
+              emissive={decoration.emissive}
+              emissiveIntensity={decoration.emissiveIntensity}
+              roughness={0.6}
+              metalness={0.3}
+            />
+          </mesh>
+        );
+      })}
     </group>
   );
 }

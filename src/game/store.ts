@@ -470,19 +470,23 @@ function tickTechTree(state: GameState): GameState {
 // --- Employee point generation (continuous, called every tick) ---
 // Employees sitting at desks generate points based on their zone assignment
 // Zone → metric mapping: development→quality, marketing→growthRate, security→risk(-), qa→quality
+// Also advances work progress bar — when full, awards money and auto-restarts
 function tickEmployeePointGeneration(state: GameState, weekFraction: number): GameState {
   const POINTS_PER_WEEK = 0.02; // base metric gain per employee per week
+  const WORK_CYCLE_WEEKS = 1; // 1 week per work cycle
   let qualityDelta = 0;
   let growthDelta = 0;
   let riskDelta = 0;
+  let moneyEarned = 0;
+  let teamUpdated = false;
 
-  for (const member of state.business.team) {
+  const newTeam = state.business.team.map(member => {
     // Skip freelancers — they don't generate zone points
-    if (member.status === 'freelance') continue;
+    if (member.status === 'freelance') return member;
     // Only generate if assigned to a placed desk
-    if (!member.deskId) continue;
+    if (!member.deskId) return member;
     const desk = state.business.furniture.find(f => f.id === member.deskId && f.position);
-    if (!desk) continue;
+    if (!desk) return member;
 
     const levelMult = EMPLOYEE_LEVEL_OUTPUT_MULT[(member.level || 1) - 1] ?? 1;
     const efficiency = (member.experience / 100) * (1 - member.burnout / 200) * (member.morale / 100);
@@ -507,15 +511,38 @@ function tickEmployeePointGeneration(state: GameState, weekFraction: number): Ga
         qualityDelta += output * 0.3;
         break;
     }
-  }
 
-  if (qualityDelta === 0 && growthDelta === 0 && riskDelta === 0) return state;
+    // Advance work progress bar
+    const progressSpeed = (1 / WORK_CYCLE_WEEKS) * weekFraction * Math.max(0.3, efficiency) * levelMult;
+    let newProgress = (member.workProgress || 0) + progressSpeed;
+    let cycles = member.workCyclesCompleted || 0;
+
+    if (newProgress >= 1) {
+      // Work cycle complete — award money based on role output
+      const baseReward = member.salary * 0.4 * levelMult * (1 + member.talent * 0.3);
+      moneyEarned += Math.round(baseReward);
+      newProgress -= 1;
+      cycles += 1;
+      teamUpdated = true;
+    }
+
+    if (newProgress !== (member.workProgress || 0) || cycles !== (member.workCyclesCompleted || 0)) {
+      teamUpdated = true;
+      return { ...member, workProgress: newProgress, workCyclesCompleted: cycles };
+    }
+    return member;
+  });
+
+  const noChange = !teamUpdated && qualityDelta === 0 && growthDelta === 0 && riskDelta === 0;
+  if (noChange) return state;
 
   const m = state.business.metrics;
   return {
     ...state,
+    player: moneyEarned > 0 ? { ...state.player, money: state.player.money + moneyEarned } : state.player,
     business: {
       ...state.business,
+      team: teamUpdated ? newTeam : state.business.team,
       metrics: {
         ...m,
         quality: Math.min(1, Math.max(0, m.quality + qualityDelta)),

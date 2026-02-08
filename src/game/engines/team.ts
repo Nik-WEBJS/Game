@@ -22,6 +22,8 @@ export function createTeamMember(role: TeamRole): TeamMember {
     deskId: null,
     status: 'office',
     freelanceTask: null,
+    workProgress: 0,
+    workCyclesCompleted: 0,
   };
 }
 
@@ -48,6 +50,8 @@ export function hireFromMarket(state: GameState, candidateId: string): GameState
     deskId: null,
     status: 'office',
     freelanceTask: null,
+    workProgress: 0,
+    workCyclesCompleted: 0,
   };
 
   return {

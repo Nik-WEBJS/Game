@@ -100,6 +100,8 @@ export interface TeamMember {
   deskId: string | null;    // id of furniture item (desk) this employee is assigned to
   status: EmployeeStatus;
   freelanceTask: FreelanceTask | null;
+  workProgress: number;               // 0..1, auto-cycling work task progress
+  workCyclesCompleted: number;         // total completed work cycles
 }
 
 // Employee level thresholds: experience needed to reach each level
