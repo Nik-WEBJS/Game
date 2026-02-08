@@ -58,7 +58,7 @@ function createInitialState(): GameState {
       companyProducts: [],
       techTree: createTechTree(),
       furniture: [],
-      employeeMarket: generateMarketPool(5),
+      employeeMarket: generateMarketPool(5, 50),
       marketRefreshWeek: 0,
     },
     phase: 'setup',
@@ -565,7 +565,7 @@ function tickEmployeeMarket(state: GameState): GameState {
       ...state,
       business: {
         ...state.business,
-        employeeMarket: generateMarketPool(5),
+        employeeMarket: generateMarketPool(5, state.player.reputation),
         marketRefreshWeek: state.player.currentWeek,
       },
       logs: [...state.logs, { week: state.player.currentWeek, message: getT().marketRefreshedMessage, type: 'info' }],

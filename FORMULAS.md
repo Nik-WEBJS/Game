@@ -287,7 +287,28 @@ burnoutEffect = burnout > 60 ? −3 : burnout > 30 ? −1 : +1
 newMorale = clamp(10, 100, morale + profitEffect + burnoutEffect)
 ```
 
-### 4.5 Стоимость найма
+### 4.5 Менеджер и ISO — переключение задачи
+
+Когда ISO активен (стадия ≠ none и ≠ maintenance):
+
+```
+managersOnISO = isoStandards.some(iso => iso.currentStage !== 'none' && iso.currentStage !== 'maintenance')
+
+// В tickEmployeePointGeneration:
+if (member.role === 'manager' && managersOnISO) → SKIP
+  // не генерирует зональные очки (quality, growth, risk)
+  // не заполняет work progress bar
+  // не получает money reward за work cycle
+
+// В tickISO:
+managerCount = team.filter(m => m.role === 'manager' && m.status === 'office').length
+if managerCount === 0 → progress += 0  // ISO стоит
+else → progress += 15 + (managerCount × 12) + (hasQA ? 8 : 0)
+```
+
+**Трейд-офф:** менеджер на ISO = потеря зональных очков и дохода от work cycle, но ISO прогрессирует. Больше менеджеров = быстрее ISO, но больше потерь в производительности.
+
+### 4.6 Стоимость найма
 
 Базовая стоимость зависит от роли:
 
@@ -307,6 +328,35 @@ newMorale = clamp(10, 100, morale + profitEffect + burnoutEffect)
 | Uncommon | ×1.2 | ×1.3 |
 | Rare | ×1.5 | ×1.8 |
 | Legendary | ×2.0 | ×2.5 |
+
+### 4.6 Рынок сотрудников (Employee Market)
+
+Генерируется **5 кандидатов на каждую роль** (25 всего), обновляется каждые 4 недели.
+
+```
+// Доступность редкостей зависит от репутации
+if reputation < 30:  available = [common, uncommon]
+if reputation < 60:  available = [common, uncommon, rare]
+if reputation >= 60: available = [common, uncommon, rare, legendary]
+
+// Высокая репутация увеличивает вес rare/legendary
+repBonus = max(0, reputation − 30) / 70    // 0..1
+adjustedWeight = baseWeight × (1 + repBonus × 2)  // для rare/legendary
+```
+
+**Пример (reputation=80):**
+```
+repBonus = (80 − 30) / 70 = 0.714
+Rare weight:      15 × (1 + 0.714 × 2) = 15 × 2.43 = 36.4
+Legendary weight:  5 × (1 + 0.714 × 2) =  5 × 2.43 = 12.1
+→ Шанс Legendary: 12.1 / (50 + 30 + 36.4 + 12.1) = ~9.4% (вместо базовых 5%)
+```
+
+**Пример (reputation=20):**
+```
+available = [common, uncommon]  // rare и legendary недоступны
+→ Шанс Common: 50/80 = 62.5%, Uncommon: 30/80 = 37.5%
+```
 
 ---
 
@@ -339,13 +389,38 @@ output = 0.02 × 1.0 × 0.456 × 1.5 × 1.55 = 0.0212 за неделю
 
 ## 6. ISO Engine
 
-### 6.1 Прогресс стадии
+### 6.1 Требование менеджера
+
+ISO **не может быть начат и не прогрессирует** без хотя бы 1 менеджера в офисе.
 
 ```
-progress += 25 + (hasQA ? 10 : 0) + (hasManager ? 8 : 0)
+canStartISO = officeManagers.length >= 1 && money >= stageCost
+canAdvanceISO = officeManagers.length >= 1 && stageProgress >= 100 && money >= nextStageCost
+```
+
+Менеджеры, занятые ISO (стадия != none && != maintenance), **не выполняют обычную работу** — не генерируют зональные очки и work progress.
+
+### 6.2 Прогресс стадии
+
+```
+managerCount = team.filter(m => m.role === 'manager' && m.status === 'office').length
+hasQA = team.some(m => m.role === 'qa' && m.status === 'office')
+
+if managerCount === 0: progress += 0  // стоит!
+else: progress += 15 + (managerCount × 12) + (hasQA ? 8 : 0)
 ```
 
 При progress ≥ 100 → переход на следующую стадию.
+
+**Примеры:**
+
+| Менеджеров | QA | Прогресс/ход | Ходов до 100% |
+|------------|-----|-------------|---------------|
+| 0 | — | 0 | ∞ (стоит) |
+| 1 | нет | 27 | 4 |
+| 1 | да | 35 | 3 |
+| 2 | да | 47 | ~2–3 |
+| 3 | да | 59 | 2 |
 
 ### 6.2 Стадии и стоимость
 

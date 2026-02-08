@@ -443,12 +443,27 @@ const BASE_HIRE_COSTS: Record<TeamRole, number> = {
   marketing: 1800,
 };
 
-function pickRarity(): typeof RARITY_WEIGHTS[number] {
-  const total = RARITY_WEIGHTS.reduce((s, r) => s + r.weight, 0);
+// Reputation unlocks better rarity tiers:
+// 0-29: only common+uncommon, 30-59: +rare, 60+: +legendary
+function pickRarity(reputation: number = 50): typeof RARITY_WEIGHTS[number] {
+  const available = RARITY_WEIGHTS.filter(r => {
+    if (r.rarity === 'legendary' && reputation < 60) return false;
+    if (r.rarity === 'rare' && reputation < 30) return false;
+    return true;
+  });
+  // Higher reputation boosts rare/legendary weights
+  const repBonus = Math.max(0, reputation - 30) / 70; // 0..1
+  const adjusted = available.map(r => ({
+    ...r,
+    weight: r.rarity === 'rare' || r.rarity === 'legendary'
+      ? r.weight * (1 + repBonus * 2)
+      : r.weight,
+  }));
+  const total = adjusted.reduce((s, r) => s + r.weight, 0);
   let roll = Math.random() * total;
-  for (const r of RARITY_WEIGHTS) {
+  for (const r of adjusted) {
     roll -= r.weight;
-    if (roll <= 0) return r;
+    if (roll <= 0) return RARITY_WEIGHTS.find(rw => rw.rarity === r.rarity)!;
   }
   return RARITY_WEIGHTS[0];
 }
@@ -457,9 +472,9 @@ function randRange(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
-export function generateCandidate(): MarketCandidate {
-  const role = ALL_ROLES[Math.floor(Math.random() * ALL_ROLES.length)];
-  const rarityDef = pickRarity();
+export function generateCandidate(role?: TeamRole, reputation?: number): MarketCandidate {
+  const candidateRole = role ?? ALL_ROLES[Math.floor(Math.random() * ALL_ROLES.length)];
+  const rarityDef = pickRarity(reputation);
   const talent = Math.round(randRange(rarityDef.talentRange[0], rarityDef.talentRange[1]) * 100) / 100;
   const hasTrait = Math.random() < rarityDef.traitChance;
   const trait = hasTrait ? ALL_TRAIT_IDS[Math.floor(Math.random() * ALL_TRAIT_IDS.length)] : null;
@@ -468,10 +483,10 @@ export function generateCandidate(): MarketCandidate {
 
   return {
     id: `cand_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    role,
+    role: candidateRole,
     name: generateTeamMemberName(),
-    salary: Math.round(BASE_SALARIES[role] * rarityDef.salaryMul),
-    hireCost: Math.round(BASE_HIRE_COSTS[role] * rarityDef.hireCostMul),
+    salary: Math.round(BASE_SALARIES[candidateRole] * rarityDef.salaryMul),
+    hireCost: Math.round(BASE_HIRE_COSTS[candidateRole] * rarityDef.hireCostMul),
     experience,
     talent,
     burnoutResistance,
@@ -480,8 +495,15 @@ export function generateCandidate(): MarketCandidate {
   };
 }
 
-export function generateMarketPool(count: number = 5): MarketCandidate[] {
-  return Array.from({ length: count }, () => generateCandidate());
+// Generate 5 candidates per role (25 total), quality scales with reputation
+export function generateMarketPool(count: number = 5, reputation: number = 50): MarketCandidate[] {
+  const candidates: MarketCandidate[] = [];
+  for (const role of ALL_ROLES) {
+    for (let i = 0; i < count; i++) {
+      candidates.push(generateCandidate(role, reputation));
+    }
+  }
+  return candidates;
 }
 
 export const MARKET_REFRESH_INTERVAL = 4; // refresh every N weeks

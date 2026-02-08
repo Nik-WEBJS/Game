@@ -144,22 +144,6 @@ export function TeamPanel() {
         {t.team} ({business.team.length})
       </CardTitle>
 
-      {/* Hire buttons */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {ROLES.map(role => (
-          <Button
-            key={role}
-            size="sm"
-            variant="secondary"
-            disabled={!canHireMember(role)}
-            onClick={() => hireTeamMember(role)}
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            {roleName(role, t)} ({formatMoney(getHireCost(role))})
-          </Button>
-        ))}
-      </div>
-
       {/* Team members */}
       {business.team.length === 0 ? (
         <p className="text-zinc-500 text-sm text-center py-4">{t.noTeamYet}</p>
