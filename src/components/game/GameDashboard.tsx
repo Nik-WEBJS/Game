@@ -5,6 +5,8 @@ import { useGameStore } from '@/game/store';
 import { useI18n } from '@/i18n';
 import { eventTitle as getEventTitle, eventDesc as getEventDesc, roleName, isoName } from '@/i18n/game-text';
 import { ToastContainer, pushToast } from '@/components/ui/toast';
+import { GameLoop } from './GameLoop';
+import { TimeControls } from './TimeControls';
 import { TopBar } from './TopBar';
 import { MetricsPanel } from './MetricsPanel';
 import { TeamPanel } from './TeamPanel';
@@ -16,18 +18,17 @@ import { MarketPanel } from './MarketPanel';
 import { TechTreePanel } from './TechTreePanel';
 import { FurniturePanel } from './FurniturePanel';
 import { OfficeScene } from '@/office/OfficeScene';
-import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Play, BarChart3, Users, ClipboardCheck, Cpu, ScrollText, Building2, ChevronRight,
+  BarChart3, Users, ClipboardCheck, Cpu, ScrollText, Building2,
   ShoppingBag, FlaskConical, Armchair,
 } from 'lucide-react';
 
 type Tab = 'overview' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log';
 
 export function GameDashboard() {
-  const { nextTurn, player, activeEvents } = useGameStore();
+  const { player, activeEvents } = useGameStore();
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const prevEventsRef = useRef<string[]>([]);
@@ -58,24 +59,32 @@ export function GameDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
+      {/* Real-time game loop */}
+      <GameLoop />
       <ToastContainer />
       <TopBar />
 
-      <div className="max-w-[1600px] mx-auto px-4 py-4">
-        {/* Tab Navigation + Next Turn */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex gap-1 bg-zinc-900/80 rounded-lg p-1 border border-zinc-700/50">
+      {/* Office view — always visible, Game Dev Tycoon style */}
+      <div className="flex-shrink-0">
+        <OfficeScene />
+      </div>
+
+      {/* Bottom bar: tabs + time controls */}
+      <div className="flex-shrink-0 bg-zinc-900/95 border-t border-zinc-700/50 backdrop-blur-sm">
+        <div className="max-w-[1600px] mx-auto px-4 py-2 flex items-center justify-between">
+          {/* Tab buttons */}
+          <div className="flex gap-0.5">
             {TABS.map(tab => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                  className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all min-w-[56px] ${
                     activeTab === tab.id
-                      ? 'bg-zinc-700 text-zinc-100'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 border border-transparent'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -85,116 +94,112 @@ export function GameDashboard() {
             })}
           </div>
 
-          <Button size="lg" onClick={nextTurn} className="gap-2">
-            <Play className="w-4 h-4" />
-            {t.nextWeek}
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+          {/* Time controls */}
+          <TimeControls />
         </div>
+      </div>
 
-        {/* Pinned Office View */}
-        <div className="mb-4">
-          <OfficeScene />
-        </div>
+      {/* Scrollable panel content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-[1600px] mx-auto px-4 py-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {activeTab === 'overview' && (
+              <>
+                <div className="lg:col-span-2 space-y-4">
+                  <MetricsPanel />
+                  <EventLog />
+                </div>
+                <div className="space-y-4">
+                  <BusinessInfo />
+                  <QuickStats />
+                </div>
+              </>
+            )}
 
-        {/* Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {activeTab === 'overview' && (
-            <>
-              <div className="lg:col-span-2 space-y-4">
-                <MetricsPanel />
-                <EventLog />
-              </div>
-              <div className="space-y-4">
-                <BusinessInfo />
-                <QuickStats />
-              </div>
-            </>
-          )}
+            {activeTab === 'team' && (
+              <>
+                <div className="lg:col-span-2">
+                  <TeamPanel />
+                </div>
+                <div className="space-y-4">
+                  <BusinessInfo />
+                  <MetricsPanel />
+                </div>
+              </>
+            )}
 
-          {activeTab === 'team' && (
-            <>
-              <div className="lg:col-span-2">
-                <TeamPanel />
-              </div>
-              <div className="space-y-4">
-                <BusinessInfo />
-                <MetricsPanel />
-              </div>
-            </>
-          )}
+            {activeTab === 'tech' && (
+              <>
+                <div className="lg:col-span-2">
+                  <TechPanel />
+                </div>
+                <div className="space-y-4">
+                  <BusinessInfo />
+                  <MetricsPanel />
+                </div>
+              </>
+            )}
 
-          {activeTab === 'tech' && (
-            <>
-              <div className="lg:col-span-2">
-                <TechPanel />
-              </div>
-              <div className="space-y-4">
-                <BusinessInfo />
-                <MetricsPanel />
-              </div>
-            </>
-          )}
+            {activeTab === 'iso' && (
+              <>
+                <div className="lg:col-span-2">
+                  <ISOPanel />
+                </div>
+                <div className="space-y-4">
+                  <BusinessInfo />
+                  <MetricsPanel />
+                </div>
+              </>
+            )}
 
-          {activeTab === 'iso' && (
-            <>
-              <div className="lg:col-span-2">
-                <ISOPanel />
-              </div>
-              <div className="space-y-4">
-                <BusinessInfo />
-                <MetricsPanel />
-              </div>
-            </>
-          )}
+            {activeTab === 'market' && (
+              <>
+                <div className="lg:col-span-2">
+                  <MarketPanel />
+                </div>
+                <div className="space-y-4">
+                  <BusinessInfo />
+                  <MetricsPanel />
+                </div>
+              </>
+            )}
 
-          {activeTab === 'market' && (
-            <>
-              <div className="lg:col-span-2">
-                <MarketPanel />
-              </div>
-              <div className="space-y-4">
-                <BusinessInfo />
-                <MetricsPanel />
-              </div>
-            </>
-          )}
+            {activeTab === 'research' && (
+              <>
+                <div className="lg:col-span-2">
+                  <TechTreePanel />
+                </div>
+                <div className="space-y-4">
+                  <BusinessInfo />
+                  <MetricsPanel />
+                </div>
+              </>
+            )}
 
-          {activeTab === 'research' && (
-            <>
-              <div className="lg:col-span-2">
-                <TechTreePanel />
-              </div>
-              <div className="space-y-4">
-                <BusinessInfo />
-                <MetricsPanel />
-              </div>
-            </>
-          )}
+            {activeTab === 'office' && (
+              <>
+                <div className="lg:col-span-2 space-y-4">
+                  <FurniturePanel />
+                </div>
+                <div className="space-y-4">
+                  <BusinessInfo />
+                  <MetricsPanel />
+                </div>
+              </>
+            )}
 
-          {activeTab === 'office' && (
-            <>
-              <div className="lg:col-span-2 space-y-4">
-                <FurniturePanel />
-              </div>
-              <div className="space-y-4">
-                <BusinessInfo />
-                <MetricsPanel />
-              </div>
-            </>
-          )}
-
-          {activeTab === 'log' && (
-            <>
-              <div className="lg:col-span-2">
-                <EventLog />
-              </div>
-              <div className="space-y-4">
-                <BusinessInfo />
-                <MetricsPanel />
-              </div>
-            </>
-          )}
+            {activeTab === 'log' && (
+              <>
+                <div className="lg:col-span-2">
+                  <EventLog />
+                </div>
+                <div className="space-y-4">
+                  <BusinessInfo />
+                  <MetricsPanel />
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GameState, GamePhase, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem } from './types';
+import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem } from './types';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, MARKET_REFRESH_INTERVAL, FURNITURE_CATALOG } from './data-advanced';
 import { applyEconomy, calculateEconomy } from './engines/economy';
@@ -20,6 +20,9 @@ function createInitialState(): GameState {
       unlockedProducts: ['saas_platform', 'mobile_app', 'marketplace'],
       unlockedTechnologies: ['cloud_infra', 'microservices', 'ai_ml', 'blockchain', 'cybersecurity'],
       currentWeek: 0,
+      gameSpeed: 0 as GameSpeed,
+      weekProgress: 0,
+      totalTimePlayed: 0,
     },
     business: {
       nicheId: null,
@@ -92,8 +95,9 @@ interface GameStore extends GameState {
   adoptTechnology: (techId: string) => void;
   removeTechnology: (techId: string) => void;
   startGame: () => void;
-  // Turn
-  nextTurn: () => void;
+  // Time
+  setGameSpeed: (speed: GameSpeed) => void;
+  gameTick: (deltaSec: number) => void;
   // Team
   hireTeamMember: (role: TeamRole) => void;
   fireTeamMember: (memberId: string) => void;
@@ -173,50 +177,54 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       ...withEconomy,
       phase: 'playing',
-      player: { ...withEconomy.player, currentWeek: 1 },
+      player: { ...withEconomy.player, currentWeek: 1, gameSpeed: 1 as GameSpeed, weekProgress: 0, totalTimePlayed: 0 },
       logs: [...withEconomy.logs, { week: 1, message: '🚀 Your business is launched! Good luck!', type: 'success' }],
     });
   },
 
-  nextTurn: () => {
+  setGameSpeed: (speed) => {
+    set(s => ({ player: { ...s.player, gameSpeed: speed } }));
+  },
+
+  // Called every animation frame with real delta seconds
+  // SECONDS_PER_WEEK controls how fast a "week" passes in real time
+  gameTick: (deltaSec) => {
     const state = get();
-    if (state.phase !== 'playing') return;
+    if (state.phase !== 'playing' || state.player.gameSpeed === 0) return;
+
+    const SECONDS_PER_WEEK = 10; // 1 game week = 10 real seconds at 1x
+    const speedMul = state.player.gameSpeed; // 1, 2, or 3
+    const weekDelta = (deltaSec * speedMul) / SECONDS_PER_WEEK;
+    const newProgress = state.player.weekProgress + weekDelta;
+    const newTotalTime = state.player.totalTimePlayed + deltaSec * speedMul;
+
+    // Generate zone points from employees at desks (continuous)
     let gs = toGameState(state);
+    gs = tickEmployeePointGeneration(gs, weekDelta);
 
-    // 1. Advance week
-    gs = { ...gs, player: { ...gs.player, currentWeek: gs.player.currentWeek + 1 } };
+    if (newProgress >= 1) {
+      // A full week has passed — run all weekly systems
+      gs = { ...gs, player: { ...gs.player, currentWeek: gs.player.currentWeek + 1, weekProgress: newProgress - 1, totalTimePlayed: newTotalTime } };
 
-    // 2. Tick team
-    gs = tickTeam(gs);
+      gs = tickTeam(gs);
+      gs = tickISO(gs);
+      gs = applyEconomy(gs);
 
-    // 3. Tick ISO
-    gs = tickISO(gs);
+      const events = rollEvents(gs);
+      gs = events.length > 0 ? applyEvents(gs, events) : { ...gs, activeEvents: [] };
 
-    // 4. Calculate economy
-    gs = applyEconomy(gs);
+      gs = gainExperience(gs);
 
-    // 5. Events
-    const events = rollEvents(gs);
-    gs = events.length > 0 ? applyEvents(gs, events) : { ...gs, activeEvents: [] };
+      const niche = NICHES.find(n => n.id === gs.business.nicheId);
+      if (niche) niche.baseDemand = Math.max(0.2, niche.baseDemand - niche.trendDecayRate);
 
-    // 6. Experience & reputation
-    gs = gainExperience(gs);
-
-    // 7. Decay niche demand
-    const niche = NICHES.find(n => n.id === gs.business.nicheId);
-    if (niche) niche.baseDemand = Math.max(0.2, niche.baseDemand - niche.trendDecayRate);
-
-    // 8. Tick tech tree research
-    gs = tickTechTree(gs);
-
-    // 9. Refresh employee market
-    gs = tickEmployeeMarket(gs);
-
-    // 10. Record history
-    gs = { ...gs, weekHistory: [...gs.weekHistory, { ...gs.business.metrics }] };
-
-    // 11. Check win/lose
-    gs = checkWinLose(gs);
+      gs = tickTechTree(gs);
+      gs = tickEmployeeMarket(gs);
+      gs = { ...gs, weekHistory: [...gs.weekHistory, { ...gs.business.metrics }] };
+      gs = checkWinLose(gs);
+    } else {
+      gs = { ...gs, player: { ...gs.player, weekProgress: newProgress, totalTimePlayed: newTotalTime } };
+    }
 
     set(gs);
   },
@@ -360,6 +368,62 @@ function tickTechTree(state: GameState): GameState {
   }
 
   return { ...state, business: { ...state.business, techTree: finalTree }, logs: newLogs };
+}
+
+// --- Employee point generation (continuous, called every tick) ---
+// Employees sitting at desks generate points based on their zone assignment
+// Zone → metric mapping: development→quality, marketing→growthRate, security→risk(-), qa→quality
+function tickEmployeePointGeneration(state: GameState, weekFraction: number): GameState {
+  const POINTS_PER_WEEK = 0.02; // base metric gain per employee per week
+  let qualityDelta = 0;
+  let growthDelta = 0;
+  let riskDelta = 0;
+
+  for (const member of state.business.team) {
+    // Only generate if assigned to a placed desk
+    if (!member.deskId) continue;
+    const desk = state.business.furniture.find(f => f.id === member.deskId && f.position);
+    if (!desk) continue;
+
+    const efficiency = (member.experience / 100) * (1 - member.burnout / 200) * (member.morale / 100);
+    const output = POINTS_PER_WEEK * weekFraction * efficiency * (1 + member.talent);
+
+    switch (member.zoneId) {
+      case 'development':
+        qualityDelta += output;
+        break;
+      case 'marketing':
+        growthDelta += output;
+        break;
+      case 'security':
+        riskDelta -= output * 0.5; // reduces risk
+        break;
+      case 'qa':
+        qualityDelta += output * 0.7;
+        riskDelta -= output * 0.3;
+        break;
+      default:
+        // No zone assigned — small general contribution
+        qualityDelta += output * 0.3;
+        break;
+    }
+  }
+
+  if (qualityDelta === 0 && growthDelta === 0 && riskDelta === 0) return state;
+
+  const m = state.business.metrics;
+  return {
+    ...state,
+    business: {
+      ...state.business,
+      metrics: {
+        ...m,
+        quality: Math.min(1, Math.max(0, m.quality + qualityDelta)),
+        growthRate: Math.min(1, Math.max(0, m.growthRate + growthDelta)),
+        risk: Math.min(1, Math.max(0, m.risk + riskDelta)),
+      },
+    },
+  };
 }
 
 // --- Employee market refresh ---

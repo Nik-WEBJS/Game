@@ -2,6 +2,9 @@
 // Business Tycoon — Core Type Definitions
 // ============================================================
 
+// --- Time ---
+export type GameSpeed = 0 | 1 | 2 | 3; // 0=paused, 1=normal, 2=fast, 3=ultra
+
 // --- Player ---
 export interface Player {
   money: number;
@@ -11,6 +14,9 @@ export interface Player {
   unlockedProducts: string[];
   unlockedTechnologies: string[];
   currentWeek: number;
+  gameSpeed: GameSpeed;
+  weekProgress: number;       // 0..1, fraction of current week elapsed
+  totalTimePlayed: number;    // total seconds of game time
 }
 
 // --- Office Zones ---
