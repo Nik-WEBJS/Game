@@ -6,16 +6,16 @@ import { useGameStore } from '@/game/store';
 import { OfficeModel } from './OfficeModel';
 import { CompanySign } from './CompanySign';
 import { Employee } from './Employee';
-import { FurnitureObject3D, gridToWorld } from './FurnitureObjects';
+import { FurnitureObject3D, gridToWorld, getGridDimensions } from './FurnitureObjects';
 import { PlacementGrid } from './PlacementGrid';
 import {
   getISOVisualState,
-  getActiveZones,
   getEmployeePosition,
   getRiskVisualIntensity,
   getProfitGlow,
   getBurnoutVisual,
 } from './mappings';
+import { OFFICE_LEVELS } from '@/game/types';
 
 // Fixed isometric camera position (Game Dev Tycoon style — top-down angled)
 const ISO_CAM: [number, number, number] = [10, 10, 10];
@@ -61,9 +61,10 @@ export function OfficeScene() {
   const { business, placeFurniture } = useGameStore();
 
   const isoState = getISOVisualState(business.isoStandards);
-  const activeZones = getActiveZones(business.team.length);
+  const levelDef = OFFICE_LEVELS.find(l => l.level === business.office.level) ?? OFFICE_LEVELS[0];
   const riskIntensity = getRiskVisualIntensity(business.metrics.risk);
   const profitGlow = getProfitGlow(business.metrics.profit);
+  const grid = getGridDimensions(levelDef.floorWidth, levelDef.floorDepth);
 
   const visibleEmployees = business.team.filter(
     (m) => getBurnoutVisual(m.burnout) !== 'removed'
@@ -109,7 +110,8 @@ export function OfficeScene() {
 
           {/* Office structure */}
           <OfficeModel
-            activeZones={activeZones}
+            officeLevel={business.office.level}
+            wallMaterials={business.office.wallMaterials}
             technologies={business.technologies}
             isoState={isoState}
             riskIntensity={riskIntensity}
@@ -120,18 +122,21 @@ export function OfficeScene() {
           <CompanySign
             companyName={business.companyName}
             logoId={business.logoId}
-            wallZ={-(8 + activeZones * 1.5) / 2}
+            wallZ={-levelDef.floorDepth / 2}
           />
 
           {/* Placement grid */}
           <PlacementGrid
             furniture={business.furniture}
             onPlace={(fId, pos) => placeFurniture(fId, pos)}
+            gridCols={grid.cols}
+            gridRows={grid.rows}
+            gridOrigin={grid.origin}
           />
 
           {/* Placed furniture */}
           {business.furniture.filter(f => f.position).map(f => (
-            <FurnitureObject3D key={f.id} item={f} />
+            <FurnitureObject3D key={f.id} item={f} gridOrigin={grid.origin} />
           ))}
 
           {/* Employees — positioned at assigned desk or fallback grid */}
@@ -140,7 +145,7 @@ export function OfficeScene() {
               ? business.furniture.find(f => f.id === member.deskId && f.position)
               : null;
             const pos: [number, number, number] = desk && desk.position
-              ? gridToWorld(desk.position[0], desk.position[1], desk.gridSize[0], desk.gridSize[1])
+              ? gridToWorld(desk.position[0], desk.position[1], desk.gridSize[0], desk.gridSize[1], grid.origin)
               : getEmployeePosition(index);
             return (
               <Employee

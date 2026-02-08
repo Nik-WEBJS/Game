@@ -5,9 +5,12 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ISOVisualState } from './mappings';
 import { TECH_DECORATIONS, ISO_ABSENT, ISO_IN_PROGRESS, ISO_CERTIFIED, ISO_PROBLEM } from './decorations';
+import type { WallMaterial } from '@/game/types';
+import { OFFICE_LEVELS } from '@/game/types';
 
 interface OfficeModelProps {
-  activeZones: number;
+  officeLevel: number;
+  wallMaterials: { back: WallMaterial; left: WallMaterial; right: WallMaterial };
   technologies: string[];
   isoState: ISOVisualState;
   riskIntensity: number;
@@ -15,14 +18,16 @@ interface OfficeModelProps {
 }
 
 export function OfficeModel({
-  activeZones,
+  officeLevel,
+  wallMaterials,
   technologies,
   isoState,
   riskIntensity,
   profitGlow,
 }: OfficeModelProps) {
-  const floorWidth = 6 + activeZones * 2.5;
-  const floorDepth = 8 + activeZones * 1.5;
+  const levelDef = OFFICE_LEVELS.find(l => l.level === officeLevel) ?? OFFICE_LEVELS[0];
+  const floorWidth = levelDef.floorWidth;
+  const floorDepth = levelDef.floorDepth;
 
   return (
     <group>
@@ -30,7 +35,7 @@ export function OfficeModel({
       <Floor width={floorWidth} depth={floorDepth} isoState={isoState} />
 
       {/* Walls */}
-      <Walls width={floorWidth} depth={floorDepth} />
+      <Walls width={floorWidth} depth={floorDepth} wallMaterials={wallMaterials} />
 
       {/* Ambient office light */}
       <pointLight
@@ -52,11 +57,6 @@ export function OfficeModel({
       {TECH_DECORATIONS.filter(d => technologies.includes(d.techId)).map(deco => (
         <TechDecoration key={deco.techId} decoration={deco} />
       ))}
-
-      {/* Zone dividers */}
-      {activeZones >= 2 && <ZoneDivider position={[0, 0, -1]} width={floorWidth * 0.6} />}
-      {activeZones >= 3 && <ZoneDivider position={[-floorWidth * 0.25, 0, 2]} width={floorDepth * 0.3} vertical />}
-      {activeZones >= 4 && <ZoneDivider position={[floorWidth * 0.25, 0, 2]} width={floorDepth * 0.3} vertical />}
     </group>
   );
 }
@@ -111,57 +111,84 @@ function Floor({ width, depth, isoState }: { width: number; depth: number; isoSt
   );
 }
 
+// --- Single wall panel (concrete or glass) ---
+function WallPanel({ position, size, material, rotation }: {
+  position: [number, number, number];
+  size: [number, number, number];
+  material: WallMaterial;
+  rotation?: [number, number, number];
+}) {
+  if (material === 'glass') {
+    return (
+      <group position={position} rotation={rotation}>
+        {/* Glass frame */}
+        <mesh>
+          <boxGeometry args={size} />
+          <meshStandardMaterial color="#475569" roughness={0.3} metalness={0.5} />
+        </mesh>
+        {/* Glass fill */}
+        <mesh position={[0, 0, 0]}>
+          <boxGeometry args={[size[0] - 0.08, size[1] - 0.15, size[2] + 0.01]} />
+          <meshStandardMaterial
+            color="#93c5fd"
+            transparent
+            opacity={0.18}
+            roughness={0.05}
+            metalness={0.4}
+          />
+        </mesh>
+      </group>
+    );
+  }
+  // Concrete
+  return (
+    <mesh position={position} rotation={rotation}>
+      <boxGeometry args={size} />
+      <meshStandardMaterial color="#1a1a22" roughness={0.85} />
+    </mesh>
+  );
+}
+
 // --- Walls with windows and baseboards ---
-function Walls({ width, depth }: { width: number; depth: number }) {
+function Walls({ width, depth, wallMaterials }: { width: number; depth: number; wallMaterials: { back: WallMaterial; left: WallMaterial; right: WallMaterial } }) {
   const wallHeight = 3;
-  const wallColor = '#1a1a22';
   const windowCount = Math.max(2, Math.floor(width / 3));
 
   return (
     <group>
-      {/* Back wall */}
-      <mesh position={[0, wallHeight / 2, -depth / 2]}>
-        <boxGeometry args={[width, wallHeight, 0.1]} />
-        <meshStandardMaterial color={wallColor} roughness={0.85} />
-      </mesh>
-      {/* Left wall */}
-      <mesh position={[-width / 2, wallHeight / 2, 0]}>
-        <boxGeometry args={[0.1, wallHeight, depth]} />
-        <meshStandardMaterial color={wallColor} roughness={0.85} />
-      </mesh>
-      {/* Right wall */}
-      <mesh position={[width / 2, wallHeight / 2, 0]}>
-        <boxGeometry args={[0.1, wallHeight, depth]} />
-        <meshStandardMaterial color={wallColor} roughness={0.85} />
-      </mesh>
+      {/* Back wall — spans full width, sits behind floor */}
+      <WallPanel position={[0.2, wallHeight / 2, -depth / 2 - 0.05]} size={[width + 0.7, wallHeight, 0.1]} material={wallMaterials.back} />
+      {/* Left wall — from back wall inner face to front edge, no overlap */}
+      <WallPanel position={[-width / 2 - 0.05, wallHeight / 2, 0.025]} size={[0.1, wallHeight, depth]} material={wallMaterials.left} />
+      {/* Right wall — from back wall inner face to front edge, no overlap */}
+      <WallPanel position={[width / 2 + 0.5, wallHeight / 2, 0.025]} size={[0.1, wallHeight, depth]} material={wallMaterials.right} />
+      
 
       {/* Baseboard trim — back wall */}
-      <mesh position={[0, 0.05, -depth / 2 + 0.06]}>
+      <mesh position={[0, 0.05, -depth / 2 + 0.01]}>
         <boxGeometry args={[width, 0.1, 0.02]} />
         <meshStandardMaterial color="#27272a" roughness={0.6} />
       </mesh>
       {/* Baseboard trim — left wall */}
-      <mesh position={[-width / 2 + 0.06, 0.05, 0]}>
+      <mesh position={[-width / 2 + 0.01, 0.05, 0]}>
         <boxGeometry args={[0.02, 0.1, depth]} />
         <meshStandardMaterial color="#27272a" roughness={0.6} />
       </mesh>
       {/* Baseboard trim — right wall */}
-      <mesh position={[width / 2 - 0.06, 0.05, 0]}>
+      <mesh position={[width / 2 - 0.01, 0.05, 0]}>
         <boxGeometry args={[0.02, 0.1, depth]} />
         <meshStandardMaterial color="#27272a" roughness={0.6} />
       </mesh>
 
-      {/* Windows on back wall */}
-      {Array.from({ length: windowCount }, (_, i) => {
+      {/* Windows on back wall (only if concrete) */}
+      {wallMaterials.back === 'concrete' && Array.from({ length: windowCount }, (_, i) => {
         const x = -width / 2 + (i + 0.5) * (width / windowCount);
         return (
           <group key={`win-${i}`} position={[x, 1.8, -depth / 2 + 0.06]}>
-            {/* Window frame */}
             <mesh>
               <boxGeometry args={[1.0, 1.2, 0.02]} />
               <meshStandardMaterial color="#334155" roughness={0.3} metalness={0.4} />
             </mesh>
-            {/* Glass pane */}
             <mesh position={[0, 0, 0.01]}>
               <boxGeometry args={[0.9, 1.1, 0.005]} />
               <meshStandardMaterial
@@ -172,22 +199,18 @@ function Walls({ width, depth }: { width: number; depth: number }) {
                 metalness={0.3}
               />
             </mesh>
-            {/* Window cross divider — horizontal */}
             <mesh position={[0, 0, 0.015]}>
               <boxGeometry args={[0.9, 0.02, 0.01]} />
               <meshStandardMaterial color="#475569" roughness={0.3} metalness={0.4} />
             </mesh>
-            {/* Window cross divider — vertical */}
             <mesh position={[0, 0, 0.015]}>
               <boxGeometry args={[0.02, 1.1, 0.01]} />
               <meshStandardMaterial color="#475569" roughness={0.3} metalness={0.4} />
             </mesh>
-            {/* Window sill */}
             <mesh position={[0, -0.62, 0.04]}>
               <boxGeometry args={[1.05, 0.03, 0.08]} />
               <meshStandardMaterial color="#3f3f46" roughness={0.5} metalness={0.3} />
             </mesh>
-            {/* Daylight glow from window */}
             <pointLight position={[0, 0, 0.3]} color="#bfdbfe" intensity={0.12} distance={4} />
           </group>
         );
@@ -198,12 +221,10 @@ function Walls({ width, depth }: { width: number; depth: number }) {
         const x = -width / 2 + (i + 0.5) * (width / Math.max(2, Math.floor(width / 4)));
         return (
           <group key={`ceil-${i}`} position={[x, wallHeight - 0.05, 0]}>
-            {/* Light panel housing */}
             <mesh>
               <boxGeometry args={[0.8, 0.04, 0.3]} />
               <meshStandardMaterial color="#d4d4d8" roughness={0.3} metalness={0.2} />
             </mesh>
-            {/* Light surface */}
             <mesh position={[0, -0.025, 0]}>
               <boxGeometry args={[0.75, 0.005, 0.25]} />
               <meshStandardMaterial color="#f8fafc" emissive="#f8fafc" emissiveIntensity={0.3} roughness={0.1} />
@@ -390,18 +411,3 @@ function TechDecoration({ decoration }: { decoration: typeof TECH_DECORATIONS[nu
   );
 }
 
-// --- Zone divider (glass partition) ---
-function ZoneDivider({ position, width, vertical }: { position: [number, number, number]; width: number; vertical?: boolean }) {
-  return (
-    <mesh position={[position[0], 1, position[2]]} rotation={[0, vertical ? Math.PI / 2 : 0, 0]}>
-      <boxGeometry args={[width, 2, 0.05]} />
-      <meshStandardMaterial
-        color="#94a3b8"
-        transparent
-        opacity={0.15}
-        roughness={0.1}
-        metalness={0.5}
-      />
-    </mesh>
-  );
-}

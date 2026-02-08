@@ -3,15 +3,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ThreeEvent } from '@react-three/fiber';
 import { FurnitureItem } from '@/game/types';
-import { GRID_CELL, GRID_ORIGIN, gridToWorld } from './FurnitureObjects';
+import { GRID_CELL, gridToWorld } from './FurnitureObjects';
 import { furniturePlacement, cancelPlacement, subscribePlacement } from './furnitureState';
-
-export const GRID_COLS = 8;
-export const GRID_ROWS = 6;
 
 interface PlacementGridProps {
   furniture: FurnitureItem[];
   onPlace: (furnitureId: string, position: [number, number]) => void;
+  gridCols: number;
+  gridRows: number;
+  gridOrigin: [number, number];
 }
 
 function isCellOccupied(
@@ -35,20 +35,22 @@ function canPlace(
   sizeX: number,
   sizeZ: number,
   furniture: FurnitureItem[],
+  gridCols: number,
+  gridRows: number,
   excludeId?: string
 ): boolean {
   for (let dx = 0; dx < sizeX; dx++) {
     for (let dz = 0; dz < sizeZ; dz++) {
       const cx = col + dx;
       const cz = row + dz;
-      if (cx >= GRID_COLS || cz >= GRID_ROWS) return false;
+      if (cx >= gridCols || cz >= gridRows) return false;
       if (isCellOccupied(cx, cz, furniture, excludeId)) return false;
     }
   }
   return true;
 }
 
-export function PlacementGrid({ furniture, onPlace }: PlacementGridProps) {
+export function PlacementGrid({ furniture, onPlace, gridCols, gridRows, gridOrigin }: PlacementGridProps) {
   const [placementActive, setPlacementActive] = useState(furniturePlacement.active);
   const [hoveredCell, setHoveredCell] = useState<[number, number] | null>(null);
 
@@ -68,20 +70,20 @@ export function PlacementGrid({ furniture, onPlace }: PlacementGridProps) {
   const handleCellClick = useCallback((col: number, row: number) => {
     if (!selectedItem) return;
     const [sx, sz] = selectedItem.gridSize;
-    if (!canPlace(col, row, sx, sz, furniture, selectedItem.id)) return;
+    if (!canPlace(col, row, sx, sz, furniture, gridCols, gridRows, selectedItem.id)) return;
     onPlace(selectedItem.id, [col, row]);
     cancelPlacement();
-  }, [selectedItem, furniture, onPlace]);
+  }, [selectedItem, furniture, onPlace, gridCols, gridRows]);
 
   if (!placementActive) {
     // Show subtle grid lines always (very faint)
     return (
       <group>
-        {Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => {
-          const col = i % GRID_COLS;
-          const row = Math.floor(i / GRID_COLS);
-          const wx = GRID_ORIGIN[0] + col * GRID_CELL + GRID_CELL / 2;
-          const wz = GRID_ORIGIN[1] + row * GRID_CELL + GRID_CELL / 2;
+        {Array.from({ length: gridCols * gridRows }, (_, i) => {
+          const col = i % gridCols;
+          const row = Math.floor(i / gridCols);
+          const wx = gridOrigin[0] + col * GRID_CELL + GRID_CELL / 2;
+          const wz = gridOrigin[1] + row * GRID_CELL + GRID_CELL / 2;
           return (
             <mesh key={i} position={[wx, 0.005, wz]} rotation={[-Math.PI / 2, 0, 0]}>
               <planeGeometry args={[GRID_CELL * 0.95, GRID_CELL * 0.95]} />
@@ -99,11 +101,11 @@ export function PlacementGrid({ furniture, onPlace }: PlacementGridProps) {
 
   return (
     <group>
-      {Array.from({ length: GRID_COLS * GRID_ROWS }, (_, i) => {
-        const col = i % GRID_COLS;
-        const row = Math.floor(i / GRID_COLS);
-        const wx = GRID_ORIGIN[0] + col * GRID_CELL + GRID_CELL / 2;
-        const wz = GRID_ORIGIN[1] + row * GRID_CELL + GRID_CELL / 2;
+      {Array.from({ length: gridCols * gridRows }, (_, i) => {
+        const col = i % gridCols;
+        const row = Math.floor(i / gridCols);
+        const wx = gridOrigin[0] + col * GRID_CELL + GRID_CELL / 2;
+        const wz = gridOrigin[1] + row * GRID_CELL + GRID_CELL / 2;
         const occupied = isCellOccupied(col, row, furniture, selectedItem?.id);
 
         const isHovered = hoveredCell !== null &&
@@ -111,7 +113,7 @@ export function PlacementGrid({ furniture, onPlace }: PlacementGridProps) {
           row >= hoveredCell[1] && row < hoveredCell[1] + sizeZ;
 
         const canPlaceHere = hoveredCell !== null &&
-          canPlace(hoveredCell[0], hoveredCell[1], sizeX, sizeZ, furniture, selectedItem?.id);
+          canPlace(hoveredCell[0], hoveredCell[1], sizeX, sizeZ, furniture, gridCols, gridRows, selectedItem?.id);
 
         let color = '#94a3b8';
         let opacity = 0.08;

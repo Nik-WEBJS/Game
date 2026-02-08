@@ -280,9 +280,29 @@ export interface BusinessMetrics {
 
 export type LogoId = 'rocket' | 'zap' | 'shield' | 'diamond' | 'flame' | 'globe' | 'star' | 'crown' | 'target' | 'hexagon' | 'atom' | 'leaf';
 
+// --- Office Level ---
+export type WallMaterial = 'concrete' | 'glass';
+
+export interface OfficeConfig {
+  level: number;                // 1–4
+  wallMaterials: {
+    back: WallMaterial;
+    left: WallMaterial;
+    right: WallMaterial;
+  };
+}
+
+export const OFFICE_LEVELS: { level: number; maxEmployees: number; upgradeCost: number; floorWidth: number; floorDepth: number }[] = [
+  { level: 1, maxEmployees: 3,  upgradeCost: 0,      floorWidth: 8.5,  floorDepth: 9.5 },
+  { level: 2, maxEmployees: 6,  upgradeCost: 15000,  floorWidth: 11,   floorDepth: 11 },
+  { level: 3, maxEmployees: 10, upgradeCost: 35000,  floorWidth: 13.5, floorDepth: 12.5 },
+  { level: 4, maxEmployees: 16, upgradeCost: 70000,  floorWidth: 16,   floorDepth: 14 },
+];
+
 export interface Business {
   companyName: string;
   logoId: LogoId;
+  office: OfficeConfig;
   nicheId: string | null;
   nicheVariantId: string | null;
   productId: string | null;

@@ -8,12 +8,23 @@ import { startPlacement } from './furnitureState';
 
 // Grid constants — shared with PlacementGrid
 export const GRID_CELL = 1; // 1 unit per cell
-export const GRID_ORIGIN: [number, number] = [-4, -3]; // world x,z of grid [0,0]
+
+// Dynamic grid dimensions based on floor size
+export function getGridDimensions(floorWidth: number, floorDepth: number) {
+  const cols = Math.floor(floorWidth / GRID_CELL);
+  const rows = Math.floor(floorDepth / GRID_CELL);
+  const origin: [number, number] = [-floorWidth / 2, -floorDepth / 2];
+  return { cols, rows, origin };
+}
+
+// Legacy default for backward compat
+export const GRID_ORIGIN: [number, number] = [-4, -3];
 
 // Convert grid position to world position (center of the item)
-export function gridToWorld(gx: number, gz: number, sizeX: number, sizeZ: number): [number, number, number] {
-  const wx = GRID_ORIGIN[0] + gx * GRID_CELL + (sizeX * GRID_CELL) / 2;
-  const wz = GRID_ORIGIN[1] + gz * GRID_CELL + (sizeZ * GRID_CELL) / 2;
+export function gridToWorld(gx: number, gz: number, sizeX: number, sizeZ: number, origin?: [number, number]): [number, number, number] {
+  const o = origin ?? GRID_ORIGIN;
+  const wx = o[0] + gx * GRID_CELL + (sizeX * GRID_CELL) / 2;
+  const wz = o[1] + gz * GRID_CELL + (sizeZ * GRID_CELL) / 2;
   return [wx, 0, wz];
 }
 
@@ -523,14 +534,15 @@ const MESH_MAP: Record<FurnitureType, React.FC> = {
 
 interface FurnitureObject3DProps {
   item: FurnitureItem;
+  gridOrigin?: [number, number];
 }
 
-export function FurnitureObject3D({ item }: FurnitureObject3DProps) {
+export function FurnitureObject3D({ item, gridOrigin }: FurnitureObject3DProps) {
   const [hovered, setHovered] = useState(false);
   const Mesh = MESH_MAP[item.type];
   if (!item.position) return null;
 
-  const [wx, wy, wz] = gridToWorld(item.position[0], item.position[1], item.gridSize[0], item.gridSize[1]);
+  const [wx, wy, wz] = gridToWorld(item.position[0], item.position[1], item.gridSize[0], item.gridSize[1], gridOrigin);
 
   return (
     <group

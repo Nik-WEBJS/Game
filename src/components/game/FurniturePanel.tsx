@@ -7,8 +7,8 @@ import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/lib/utils';
-import { Armchair, Monitor, Server, Coffee, Presentation, Move, X, MapPin } from 'lucide-react';
-import { FurnitureType } from '@/game/types';
+import { Armchair, Monitor, Server, Coffee, Presentation, Move, X, MapPin, ArrowUpCircle, Layers } from 'lucide-react';
+import { FurnitureType, OFFICE_LEVELS, WallMaterial } from '@/game/types';
 import { FURNITURE_CATALOG } from '@/game/data-advanced';
 import { startPlacement, cancelPlacement, furniturePlacement, subscribePlacement } from '@/office/furnitureState';
 
@@ -20,8 +20,10 @@ const TYPE_ICONS: Record<FurnitureType, typeof Monitor> = {
   stage: Presentation,
 };
 
+const WALL_KEYS: ('back' | 'left' | 'right')[] = ['back', 'left', 'right'];
+
 export function FurniturePanel() {
-  const { business, player, buyFurniture, unplaceFurniture } = useGameStore();
+  const { business, player, buyFurniture, unplaceFurniture, upgradeOffice, setWallMaterial } = useGameStore();
   const { t } = useI18n();
   const owned = business.furniture;
   const [placingId, setPlacingId] = useState<string | null>(null);
@@ -39,6 +41,86 @@ export function FurniturePanel() {
         <Armchair className="w-4 h-4 text-amber-400" />
         {t.officeCustomization}
       </CardTitle>
+
+      {/* Office Level */}
+      {(() => {
+        const currentLevelDef = OFFICE_LEVELS.find(l => l.level === business.office.level) ?? OFFICE_LEVELS[0];
+        const nextLevelDef = OFFICE_LEVELS.find(l => l.level === business.office.level + 1);
+        const isMaxLevel = !nextLevelDef;
+        return (
+          <div className="mb-4 rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <ArrowUpCircle className="w-4 h-4 text-cyan-400" />
+              <span className="text-sm font-medium text-zinc-100">{t.officeLevel}</span>
+              <Badge variant="info" className="ml-auto">{t.officeLevelLabel(business.office.level)}</Badge>
+            </div>
+            <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
+              <span>{t.maxEmployees}: {currentLevelDef.maxEmployees}</span>
+              <span>{business.team.length} / {currentLevelDef.maxEmployees}</span>
+            </div>
+            <div className="w-full h-1.5 rounded-full bg-zinc-700 mb-3">
+              <div
+                className="h-full rounded-full bg-cyan-500 transition-all"
+                style={{ width: `${Math.min(100, (business.team.length / currentLevelDef.maxEmployees) * 100)}%` }}
+              />
+            </div>
+            {isMaxLevel ? (
+              <Badge variant="success" className="w-full justify-center">{t.maxLevel}</Badge>
+            ) : (
+              <Button
+                size="sm"
+                variant={player.money >= nextLevelDef.upgradeCost ? 'primary' : 'secondary'}
+                disabled={player.money < nextLevelDef.upgradeCost}
+                onClick={() => upgradeOffice()}
+                className="w-full text-xs"
+              >
+                {t.upgradeOffice} → {t.officeLevelLabel(nextLevelDef.level)} ({formatMoney(nextLevelDef.upgradeCost)})
+              </Button>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Wall Materials */}
+      <div className="mb-4 rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <Layers className="w-4 h-4 text-indigo-400" />
+          <span className="text-sm font-medium text-zinc-100">{t.wallMaterials}</span>
+        </div>
+        <div className="space-y-1.5">
+          {WALL_KEYS.map(wallKey => {
+            const label = wallKey === 'back' ? t.wallBack : wallKey === 'left' ? t.wallLeft : t.wallRight;
+            const current = business.office.wallMaterials[wallKey];
+            return (
+              <div key={wallKey} className="flex items-center justify-between">
+                <span className="text-xs text-zinc-400">{label}</span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setWallMaterial(wallKey, 'concrete')}
+                    className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
+                      current === 'concrete'
+                        ? 'bg-zinc-600 text-white'
+                        : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+                    }`}
+                  >
+                    {t.concrete}
+                  </button>
+                  <button
+                    onClick={() => setWallMaterial(wallKey, 'glass')}
+                    className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
+                      current === 'glass'
+                        ? 'bg-cyan-700 text-white'
+                        : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+                    }`}
+                  >
+                    {t.glass}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Placement mode banner */}
       {placingId && (

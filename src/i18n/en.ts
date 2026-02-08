@@ -93,6 +93,20 @@ export const en = {
   repRequired: (rep: number) => `Rep ≥ ${rep}`,
   weeksShort: (w: number) => `${w}w`,
 
+  // Office Levels
+  officeLevel: 'Office Level',
+  officeLevelLabel: (lvl: number) => `Level ${lvl}`,
+  maxEmployees: 'Max Employees',
+  upgradeOffice: 'Upgrade Office',
+  maxLevel: 'Max Level',
+  employeeLimitReached: 'Employee limit reached. Upgrade your office!',
+  wallBack: 'Back Wall',
+  wallLeft: 'Left Wall',
+  wallRight: 'Right Wall',
+  concrete: 'Concrete',
+  glass: 'Glass',
+  wallMaterials: 'Wall Materials',
+
   // Furniture Panel
   officeCustomization: 'Office Customization',
   clickToPlace: 'Click a green cell in the office to place the item',

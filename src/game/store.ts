@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId } from './types';
+import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS } from './types';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, MARKET_REFRESH_INTERVAL, FURNITURE_CATALOG } from './data-advanced';
 import { applyEconomy, calculateEconomy } from './engines/economy';
@@ -27,6 +27,10 @@ function createInitialState(): GameState {
     business: {
       companyName: 'My Company',
       logoId: 'rocket' as LogoId,
+      office: {
+        level: 1,
+        wallMaterials: { back: 'concrete', left: 'concrete', right: 'concrete' },
+      },
       nicheId: null,
       nicheVariantId: null,
       productId: null,
@@ -113,6 +117,9 @@ interface GameStore extends GameState {
   advanceISOStage: (isoId: string) => void;
   // Tech tree
   startResearch: (nodeId: string) => void;
+  // Office
+  upgradeOffice: () => void;
+  setWallMaterial: (wall: 'back' | 'left' | 'right', material: WallMaterial) => void;
   // Furniture
   buyFurniture: (type: string) => void;
   placeFurniture: (furnitureId: string, position: [number, number]) => void;
@@ -288,6 +295,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ),
       },
       logs: [...s.logs, { week: s.player.currentWeek, message: `Started researching ${node.name}.`, type: 'info' as const }],
+    }));
+  },
+
+  upgradeOffice: () => {
+    const state = get();
+    const currentLevel = state.business.office.level;
+    const nextLevelDef = OFFICE_LEVELS.find(l => l.level === currentLevel + 1);
+    if (!nextLevelDef) return; // already max level
+    if (state.player.money < nextLevelDef.upgradeCost) return;
+    set(s => ({
+      player: { ...s.player, money: s.player.money - nextLevelDef.upgradeCost },
+      business: {
+        ...s.business,
+        office: { ...s.business.office, level: nextLevelDef.level },
+      },
+      logs: [...s.logs, { week: s.player.currentWeek, message: `Office upgraded to level ${nextLevelDef.level}! Max employees: ${nextLevelDef.maxEmployees}.`, type: 'success' as const }],
+    }));
+  },
+
+  setWallMaterial: (wall, material) => {
+    set(s => ({
+      business: {
+        ...s.business,
+        office: {
+          ...s.business.office,
+          wallMaterials: { ...s.business.office.wallMaterials, [wall]: material },
+        },
+      },
     }));
   },
 

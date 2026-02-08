@@ -95,6 +95,20 @@ export const ru: TranslationKeys = {
   repRequired: (rep: number) => `Реп. ≥ ${rep}`,
   weeksShort: (w: number) => `${w}н`,
 
+  // Office Levels
+  officeLevel: 'Уровень офиса',
+  officeLevelLabel: (lvl: number) => `Уровень ${lvl}`,
+  maxEmployees: 'Макс. сотрудников',
+  upgradeOffice: 'Улучшить офис',
+  maxLevel: 'Макс. уровень',
+  employeeLimitReached: 'Лимит сотрудников достигнут. Улучшите офис!',
+  wallBack: 'Задняя стена',
+  wallLeft: 'Левая стена',
+  wallRight: 'Правая стена',
+  concrete: 'Бетон',
+  glass: 'Стекло',
+  wallMaterials: 'Материалы стен',
+
   // Furniture Panel
   officeCustomization: 'Обустройство офиса',
   clickToPlace: 'Нажмите на зелёную клетку в офисе, чтобы разместить предмет',
