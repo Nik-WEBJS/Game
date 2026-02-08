@@ -5,6 +5,8 @@ import { Canvas } from '@react-three/fiber';
 import { useGameStore } from '@/game/store';
 import { OfficeModel } from './OfficeModel';
 import { Employee } from './Employee';
+import { FurnitureObject3D } from './FurnitureObjects';
+import { PlacementGrid } from './PlacementGrid';
 import { CameraController, cameraInput, DRAG_SPEED } from './CameraController';
 import {
   getISOVisualState,
@@ -28,7 +30,7 @@ const CODE_MAP: Record<string, string> = {
 };
 
 export function OfficeScene() {
-  const { business } = useGameStore();
+  const { business, placeFurniture } = useGameStore();
   const [active, setActive] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -196,6 +198,17 @@ export function OfficeScene() {
             riskIntensity={riskIntensity}
             profitGlow={profitGlow}
           />
+
+          {/* Placement grid */}
+          <PlacementGrid
+            furniture={business.furniture}
+            onPlace={(fId, pos) => placeFurniture(fId, pos)}
+          />
+
+          {/* Placed furniture */}
+          {business.furniture.filter(f => f.position).map(f => (
+            <FurnitureObject3D key={f.id} item={f} />
+          ))}
 
           {/* Employees */}
           {visibleEmployees.map((member, index) => (

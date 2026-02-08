@@ -107,6 +107,7 @@ interface GameStore extends GameState {
   // Furniture
   buyFurniture: (type: string) => void;
   placeFurniture: (furnitureId: string, position: [number, number]) => void;
+  unplaceFurniture: (furnitureId: string) => void;
   // Misc
   resetGame: () => void;
   canStartISO: (isoId: string) => boolean;
@@ -290,6 +291,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ...s.business,
         furniture: s.business.furniture.map(f =>
           f.id === furnitureId ? { ...f, position } : f
+        ),
+      },
+    }));
+  },
+
+  unplaceFurniture: (furnitureId) => {
+    set(s => ({
+      business: {
+        ...s.business,
+        furniture: s.business.furniture.map(f =>
+          f.id === furnitureId ? { ...f, position: null } : f
         ),
       },
     }));
