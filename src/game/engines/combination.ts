@@ -20,6 +20,9 @@ export function calculateCombination(state: GameState): CombinationResult {
   // Product fit coefficient (0..2)
   const productFit = product.nicheFit[niche.id] ?? 1.0;
 
+  // No revenue without employees
+  const hasEmployees = business.team.filter(m => m.status === 'office').length > 0;
+
   // Tech synergy: count synergy pairs among adopted techs
   const adoptedTechs = TECHNOLOGIES.filter(t => business.technologies.includes(t.id));
   let synergyCount = 0;
@@ -71,8 +74,12 @@ export function calculateCombination(state: GameState): CombinationResult {
     product.quality + totalQualityBonus + teamEff * 0.15 * avgLevelMult + ttQuality
   ));
 
-  // Demand = baseDemand * productFit * marketAccess, capped at 1
-  const demand = Math.min(1, baseDemand * productFit * marketAccess);
+  // Demand is driven by product audience (built by marketers), NOT static
+  // baseDemand is a ceiling — audience determines how much of it you've captured
+  const avgAudience = business.companyProducts.length > 0
+    ? business.companyProducts.reduce((s, cp) => s + cp.audience, 0) / business.companyProducts.length
+    : 0;
+  const demand = Math.min(1, baseDemand * productFit * marketAccess * avgAudience);
 
   // Product lifecycle revenue multiplier (from company products)
   let lifecycleMult = 0;
@@ -82,10 +89,21 @@ export function calculateCombination(state: GameState): CombinationResult {
     }, 0) / business.companyProducts.length;
   }
 
-  // Revenue = demand * quality * monetization * techSynergy * lifecycle * scale
-  // Much lower base scale — revenue must be earned through good product + team
-  const BASE_REVENUE_SCALE = 15000;
-  const revenue = demand * quality * monetization.efficiency * techSynergy * lifecycleMult * BASE_REVENUE_SCALE;
+  // --- Client tier multiplier ---
+  // Early game: small clients only. As reputation + time grow, bigger clients appear.
+  // reputation 0-30: indie/small (×0.3), 30-60: mid-market (×0.7), 60-80: enterprise (×1.0), 80+: big tech (×1.3)
+  const rep = state.player.reputation;
+  const weeksPlayed = state.player.currentWeek;
+  const timeFactor = Math.min(1, weeksPlayed / 52); // ramps over ~1 year
+  const repTier = rep < 30 ? 0.3 : rep < 60 ? 0.7 : rep < 80 ? 1.0 : 1.3;
+  const clientTierMult = repTier * (0.4 + timeFactor * 0.6); // starts at 40% of tier, grows to 100%
+
+  // Revenue = demand * quality * monetization * techSynergy * lifecycle * clientTier * scale
+  // No revenue without employees or if product is in prototype
+  const BASE_REVENUE_SCALE = 18000;
+  const revenue = hasEmployees
+    ? demand * quality * monetization.efficiency * techSynergy * lifecycleMult * clientTierMult * BASE_REVENUE_SCALE
+    : 0;
 
   // Growth = revenue potential relative to current state + tech tree growth
   const growth = (demand * productFit * techSynergy - 0.5) * 0.08 + ttGrowth;

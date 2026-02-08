@@ -13,13 +13,13 @@ import { startPlacement } from '../office/furnitureState';
 import { getT } from '../i18n';
 import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18n/game-text';
 
-const INITIAL_MONEY = 25000;
+const INITIAL_MONEY = 100000;
 
 function createInitialState(): GameState {
   return {
     player: {
       money: INITIAL_MONEY,
-      reputation: 50,
+      reputation: 10,
       experience: 0,
       unlockedNiches: ['fintech', 'healthtech', 'edtech', 'gamedev', 'ecommerce', 'cybersec'],
       unlockedProducts: ['saas_platform', 'mobile_app', 'marketplace', 'api_service', 'desktop_app'],
@@ -58,7 +58,7 @@ function createInitialState(): GameState {
       companyProducts: [],
       techTree: createTechTree(),
       furniture: [],
-      employeeMarket: generateMarketPool(5, 50),
+      employeeMarket: generateMarketPool(5, 10),
       marketRefreshWeek: 0,
     },
     phase: 'setup',

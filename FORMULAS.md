@@ -6,26 +6,55 @@
 
 ## 1. Экономика (Economy Engine)
 
-### 1.1 Доход (Revenue)
+### 1.1 Доход (Revenue) — ОБНОВЛЕНО
 
-Доход рассчитывается через **Combination Engine** и зависит от множества факторов:
+Доход рассчитывается через **Combination Engine**. **Без сотрудников в офисе Revenue = 0.**
 
 ```
-Revenue = Demand × Quality × MonetizationEff × TechSynergy × LifecycleMult × BASE_SCALE
+if (officeEmployees === 0) → Revenue = 0
+
+Revenue = Demand × Quality × MonetizationEff × TechSynergy × LifecycleMult × ClientTierMult × BASE_SCALE
 ```
 
 | Переменная | Описание | Диапазон |
 |-----------|----------|----------|
-| `Demand` | Спрос = baseDemand × productFit × marketAccess | 0–1 |
-| `Quality` | Качество = baseQuality + techBonuses + teamEff × 0.15 × avgLevelMult + techTreeQuality | 0–1 |
+| `Demand` | baseDemand × productFit × marketAccess × **avgAudience** | 0–1 |
+| `Quality` | baseQuality + techBonuses + teamEff × 0.15 × avgLevelMult + techTreeQuality | 0–1 |
 | `MonetizationEff` | Эффективность монетизации (из выбранной стратегии) | 0.35–0.85 |
 | `TechSynergy` | 1.0 + (кол-во синергетических пар × 0.08) | 1.0+ |
 | `LifecycleMult` | Множитель стадии продукта (0 в Prototype, 1.0 в Growth) | 0–1.0 |
-| `BASE_SCALE` | Базовый масштаб дохода | $15,000 |
+| `ClientTierMult` | Уровень клиентов (зависит от репутации и времени) | 0.12–1.3 |
+| `BASE_SCALE` | Базовый масштаб дохода | $18,000 |
 
-**Пример:** Demand=0.7, Quality=0.5, MonetEff=0.75, TechSynergy=1.08, Lifecycle=0.7 (Release)
+#### Спрос (Demand) — зависит от маркетологов
+
 ```
-Revenue = 0.7 × 0.5 × 0.75 × 1.08 × 0.7 × 15000 = $2,977/нед
+avgAudience = среднее audience по всем продуктам (0..1)
+// audience растёт ТОЛЬКО от маркетологов: +1.2% × marketingCount за неделю
+// без маркетологов audience = 0, значит Demand = 0
+Demand = baseDemand × productFit × marketAccess × avgAudience
+```
+
+#### Система клиентов (Client Tier)
+
+```
+repTier = rep < 30 ? 0.3 : rep < 60 ? 0.7 : rep < 80 ? 1.0 : 1.3
+timeFactor = min(1, weeksPlayed / 52)    // 0..1 за ~1 год
+ClientTierMult = repTier × (0.4 + timeFactor × 0.6)
+```
+
+| Репутация | Тип клиентов | repTier | Неделя 1 | Неделя 26 | Неделя 52 |
+|-----------|-------------|---------|----------|-----------|-----------|
+| 10 | Инди/стартапы | 0.3 | 0.12 | 0.21 | 0.30 |
+| 40 | Средний бизнес | 0.7 | 0.28 | 0.49 | 0.70 |
+| 70 | Энтерпрайз | 1.0 | 0.40 | 0.70 | 1.00 |
+| 90 | Биг-тех | 1.3 | 0.52 | 0.91 | 1.30 |
+
+**Пример (неделя 20, rep=40):** Demand=0.3, Quality=0.5, MonetEff=0.75, TechSynergy=1.08, Lifecycle=0.7
+```
+timeFactor = 20/52 = 0.385
+ClientTierMult = 0.7 × (0.4 + 0.385 × 0.6) = 0.7 × 0.631 = 0.442
+Revenue = 0.3 × 0.5 × 0.75 × 1.08 × 0.7 × 0.442 × 18000 = $1,134/нед
 ```
 
 ### 1.2 Расходы (Costs)

@@ -15,36 +15,43 @@ export function tickProducts(state: GameState): GameState {
   if (state.business.companyProducts.length === 0) return state;
 
   const t = getT();
-  const devCount = state.business.team.filter(m => m.role === 'developer').length;
-  const qaCount = state.business.team.filter(m => m.role === 'qa').length;
+  const devCount = state.business.team.filter(m => m.role === 'developer' && m.status === 'office').length;
+  const qaCount = state.business.team.filter(m => m.role === 'qa' && m.status === 'office').length;
   const newLogs = [...state.logs];
 
   const newProducts = state.business.companyProducts.map(cp => {
     const updated = { ...cp, lifecycleWeeks: cp.lifecycleWeeks + 1 };
 
-    // Quality improves each week based on dev team working on it
-    const devQualityGain = devCount * 0.008 + qaCount * 0.005;
-    updated.quality = Math.min(1, updated.quality + devQualityGain);
+    // Quality improves each week ONLY if developers are working
+    if (devCount > 0) {
+      const devQualityGain = devCount * 0.008 + qaCount * 0.005;
+      updated.quality = Math.min(1, updated.quality + devQualityGain);
+    }
 
-    // Audience grows slowly based on marketing team
-    const marketingCount = state.business.team.filter(m => m.role === 'marketing').length;
-    if (LIFECYCLE_ORDER.indexOf(cp.lifecycle) >= 2) { // release or later
-      const audienceGain = marketingCount * 0.01 + 0.005;
+    // Audience grows ONLY from marketers — no one knows about a new company
+    const marketingCount = state.business.team.filter(m => m.role === 'marketing' && m.status === 'office').length;
+    if (LIFECYCLE_ORDER.indexOf(cp.lifecycle) >= 2 && marketingCount > 0) { // release or later + has marketers
+      const audienceGain = marketingCount * 0.012;
       updated.audience = Math.min(1, updated.audience + audienceGain);
     }
 
-    // Auto-advance early stages
+    // Prototype/beta advance ONLY with developers working
     const requiredWeeks = LIFECYCLE_WEEKS[cp.lifecycle];
     if (requiredWeeks > 0 && updated.lifecycleWeeks >= requiredWeeks) {
-      const next = nextLifecycleStage(cp.lifecycle);
-      if (next) {
-        updated.lifecycle = next;
-        updated.lifecycleWeeks = 0;
-        newLogs.push({
-          week: state.player.currentWeek,
-          message: t.productAdvancedMessage(cp.name, next),
-          type: 'success',
-        });
+      // Prototype and beta require at least 1 developer to advance
+      if ((cp.lifecycle === 'prototype' || cp.lifecycle === 'beta') && devCount === 0) {
+        // Stalled — no devs, no progress
+      } else {
+        const next = nextLifecycleStage(cp.lifecycle);
+        if (next) {
+          updated.lifecycle = next;
+          updated.lifecycleWeeks = 0;
+          newLogs.push({
+            week: state.player.currentWeek,
+            message: t.productAdvancedMessage(cp.name, next),
+            type: 'success',
+          });
+        }
       }
     }
 
