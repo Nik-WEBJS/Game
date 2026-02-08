@@ -9,6 +9,7 @@ import { tickTeam, hireMember, fireMember, canHire, getHireCost, hireFromMarket,
 import { checkWinLose, gainExperience } from './engines/progression';
 import { tickProducts, createInitialProduct } from './engines/product';
 import { tickFreelance, sendToFreelance as sendFreelance, canSendToFreelance } from './engines/freelance';
+import { startPlacement } from '../office/furnitureState';
 import { getT } from '../i18n';
 import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18n/game-text';
 
@@ -367,6 +368,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       business: { ...s.business, furniture: [...s.business.furniture, item] },
       logs: [...s.logs, { week: s.player.currentWeek, message: getT().purchasedFurnitureMessage(furnName(catalog.type, getT(), catalog.name), `$${catalog.cost.toLocaleString()}`), type: 'info' as const }],
     }));
+    // Auto-start placement mode for the newly purchased item
+    startPlacement(item.id);
   },
 
   placeFurniture: (furnitureId, position) => {

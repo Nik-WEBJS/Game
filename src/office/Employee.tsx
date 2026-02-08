@@ -30,6 +30,11 @@ export function Employee({ member, position }: EmployeeProps) {
   const rightArmRef = useRef<THREE.Group>(null);
   const leftLegRef = useRef<THREE.Group>(null);
   const rightLegRef = useRef<THREE.Group>(null);
+  const progressFillRef = useRef<THREE.Mesh>(null);
+  const laptopLedRef = useRef<THREE.Mesh>(null);
+
+  const isFreelance = member.status === 'freelance';
+  const freelanceProgress = member.freelanceTask?.progress ?? 0;
 
   const burnoutState = getBurnoutVisual(member.burnout);
   const moraleSpeed = getMoraleSpeedFactor(member.morale);
@@ -44,6 +49,25 @@ export function Employee({ member, position }: EmployeeProps) {
   useFrame((state) => {
     if (!groupRef.current || burnoutState === 'removed') return;
     const t = state.clock.elapsedTime + phaseOffset;
+
+    if (isFreelance) {
+      // Freelancers: gentle float + no walk
+      const float = Math.sin(t * 1.5) * 0.02;
+      groupRef.current.position.y = position[1] + float;
+      // Animate progress bar fill
+      if (progressFillRef.current) {
+        const BAR_W = 0.5;
+        const fillW = Math.max(0.001, freelanceProgress * BAR_W);
+        progressFillRef.current.scale.x = fillW / BAR_W;
+        progressFillRef.current.position.x = -(BAR_W - fillW) / 2;
+      }
+      // Blink laptop LED
+      if (laptopLedRef.current) {
+        const blink = Math.sin(t * 3) > 0 ? 0.8 : 0.2;
+        (laptopLedRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = blink;
+      }
+      return;
+    }
 
     // Vertical bob
     const bob = Math.sin(t * animParams.bobSpeed) * animParams.bobAmount;
@@ -80,6 +104,10 @@ export function Employee({ member, position }: EmployeeProps) {
 
   if (burnoutState === 'removed') return null;
 
+  // Opacity for freelance ghost effect
+  const bodyOpacity = isFreelance ? 0.35 : 1;
+  const isTransparent = isFreelance;
+
   return (
     <group ref={groupRef} position={position}>
       {/* --- Legs --- */}
@@ -88,32 +116,32 @@ export function Employee({ member, position }: EmployeeProps) {
         {/* Thigh */}
         <mesh position={[0, -0.02, 0]} castShadow>
           <boxGeometry args={[0.1, 0.22, 0.1]} />
-          <meshStandardMaterial color={roleColor} roughness={0.7} />
+          <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
         {/* Shin */}
         <mesh position={[0, -0.2, 0]} castShadow>
           <boxGeometry args={[0.09, 0.18, 0.09]} />
-          <meshStandardMaterial color={roleColor} roughness={0.7} />
+          <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
         {/* Shoe */}
         <mesh position={[0, -0.32, 0.02]} castShadow>
           <boxGeometry args={[0.1, 0.06, 0.14]} />
-          <meshStandardMaterial color={SHOE_COLOR} roughness={0.6} />
+          <meshStandardMaterial color={SHOE_COLOR} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
       </group>
       {/* Right leg */}
       <group ref={rightLegRef} position={[0.08, 0.28, 0]}>
         <mesh position={[0, -0.02, 0]} castShadow>
           <boxGeometry args={[0.1, 0.22, 0.1]} />
-          <meshStandardMaterial color={roleColor} roughness={0.7} />
+          <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
         <mesh position={[0, -0.2, 0]} castShadow>
           <boxGeometry args={[0.09, 0.18, 0.09]} />
-          <meshStandardMaterial color={roleColor} roughness={0.7} />
+          <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
         <mesh position={[0, -0.32, 0.02]} castShadow>
           <boxGeometry args={[0.1, 0.06, 0.14]} />
-          <meshStandardMaterial color={SHOE_COLOR} roughness={0.6} />
+          <meshStandardMaterial color={SHOE_COLOR} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
       </group>
 
@@ -122,22 +150,22 @@ export function Employee({ member, position }: EmployeeProps) {
         {/* Torso */}
         <mesh position={[0, 0.52, 0]} castShadow>
           <boxGeometry args={[0.3, 0.32, 0.18]} />
-          <meshStandardMaterial color={roleColor} roughness={0.7} />
+          <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
         {/* Collar / shirt detail */}
         <mesh position={[0, 0.66, 0.08]} castShadow>
           <boxGeometry args={[0.14, 0.04, 0.04]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.5} />
+          <meshStandardMaterial color="#ffffff" roughness={0.5} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
         {/* Belt */}
         <mesh position={[0, 0.37, 0]} castShadow>
           <boxGeometry args={[0.31, 0.03, 0.19]} />
-          <meshStandardMaterial color="#2a2a2a" roughness={0.4} metalness={0.3} />
+          <meshStandardMaterial color="#2a2a2a" roughness={0.4} metalness={0.3} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
         {/* Belt buckle */}
         <mesh position={[0, 0.37, 0.1]} castShadow>
           <boxGeometry args={[0.04, 0.03, 0.01]} />
-          <meshStandardMaterial color="#c0a060" metalness={0.8} roughness={0.2} />
+          <meshStandardMaterial color="#c0a060" metalness={0.8} roughness={0.2} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
 
         {/* --- Arms --- */}
@@ -146,39 +174,39 @@ export function Employee({ member, position }: EmployeeProps) {
           {/* Upper arm */}
           <mesh position={[0, -0.08, 0]} castShadow>
             <boxGeometry args={[0.09, 0.2, 0.09]} />
-            <meshStandardMaterial color={roleColor} roughness={0.7} />
+            <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
           {/* Forearm (skin) */}
           <mesh position={[0, -0.24, 0]} castShadow>
             <boxGeometry args={[0.08, 0.14, 0.08]} />
-            <meshStandardMaterial color={SKIN} roughness={0.6} />
+            <meshStandardMaterial color={SKIN} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
           {/* Hand */}
           <mesh position={[0, -0.34, 0]} castShadow>
             <boxGeometry args={[0.06, 0.06, 0.04]} />
-            <meshStandardMaterial color={SKIN_DARK} roughness={0.6} />
+            <meshStandardMaterial color={SKIN_DARK} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
         </group>
         {/* Right arm */}
         <group ref={rightArmRef} position={[0.2, 0.6, 0]}>
           <mesh position={[0, -0.08, 0]} castShadow>
             <boxGeometry args={[0.09, 0.2, 0.09]} />
-            <meshStandardMaterial color={roleColor} roughness={0.7} />
+            <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
           <mesh position={[0, -0.24, 0]} castShadow>
             <boxGeometry args={[0.08, 0.14, 0.08]} />
-            <meshStandardMaterial color={SKIN} roughness={0.6} />
+            <meshStandardMaterial color={SKIN} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
           <mesh position={[0, -0.34, 0]} castShadow>
             <boxGeometry args={[0.06, 0.06, 0.04]} />
-            <meshStandardMaterial color={SKIN_DARK} roughness={0.6} />
+            <meshStandardMaterial color={SKIN_DARK} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
         </group>
 
         {/* --- Neck --- */}
         <mesh position={[0, 0.72, 0]} castShadow>
           <cylinderGeometry args={[0.04, 0.05, 0.06, 6]} />
-          <meshStandardMaterial color={SKIN} roughness={0.6} />
+          <meshStandardMaterial color={SKIN} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
 
         {/* --- Head --- */}
@@ -186,40 +214,40 @@ export function Employee({ member, position }: EmployeeProps) {
           {/* Head base */}
           <mesh castShadow>
             <boxGeometry args={[0.18, 0.2, 0.18]} />
-            <meshStandardMaterial color={SKIN} roughness={0.6} />
+            <meshStandardMaterial color={SKIN} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
           {/* Eyes */}
           <mesh position={[-0.04, 0.02, 0.09]}>
             <sphereGeometry args={[0.02, 6, 6]} />
-            <meshStandardMaterial color="#1a1a2e" roughness={0.3} />
+            <meshStandardMaterial color="#1a1a2e" roughness={0.3} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
           <mesh position={[0.04, 0.02, 0.09]}>
             <sphereGeometry args={[0.02, 6, 6]} />
-            <meshStandardMaterial color="#1a1a2e" roughness={0.3} />
+            <meshStandardMaterial color="#1a1a2e" roughness={0.3} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
           {/* Nose */}
           <mesh position={[0, -0.01, 0.1]}>
             <boxGeometry args={[0.03, 0.04, 0.03]} />
-            <meshStandardMaterial color={SKIN_DARK} roughness={0.6} />
+            <meshStandardMaterial color={SKIN_DARK} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
           {/* Hair */}
           <mesh position={[0, 0.1, 0]} castShadow>
             <boxGeometry args={[0.2, 0.06, 0.2]} />
-            <meshStandardMaterial color={hairColor} roughness={0.9} />
+            <meshStandardMaterial color={hairColor} roughness={0.9} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
           {/* Hair sides */}
           <mesh position={[-0.1, 0.04, 0]} castShadow>
             <boxGeometry args={[0.03, 0.12, 0.19]} />
-            <meshStandardMaterial color={hairColor} roughness={0.9} />
+            <meshStandardMaterial color={hairColor} roughness={0.9} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
           <mesh position={[0.1, 0.04, 0]} castShadow>
             <boxGeometry args={[0.03, 0.12, 0.19]} />
-            <meshStandardMaterial color={hairColor} roughness={0.9} />
+            <meshStandardMaterial color={hairColor} roughness={0.9} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
           {/* Hair back */}
           <mesh position={[0, 0.02, -0.1]} castShadow>
             <boxGeometry args={[0.2, 0.16, 0.03]} />
-            <meshStandardMaterial color={hairColor} roughness={0.9} />
+            <meshStandardMaterial color={hairColor} roughness={0.9} transparent={isTransparent} opacity={bodyOpacity} />
           </mesh>
         </group>
 
@@ -228,7 +256,7 @@ export function Employee({ member, position }: EmployeeProps) {
       </group>
 
       {/* Burnout indicator (red aura when high) */}
-      {member.burnout > 60 && (
+      {!isFreelance && member.burnout > 60 && (
         <pointLight
           position={[0, 1.2, 0]}
           color="#ef4444"
@@ -238,13 +266,63 @@ export function Employee({ member, position }: EmployeeProps) {
       )}
 
       {/* Morale indicator (green sparkle when high) */}
-      {member.morale > 80 && (
+      {!isFreelance && member.morale > 80 && (
         <pointLight
           position={[0, 1.3, 0]}
           color="#34d399"
           intensity={0.2}
           distance={1}
         />
+      )}
+
+      {/* --- Freelance overlay --- */}
+      {isFreelance && (
+        <group>
+          {/* Laptop on desk */}
+          <group position={[0.2, 0.02, 0.15]}>
+            {/* Base */}
+            <mesh>
+              <boxGeometry args={[0.22, 0.015, 0.16]} />
+              <meshStandardMaterial color="#27272a" roughness={0.3} metalness={0.6} />
+            </mesh>
+            {/* Screen (tilted) */}
+            <mesh position={[0, 0.08, -0.07]} rotation={[-0.3, 0, 0]}>
+              <boxGeometry args={[0.2, 0.14, 0.008]} />
+              <meshStandardMaterial color="#1e1e2e" emissive="#818cf8" emissiveIntensity={0.4} roughness={0.2} />
+            </mesh>
+            {/* LED indicator */}
+            <mesh ref={laptopLedRef} position={[0, 0.01, 0.06]}>
+              <boxGeometry args={[0.02, 0.005, 0.005]} />
+              <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.8} />
+            </mesh>
+          </group>
+
+          {/* Floating progress bar above head */}
+          <group position={[0, 1.35, 0]}>
+            {/* Background bar */}
+            <mesh>
+              <boxGeometry args={[0.5, 0.06, 0.02]} />
+              <meshStandardMaterial color="#27272a" roughness={0.5} opacity={0.9} transparent />
+            </mesh>
+            {/* Fill bar */}
+            <mesh ref={progressFillRef} position={[0, 0, 0.005]}>
+              <boxGeometry args={[0.5, 0.045, 0.015]} />
+              <meshStandardMaterial
+                color={member.freelanceTask?.type === 'outsourcing' ? '#f59e0b' : '#06b6d4'}
+                emissive={member.freelanceTask?.type === 'outsourcing' ? '#f59e0b' : '#06b6d4'}
+                emissiveIntensity={0.3}
+                roughness={0.3}
+              />
+            </mesh>
+            {/* Glow */}
+            <pointLight
+              position={[0, 0.1, 0.1]}
+              color={member.freelanceTask?.type === 'outsourcing' ? '#f59e0b' : '#06b6d4'}
+              intensity={0.15}
+              distance={1}
+            />
+          </group>
+        </group>
       )}
     </group>
   );

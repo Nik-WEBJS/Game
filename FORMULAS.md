@@ -376,16 +376,71 @@ progress += 25 + (hasQA ? 10 : 0) + (hasManager ? 8 : 0)
 
 ## 7. События (Event Engine)
 
-### 7.1 Вероятность события
+### 7.1 Масштабирование от прогресса (Event Scaling)
+
+Частота и штрафы событий зависят от стадии продукта и количества технологий:
 
 ```
+// Множитель стадии продукта
+lifecycleScale = {
+  prototype: 0.15,
+  beta:      0.3,
+  release:   0.6,
+  growth:    0.85,
+  maturity:  1.0,
+  decline:   1.0,
+}
+stageMult = lifecycleScale[product.lifecycle]
+
+// Множитель технологий (больше технологий = больше событий)
+techMult = min(1, 0.4 + techCount × 0.15)
+
+// Итоговый множитель частоты
+frequencyMult = stageMult × techMult
+
+// Множитель денежных штрафов (только для отрицательных moneyDelta)
+penaltyMult = max(0.2, stageMult)
+```
+
+**Пример (Prototype, 0 технологий):**
+```
+stageMult = 0.15, techMult = 0.4
+frequencyMult = 0.15 × 0.4 = 0.06
+penaltyMult = max(0.2, 0.15) = 0.2
+→ Data Breach: −$10,000 × 0.2 = −$2,000
+```
+
+**Пример (Growth, 3 технологии):**
+```
+stageMult = 0.85, techMult = min(1, 0.4 + 3 × 0.15) = 0.85
+frequencyMult = 0.85 × 0.85 = 0.72
+penaltyMult = 0.85
+→ Data Breach: −$10,000 × 0.85 = −$8,500
+```
+
+### 7.2 Вероятность события
+
+Базовая вероятность масштабируется через `frequencyMult`:
+
+```
+noEventChance   = 0.2 + (1 − frequencyMult) × 0.6
+oneEventChance  = noEventChance + (1 − noEventChance) × 0.75
+
 roll = random()
-if roll < 0.6:  1 событие
-elif roll < 0.8: 2 события
-else: 0 событий
+if roll < noEventChance:    0 событий
+elif roll < oneEventChance: 1 событие
+else:                       2 события
 ```
 
-### 7.2 Выбор события
+| Стадия | frequencyMult | noEventChance | Шанс 1 события | Шанс 2 событий |
+|--------|---------------|---------------|-----------------|----------------|
+| Prototype | ~0.06 | ~76% | ~18% | ~6% |
+| Beta | ~0.12 | ~73% | ~20% | ~7% |
+| Release | ~0.36 | ~59% | ~31% | ~10% |
+| Growth | ~0.72 | ~37% | ~47% | ~16% |
+| Maturity | ~1.0 | ~20% | ~60% | ~20% |
+
+### 7.3 Выбор события
 
 Взвешенный случайный выбор из пула (14 событий). Каждое событие имеет `weight` и опциональное `condition`.
 
@@ -399,6 +454,14 @@ roll = random() × totalWeight
 ISO-сертификация блокирует 50% кризисных событий:
 ```
 if (event.type === 'crisis' && isoCertified && random() < 0.5) → пропуск
+```
+
+### 7.4 Применение штрафов
+
+```
+scaledMoney = moneyDelta < 0
+  ? round(moneyDelta × penaltyMult)   // штрафы масштабируются
+  : moneyDelta                          // награды — полные
 ```
 
 ---
@@ -508,3 +571,135 @@ node.unlocked = node.requires.every(reqId => getNode(reqId).completed)
 | `POINTS_PER_WEEK` | 0.02 | store.ts |
 | `INFRA_COST_RATE` | 3% от стоимости технологии | economy.ts |
 | `TECH_COMPLEXITY_MULT` | 500 | economy.ts |
+| `BASE_CONTRACT_VALUE` | $4,000 | data.ts |
+| `FREELANCE_BURNOUT_PER_WEEK` | 3–6 | data.ts |
+| `FREELANCE_QUALITY_BOOST` | 0.006/нед | data.ts |
+
+---
+
+## 11. Фриланс (Freelance Engine)
+
+### 11.1 Награда за аутсорсинг
+
+```
+rewardMoney = round(BASE_CONTRACT_VALUE × roleMult × levelMult × (1 + talent × 0.5))
+```
+
+| Переменная | Описание |
+|-----------|----------|
+| `BASE_CONTRACT_VALUE` | $4,000 |
+| `roleMult` | Множитель роли (dev=1.0, qa=0.85, marketing=1.1, security=0.9, manager=1.3) |
+| `levelMult` | `EMPLOYEE_LEVEL_OUTPUT_MULT[level - 1]` (1.0–2.5) |
+| `talent` | 0–1, бонус к награде |
+
+**Пример:** Manager Lv3, talent=0.6
+```
+reward = round(4000 × 1.3 × 1.55 × (1 + 0.6 × 0.5))
+       = round(4000 × 1.3 × 1.55 × 1.3)
+       = round($10,478) = $10,478
+```
+
+### 11.2 Еженедельный прогресс
+
+```
+baseSpeed    = 1 / durationWeeks
+roleSpeed    = FREELANCE_ROLE_SPEED[role][taskType]
+levelMult    = EMPLOYEE_LEVEL_OUTPUT_MULT[level - 1]
+moraleMult   = lerp(0.7, 1.15, morale / 100)
+burnoutPen   = burnout < 50 ? 1.0 : burnout < 75 ? 0.85 : 0.65
+
+weeklyProgress = baseSpeed × roleSpeed × levelMult × (1 + talent × 0.3) × moraleMult × burnoutPen
+newProgress    = min(1, progress + weeklyProgress)
+```
+
+**Пример:** Developer Lv2, outsourcing 4 нед, talent=0.5, morale=80, burnout=20
+```
+baseSpeed  = 1/4 = 0.25
+roleSpeed  = 1.0
+levelMult  = 1.25
+moraleMult = lerp(0.7, 1.15, 0.8) = 1.06
+burnoutPen = 1.0
+
+weeklyProgress = 0.25 × 1.0 × 1.25 × 1.15 × 1.06 × 1.0 = 0.381
+→ Завершится за ~3 недели вместо 4 (ускорение от уровня и таланта)
+```
+
+### 11.3 Выгорание во время фриланса
+
+```
+burnoutGain = random(3, 6) × (1 − burnoutResistance)
+newBurnout  = min(100, burnout + burnoutGain)
+```
+
+**Пример:** burnoutResistance=0.4
+```
+burnoutGain = 4.5 × (1 − 0.4) = 2.7/нед
+```
+
+### 11.4 Мораль во время фриланса
+
+```
+newMorale = max(10, morale − 1)    // −1/нед (медленное снижение)
+```
+
+### 11.5 Internal Help — буст качества продукта
+
+Каждую неделю, пока сотрудник помогает продукту:
+
+```
+qualityBoost = FREELANCE_QUALITY_BOOST × roleSpeed × levelMult
+product.quality += qualityBoost
+```
+
+| Константа | Значение |
+|-----------|----------|
+| `FREELANCE_QUALITY_BOOST` | 0.006 (0.6%/нед) |
+
+**Пример:** QA Lv3, internal_help
+```
+qualityBoost = 0.006 × 1.1 × 1.55 = 0.01023/нед (+1% качества)
+```
+
+### 11.6 Эффекты при завершении (progress ≥ 1)
+
+| Тип | Деньги | Опыт | Штраф морали |
+|-----|--------|------|-------------|
+| Outsourcing | +`rewardMoney` | +5 | −10 |
+| Internal Help | — | +3 | −5 |
+
+```
+// Outsourcing
+player.money += task.rewardMoney
+member.experience = min(100, experience + 5)
+member.morale = max(10, morale − 10)
+
+// Internal Help
+member.experience = min(100, experience + 3)
+member.morale = max(10, morale − 5)
+
+// Оба типа
+member.status = 'office'
+member.freelanceTask = null
+```
+
+### 11.7 Длительность задач
+
+```
+duration = random(min, max)
+```
+
+| Тип | Мин | Макс |
+|-----|-----|------|
+| Outsourcing | 3 | 6 |
+| Internal Help | 2 | 5 |
+
+### 11.8 Анти-эксплойт проверки
+
+```
+canSendToFreelance(state, memberId):
+  if member.status === 'freelance'           → false (уже на фрилансе)
+  if officeEmployeeCount <= 1                → false (последний сотрудник)
+  if member.burnout >= 85                    → false (слишком высокое выгорание)
+  if activeEvents.some(e => e.type='crisis') → false (кризис)
+  else → true
+```

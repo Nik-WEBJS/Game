@@ -67,7 +67,7 @@ export function OfficeScene() {
   const grid = getGridDimensions(levelDef.floorWidth, levelDef.floorDepth);
 
   const visibleEmployees = business.team.filter(
-    (m) => getBurnoutVisual(m.burnout) !== 'removed' && m.status !== 'freelance'
+    (m) => getBurnoutVisual(m.burnout) !== 'removed'
   );
 
   return (
