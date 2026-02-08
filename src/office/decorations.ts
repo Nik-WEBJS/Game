@@ -60,7 +60,7 @@ export const TECH_DECORATIONS: DecorationDef[] = [
 
 // --- ISO visual decoration ---
 
-export const ISO_ABSENT = { clutter: 5, paperStacks: 3 };
+export const ISO_ABSENT = { clutter: 0, paperStacks: 0 };
 export const ISO_IN_PROGRESS = { documents: 4, diagrams: 2 };
 export const ISO_CERTIFIED = { plants: 3 };
 export const ISO_PROBLEM = { inspectors: 1, warningLights: 2 };
