@@ -16,6 +16,7 @@ import { BusinessInfo } from './BusinessInfo';
 import { MarketPanel } from './MarketPanel';
 import { TechTreePanel } from './TechTreePanel';
 import { FurniturePanel } from './FurniturePanel';
+import { WikiPanel } from './WikiPanel';
 import { OfficeScene } from '@/office/OfficeScene';
 import { subscribePlacement, furniturePlacement } from '@/office/furnitureState';
 import { Card, CardTitle } from '@/components/ui/card';
@@ -23,10 +24,10 @@ import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/lib/utils';
 import {
   BarChart3, Users, ClipboardCheck, Cpu, ScrollText,
-  ShoppingBag, FlaskConical, Armchair, X, DollarSign, Star, Globe,
+  ShoppingBag, FlaskConical, Armchair, X, DollarSign, Star, Globe, BookOpen,
 } from 'lucide-react';
 
-type MenuId = 'overview' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log' | null;
+type MenuId = 'overview' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log' | 'wiki' | null;
 
 type MenuItem = { id: Exclude<MenuId, null>; icon: typeof BarChart3; color: string; labelKey: string };
 
@@ -39,6 +40,7 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'iso', icon: ClipboardCheck, color: 'from-amber-500 to-amber-700', labelKey: 'tabISO' },
   { id: 'office', icon: Armchair, color: 'from-orange-500 to-orange-700', labelKey: 'tabOffice' },
   { id: 'log', icon: ScrollText, color: 'from-zinc-400 to-zinc-600', labelKey: 'tabLog' },
+  { id: 'wiki', icon: BookOpen, color: 'from-violet-500 to-violet-700', labelKey: 'tabWiki' },
 ];
 
 export function GameDashboard() {
@@ -241,6 +243,9 @@ export function GameDashboard() {
                 )}
                 {openMenu === 'log' && (
                   <div className="lg:col-span-3"><EventLog /></div>
+                )}
+                {openMenu === 'wiki' && (
+                  <div className="lg:col-span-3"><WikiPanel /></div>
                 )}
               </div>
             </div>
