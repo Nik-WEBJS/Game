@@ -11,6 +11,7 @@ import { ISOPanel } from './ISOPanel';
 import { TechPanel } from './TechPanel';
 import { EventLog } from './EventLog';
 import { BusinessInfo } from './BusinessInfo';
+import { OfficeScene } from '@/office/OfficeScene';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +26,7 @@ export function GameDashboard() {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
-  const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+  const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'overview', label: t.tabOverview, icon: BarChart3 },
     { id: 'team', label: t.tabTeam, icon: Users },
     { id: 'tech', label: t.tabTech, icon: Cpu },
@@ -105,6 +106,7 @@ export function GameDashboard() {
           {activeTab === 'overview' && (
             <>
               <div className="lg:col-span-2 space-y-4">
+                <OfficeScene />
                 <MetricsPanel />
                 <EventLog />
               </div>
