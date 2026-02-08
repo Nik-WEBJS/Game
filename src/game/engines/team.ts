@@ -16,6 +16,7 @@ export function createTeamMember(role: TeamRole): TeamMember {
     burnoutResistance: 0.2 + Math.random() * 0.3,
     trait: null,
     zoneId: null,
+    deskId: null,
   };
 }
 
@@ -36,6 +37,7 @@ export function hireFromMarket(state: GameState, candidateId: string): GameState
     burnoutResistance: candidate.burnoutResistance,
     trait: candidate.trait,
     zoneId: null,
+    deskId: null,
   };
 
   return {
@@ -66,6 +68,34 @@ export function assignZone(state: GameState, memberId: string, zoneId: string | 
         m.id === memberId ? { ...m, zoneId: zoneId as TeamMember['zoneId'] } : m
       ),
     },
+  };
+}
+
+export function assignDesk(state: GameState, memberId: string, deskId: string | null): GameState {
+  // Clear previous desk assignment if any
+  const member = state.business.team.find(m => m.id === memberId);
+  const prevDeskId = member?.deskId ?? null;
+
+  // Clear any other employee from the target desk
+  let newTeam = state.business.team.map(m => {
+    if (deskId && m.deskId === deskId && m.id !== memberId) return { ...m, deskId: null };
+    return m;
+  });
+  // Assign the desk to this employee
+  newTeam = newTeam.map(m =>
+    m.id === memberId ? { ...m, deskId } : m
+  );
+
+  // Update furniture assignedEmployeeId
+  let newFurniture = state.business.furniture.map(f => {
+    if (f.id === prevDeskId) return { ...f, assignedEmployeeId: null };
+    if (f.id === deskId) return { ...f, assignedEmployeeId: memberId };
+    return f;
+  });
+
+  return {
+    ...state,
+    business: { ...state.business, team: newTeam, furniture: newFurniture },
   };
 }
 
@@ -105,11 +135,17 @@ export function fireMember(state: GameState, memberId: string): GameState {
   const member = state.business.team.find(m => m.id === memberId);
   if (!member) return state;
 
+  // Clear desk assignment
+  const newFurniture = member.deskId
+    ? state.business.furniture.map(f => f.id === member.deskId ? { ...f, assignedEmployeeId: null } : f)
+    : state.business.furniture;
+
   return {
     ...state,
     business: {
       ...state.business,
       team: state.business.team.filter(m => m.id !== memberId),
+      furniture: newFurniture,
     },
     logs: [
       ...state.logs,

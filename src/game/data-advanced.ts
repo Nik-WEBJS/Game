@@ -257,7 +257,7 @@ export function createTechTree(): TechTreeNode[] {
 // ============================================================
 // Furniture Catalog
 // ============================================================
-export const FURNITURE_CATALOG: Omit<FurnitureItem, 'id' | 'position'>[] = [
+export const FURNITURE_CATALOG: Omit<FurnitureItem, 'id' | 'position' | 'assignedEmployeeId'>[] = [
   {
     type: 'desk',
     name: 'Work Desk',

@@ -59,9 +59,6 @@ export function Employee({ member, position }: EmployeeProps) {
 
   return (
     <group ref={groupRef} position={position}>
-      {/* Desk */}
-      <Desk role={member.role} />
-
       {/* Body */}
       <mesh ref={bodyRef} position={[0, 0.55, 0]} castShadow>
         <boxGeometry args={[0.35, 0.5, 0.25]} />
@@ -95,50 +92,6 @@ export function Employee({ member, position }: EmployeeProps) {
           intensity={0.2}
           distance={1}
         />
-      )}
-    </group>
-  );
-}
-
-// --- Desk component ---
-function Desk({ role }: { role: TeamRole }) {
-  return (
-    <group>
-      {/* Desk surface */}
-      <mesh position={[0, 0.3, 0.15]} receiveShadow>
-        <boxGeometry args={[0.9, 0.04, 0.5]} />
-        <meshStandardMaterial color="#78716c" roughness={0.8} />
-      </mesh>
-      {/* Desk legs */}
-      {[[-0.4, 0], [0.4, 0], [-0.4, 0.3], [0.4, 0.3]].map(([x, z], i) => (
-        <mesh key={i} position={[x, 0.14, z]}>
-          <boxGeometry args={[0.04, 0.28, 0.04]} />
-          <meshStandardMaterial color="#57534e" roughness={0.9} />
-        </mesh>
-      ))}
-
-      {/* Monitor for developer/qa */}
-      {(role === 'developer' || role === 'qa') && (
-        <group position={[0, 0.32, 0.05]}>
-          {/* Screen */}
-          <mesh position={[0, 0.18, 0]}>
-            <boxGeometry args={[0.35, 0.25, 0.02]} />
-            <meshStandardMaterial color="#1e1e2e" emissive="#60a5fa" emissiveIntensity={0.15} />
-          </mesh>
-          {/* Stand */}
-          <mesh position={[0, 0.04, 0]}>
-            <boxGeometry args={[0.05, 0.08, 0.05]} />
-            <meshStandardMaterial color="#a8a29e" />
-          </mesh>
-        </group>
-      )}
-
-      {/* Phone for marketing */}
-      {role === 'marketing' && (
-        <mesh position={[0.25, 0.34, 0.1]}>
-          <boxGeometry args={[0.06, 0.01, 0.12]} />
-          <meshStandardMaterial color="#1e1e2e" emissive="#a78bfa" emissiveIntensity={0.3} />
-        </mesh>
       )}
     </group>
   );

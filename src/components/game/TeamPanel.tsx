@@ -10,14 +10,17 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { formatMoney } from '@/lib/utils';
 import { TeamRole, ZoneId } from '@/game/types';
 import { ZONES, TRAITS } from '@/game/data-advanced';
-import { Users, UserPlus, UserMinus, MapPin } from 'lucide-react';
+import { Users, UserPlus, UserMinus, MapPin, Monitor } from 'lucide-react';
 
 const ROLES: TeamRole[] = ['developer', 'manager', 'qa', 'security', 'marketing'];
 
 export function TeamPanel() {
   const {
-    business, hireTeamMember, fireTeamMember, canHireMember, getHireCost, assignEmployeeZone,
+    business, hireTeamMember, fireTeamMember, canHireMember, getHireCost, assignEmployeeZone, assignEmployeeDesk,
   } = useGameStore();
+
+  // Desks that are placed in the office
+  const placedDesks = business.furniture.filter(f => f.type === 'desk' && f.position);
   const { t } = useI18n();
 
   return (
@@ -76,19 +79,36 @@ export function TeamPanel() {
                   </Button>
                 </div>
               </div>
-              {/* Zone assignment */}
-              <div className="flex items-center gap-2 mb-2">
-                <MapPin className="w-3 h-3 text-zinc-500" />
-                <select
-                  value={member.zoneId ?? ''}
-                  onChange={(e) => assignEmployeeZone(member.id, (e.target.value || null) as ZoneId | null)}
-                  className="text-xs bg-zinc-700/50 border border-zinc-600/50 rounded px-2 py-0.5 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
-                >
-                  <option value="">No zone</option>
-                  {ZONES.map(z => (
-                    <option key={z.id} value={z.id}>{z.name}</option>
-                  ))}
-                </select>
+              {/* Zone & Desk assignment */}
+              <div className="flex items-center gap-3 mb-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-3 h-3 text-zinc-500" />
+                  <select
+                    value={member.zoneId ?? ''}
+                    onChange={(e) => assignEmployeeZone(member.id, (e.target.value || null) as ZoneId | null)}
+                    className="text-xs bg-zinc-700/50 border border-zinc-600/50 rounded px-2 py-0.5 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                  >
+                    <option value="">No zone</option>
+                    {ZONES.map(z => (
+                      <option key={z.id} value={z.id}>{z.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Monitor className="w-3 h-3 text-zinc-500" />
+                  <select
+                    value={member.deskId ?? ''}
+                    onChange={(e) => assignEmployeeDesk(member.id, e.target.value || null)}
+                    className="text-xs bg-zinc-700/50 border border-zinc-600/50 rounded px-2 py-0.5 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                  >
+                    <option value="">No desk</option>
+                    {placedDesks.map(d => (
+                      <option key={d.id} value={d.id} disabled={!!d.assignedEmployeeId && d.assignedEmployeeId !== member.id}>
+                        {d.name} {d.assignedEmployeeId && d.assignedEmployeeId !== member.id ? '(occupied)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 {member.talent > 0.6 && (
                   <span className="text-[10px] text-purple-400">Talent: {Math.round(member.talent * 100)}%</span>
                 )}

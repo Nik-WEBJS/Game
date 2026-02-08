@@ -73,6 +73,7 @@ export interface TeamMember {
   burnoutResistance: number; // 0..1, slows burnout gain
   trait: TraitId | null;
   zoneId: ZoneId | null;    // assigned office zone
+  deskId: string | null;    // id of furniture item (desk) this employee is assigned to
 }
 
 // --- Employee Market ---
@@ -178,6 +179,7 @@ export interface FurnitureItem {
   cost: number;
   gridSize: [number, number]; // width x depth in grid cells
   position: [number, number] | null; // grid position, null = not placed
+  assignedEmployeeId: string | null;  // employee sitting at this furniture
   effects: Partial<FurnitureEffects>;
 }
 

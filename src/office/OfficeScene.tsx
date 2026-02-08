@@ -5,7 +5,7 @@ import { Canvas } from '@react-three/fiber';
 import { useGameStore } from '@/game/store';
 import { OfficeModel } from './OfficeModel';
 import { Employee } from './Employee';
-import { FurnitureObject3D } from './FurnitureObjects';
+import { FurnitureObject3D, gridToWorld } from './FurnitureObjects';
 import { PlacementGrid } from './PlacementGrid';
 import { CameraController, cameraInput, DRAG_SPEED } from './CameraController';
 import {
@@ -210,14 +210,22 @@ export function OfficeScene() {
             <FurnitureObject3D key={f.id} item={f} />
           ))}
 
-          {/* Employees */}
-          {visibleEmployees.map((member, index) => (
-            <Employee
-              key={member.id}
-              member={member}
-              position={getEmployeePosition(index)}
-            />
-          ))}
+          {/* Employees — positioned at assigned desk or fallback grid */}
+          {visibleEmployees.map((member, index) => {
+            const desk = member.deskId
+              ? business.furniture.find(f => f.id === member.deskId && f.position)
+              : null;
+            const pos: [number, number, number] = desk && desk.position
+              ? gridToWorld(desk.position[0], desk.position[1], desk.gridSize[0], desk.gridSize[1])
+              : getEmployeePosition(index);
+            return (
+              <Employee
+                key={member.id}
+                member={member}
+                position={pos}
+              />
+            );
+          })}
         </Suspense>
       </Canvas>
     </div>

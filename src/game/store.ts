@@ -5,7 +5,7 @@ import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, MA
 import { applyEconomy, calculateEconomy } from './engines/economy';
 import { tickISO, startISO, advanceISO, canStartISO, canAdvanceISO } from './engines/iso';
 import { rollEvents, applyEvents } from './engines/events';
-import { tickTeam, hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone } from './engines/team';
+import { tickTeam, hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone, assignDesk } from './engines/team';
 import { checkWinLose, gainExperience } from './engines/progression';
 
 const INITIAL_MONEY = 50000;
@@ -99,6 +99,7 @@ interface GameStore extends GameState {
   fireTeamMember: (memberId: string) => void;
   hireFromMarket: (candidateId: string) => void;
   assignEmployeeZone: (memberId: string, zoneId: ZoneId | null) => void;
+  assignEmployeeDesk: (memberId: string, deskId: string | null) => void;
   // ISO
   startISOProcess: (isoId: string) => void;
   advanceISOStage: (isoId: string) => void;
@@ -236,6 +237,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(assignZone(toGameState(get()), memberId, zoneId));
   },
 
+  assignEmployeeDesk: (memberId, deskId) => {
+    set(assignDesk(toGameState(get()), memberId, deskId));
+  },
+
   startISOProcess: (isoId) => {
     set(startISO(toGameState(get()), isoId));
   },
@@ -276,6 +281,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ...catalog,
       id: `furn_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
       position: null,
+      assignedEmployeeId: null,
     };
 
     set(s => ({
@@ -297,14 +303,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   unplaceFurniture: (furnitureId) => {
-    set(s => ({
-      business: {
-        ...s.business,
-        furniture: s.business.furniture.map(f =>
-          f.id === furnitureId ? { ...f, position: null } : f
-        ),
-      },
-    }));
+    set(s => {
+      const furn = s.business.furniture.find(f => f.id === furnitureId);
+      const empId = furn?.assignedEmployeeId ?? null;
+      return {
+        business: {
+          ...s.business,
+          furniture: s.business.furniture.map(f =>
+            f.id === furnitureId ? { ...f, position: null, assignedEmployeeId: null } : f
+          ),
+          team: empId
+            ? s.business.team.map(m => m.id === empId ? { ...m, deskId: null } : m)
+            : s.business.team,
+        },
+      };
+    });
   },
 
   resetGame: () => set(createInitialState()),
