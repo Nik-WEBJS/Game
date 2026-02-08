@@ -11,7 +11,7 @@ import { formatMoney } from '@/lib/utils';
 import { getNextStage, getStageCost } from '@/game/engines/iso';
 import { ISOStage } from '@/game/types';
 import { TranslationKeys } from '@/i18n/en';
-import { ClipboardCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ClipboardCheck, ArrowRight, CheckCircle2, Users, AlertTriangle } from 'lucide-react';
 
 function localizedStageLabel(stage: ISOStage, t: TranslationKeys): string {
   const map: Record<ISOStage, string> = {
@@ -26,11 +26,11 @@ function localizedStageLabel(stage: ISOStage, t: TranslationKeys): string {
 }
 
 export function ISOPanel() {
-  const {
-    business, startISOProcess, advanceISOStage,
-    canStartISO: checkCanStart, canAdvanceISO: checkCanAdvance,
-  } = useGameStore();
+  const store = useGameStore();
+  const { business, startISOProcess, advanceISOStage } = store;
   const { t } = useI18n();
+  const managerCount = business.team.filter(m => m.role === 'manager' && m.status === 'office').length;
+  const managersOnISO = business.isoStandards.some(iso => iso.currentStage !== 'none' && iso.currentStage !== 'maintenance');
 
   return (
     <Card>
@@ -39,9 +39,35 @@ export function ISOPanel() {
         {t.isoStandards}
       </CardTitle>
 
+      {/* Manager info banner */}
+      <div className={`flex items-center gap-2 p-2.5 rounded-lg mb-4 text-xs border ${
+        managerCount > 0
+          ? managersOnISO
+            ? 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+            : 'bg-zinc-800/40 border-zinc-700/20 text-zinc-400'
+          : 'bg-red-500/10 border-red-500/20 text-red-300'
+      }`}>
+        {managerCount > 0 ? (
+          <>
+            <Users className="w-3.5 h-3.5" />
+            <span>
+              {managersOnISO
+                ? `${managerCount} ${t.managersWorkingISO}`
+                : `${managerCount} ${t.managersAvailable}`}
+            </span>
+          </>
+        ) : (
+          <>
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>{t.isoRequiresManager}</span>
+          </>
+        )}
+      </div>
+
       {business.isoStandards.map(iso => {
-        const canStart = checkCanStart(iso.id);
-        const canAdvance = checkCanAdvance(iso.id);
+        const startResult = store.canStartISO(iso.id);
+        const canStart = startResult.ok;
+        const canAdvance = store.canAdvanceISO(iso.id);
         const nextStage = getNextStage(iso.currentStage);
         const nextCost = nextStage ? getStageCost(nextStage) : 0;
 
@@ -94,13 +120,18 @@ export function ISOPanel() {
 
             {/* Actions */}
             {iso.currentStage === 'none' && (
-              <Button
-                size="sm"
-                disabled={!canStart}
-                onClick={() => startISOProcess(iso.id)}
-              >
-                {t.startAudit} ({formatMoney(getStageCost('audit'))})
-              </Button>
+              <div>
+                <Button
+                  size="sm"
+                  disabled={!canStart}
+                  onClick={() => startISOProcess(iso.id)}
+                >
+                  {t.startAudit} ({formatMoney(getStageCost('audit'))})
+                </Button>
+                {startResult.reason === 'no_manager' && (
+                  <p className="text-xs text-red-400 mt-1">{t.isoRequiresManager}</p>
+                )}
+              </div>
             )}
 
             {canAdvance && nextStage && (

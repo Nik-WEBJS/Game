@@ -3,7 +3,7 @@ import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessSty
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, MARKET_REFRESH_INTERVAL, FURNITURE_CATALOG } from './data-advanced';
 import { applyEconomy, calculateEconomy } from './engines/economy';
-import { tickISO, startISO, advanceISO, canStartISO, canAdvanceISO } from './engines/iso';
+import { tickISO, startISO, advanceISO, canStartISO, canAdvanceISO, isManagerBusyWithISO } from './engines/iso';
 import { rollEvents, applyEvents } from './engines/events';
 import { tickTeam, hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone, assignDesk } from './engines/team';
 import { checkWinLose, gainExperience } from './engines/progression';
@@ -135,7 +135,7 @@ interface GameStore extends GameState {
   canSendFreelance: (memberId: string) => { ok: boolean; reason?: string };
   // Misc
   resetGame: () => void;
-  canStartISO: (isoId: string) => boolean;
+  canStartISO: (isoId: string) => { ok: boolean; reason?: string };
   canAdvanceISO: (isoId: string) => boolean;
   canHireMember: (role: TeamRole) => boolean;
   getHireCost: (role: TeamRole) => number;
@@ -480,9 +480,13 @@ function tickEmployeePointGeneration(state: GameState, weekFraction: number): Ga
   let moneyEarned = 0;
   let teamUpdated = false;
 
+  const managersOnISO = isManagerBusyWithISO(state);
+
   const newTeam = state.business.team.map(member => {
     // Skip freelancers — they don't generate zone points
     if (member.status === 'freelance') return member;
+    // Managers assigned to ISO don't do normal work
+    if (member.role === 'manager' && managersOnISO) return member;
     // Only generate if assigned to a placed desk
     if (!member.deskId) return member;
     const desk = state.business.furniture.find(f => f.id === member.deskId && f.position);

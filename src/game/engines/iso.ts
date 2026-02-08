@@ -43,16 +43,27 @@ export function getStageLabel(stage: ISOStage): string {
   return labels[stage];
 }
 
-export function canStartISO(state: GameState, isoId: string): boolean {
+export function canStartISO(state: GameState, isoId: string): { ok: boolean; reason?: string } {
   const iso = state.business.isoStandards.find(i => i.id === isoId);
-  if (!iso) return false;
-  if (iso.currentStage !== 'none') return false;
+  if (!iso) return { ok: false };
+  if (iso.currentStage !== 'none') return { ok: false };
+  const officeManagers = state.business.team.filter(m => m.role === 'manager' && m.status === 'office');
+  if (officeManagers.length === 0) return { ok: false, reason: 'no_manager' };
   const cost = getStageCost('audit');
-  return state.player.money >= cost;
+  if (state.player.money < cost) return { ok: false, reason: 'no_money' };
+  return { ok: true };
+}
+
+export function getISOManagerCount(state: GameState): number {
+  return state.business.team.filter(m => m.role === 'manager' && m.status === 'office').length;
+}
+
+export function isManagerBusyWithISO(state: GameState): boolean {
+  return state.business.isoStandards.some(iso => iso.currentStage !== 'none' && iso.currentStage !== 'maintenance');
 }
 
 export function startISO(state: GameState, isoId: string): GameState {
-  if (!canStartISO(state, isoId)) return state;
+  if (!canStartISO(state, isoId).ok) return state;
 
   const cost = getStageCost('audit');
   const newIsos = state.business.isoStandards.map(iso => {
@@ -122,9 +133,10 @@ export function advanceISO(state: GameState, isoId: string): GameState {
 }
 
 export function tickISO(state: GameState): GameState {
-  const hasQA = state.business.team.some(m => m.role === 'qa');
-  const hasManager = state.business.team.some(m => m.role === 'manager');
-  const progressPerTurn = 25 + (hasQA ? 10 : 0) + (hasManager ? 8 : 0);
+  const managerCount = getISOManagerCount(state);
+  const hasQA = state.business.team.some(m => m.role === 'qa' && m.status === 'office');
+  // Base 15 progress + 12 per manager + 8 for QA
+  const progressPerTurn = 15 + (managerCount * 12) + (hasQA ? 8 : 0);
 
   let newState = { ...state };
   const newLogs = [...state.logs];
@@ -145,7 +157,8 @@ export function tickISO(state: GameState): GameState {
       return { ...iso, turnsInMaintenance: iso.turnsInMaintenance + 1 };
     }
 
-    // Progress current stage
+    // Progress current stage — requires at least 1 manager
+    if (managerCount === 0) return iso; // no managers = no progress
     const newProgress = Math.min(100, iso.stageProgress + progressPerTurn);
     return { ...iso, stageProgress: newProgress };
   });
@@ -162,6 +175,7 @@ export function canAdvanceISO(state: GameState, isoId: string): boolean {
   if (!iso) return false;
   if (iso.currentStage === 'none' || iso.currentStage === 'maintenance') return false;
   if (iso.stageProgress < 100) return false;
+  if (getISOManagerCount(state) === 0) return false; // need manager to advance
   const next = getNextStage(iso.currentStage);
   if (!next) return false;
   return state.player.money >= getStageCost(next);
