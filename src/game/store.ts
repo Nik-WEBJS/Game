@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT } from './types';
+import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType } from './types';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, MARKET_REFRESH_INTERVAL, FURNITURE_CATALOG } from './data-advanced';
 import { applyEconomy, calculateEconomy } from './engines/economy';
@@ -8,6 +8,7 @@ import { rollEvents, applyEvents } from './engines/events';
 import { tickTeam, hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone, assignDesk } from './engines/team';
 import { checkWinLose, gainExperience } from './engines/progression';
 import { tickProducts, createInitialProduct } from './engines/product';
+import { tickFreelance, sendToFreelance as sendFreelance, canSendToFreelance } from './engines/freelance';
 import { getT } from '../i18n';
 import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18n/game-text';
 
@@ -127,6 +128,10 @@ interface GameStore extends GameState {
   buyFurniture: (type: string) => void;
   placeFurniture: (furnitureId: string, position: [number, number]) => void;
   unplaceFurniture: (furnitureId: string) => void;
+  // Freelance
+  sendToFreelance: (memberId: string, taskType: FreelanceTaskType, targetProductId?: string) => void;
+  recallFromFreelance: (memberId: string) => void;
+  canSendFreelance: (memberId: string) => { ok: boolean; reason?: string };
   // Misc
   resetGame: () => void;
   canStartISO: (isoId: string) => boolean;
@@ -254,6 +259,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const niche = NICHES.find(n => n.id === gs.business.nicheId);
       if (niche) niche.baseDemand = Math.max(0.2, niche.baseDemand - niche.trendDecayRate);
 
+      gs = tickFreelance(gs);
       gs = tickTechTree(gs);
       gs = tickEmployeeMarket(gs);
       gs = { ...gs, weekHistory: [...gs.weekHistory, { ...gs.business.metrics }] };
@@ -392,6 +398,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
+  sendToFreelance: (memberId, taskType, targetProductId) => {
+    set(sendFreelance(toGameState(get()), memberId, taskType, targetProductId));
+  },
+
+  recallFromFreelance: (memberId) => {
+    const state = get();
+    const member = state.business.team.find(m => m.id === memberId);
+    if (!member || member.status !== 'freelance') return;
+    const t = getT();
+    set(s => ({
+      business: {
+        ...s.business,
+        team: s.business.team.map(m =>
+          m.id === memberId
+            ? { ...m, status: 'office' as const, freelanceTask: null }
+            : m
+        ),
+      },
+      logs: [...s.logs, { week: s.player.currentWeek, message: t.freelanceRecalled(member.name), type: 'warning' as const }],
+    }));
+  },
+
+  canSendFreelance: (memberId) => canSendToFreelance(toGameState(get()), memberId),
+
   resetGame: () => set(createInitialState()),
 
   canStartISO: (isoId) => canStartISO(toGameState(get()), isoId),
@@ -444,6 +474,8 @@ function tickEmployeePointGeneration(state: GameState, weekFraction: number): Ga
   let riskDelta = 0;
 
   for (const member of state.business.team) {
+    // Skip freelancers — they don't generate zone points
+    if (member.status === 'freelance') continue;
     // Only generate if assigned to a placed desk
     if (!member.deskId) continue;
     const desk = state.business.furniture.find(f => f.id === member.deskId && f.position);

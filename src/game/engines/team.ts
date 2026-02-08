@@ -20,6 +20,8 @@ export function createTeamMember(role: TeamRole): TeamMember {
     trait: null,
     zoneId: null,
     deskId: null,
+    status: 'office',
+    freelanceTask: null,
   };
 }
 
@@ -44,6 +46,8 @@ export function hireFromMarket(state: GameState, candidateId: string): GameState
     trait: candidate.trait,
     zoneId: null,
     deskId: null,
+    status: 'office',
+    freelanceTask: null,
   };
 
   return {
@@ -144,6 +148,7 @@ export function hireMember(state: GameState, role: TeamRole): GameState {
 export function fireMember(state: GameState, memberId: string): GameState {
   const member = state.business.team.find(m => m.id === memberId);
   if (!member) return state;
+  if (member.status === 'freelance') return state; // can't fire while on freelance
 
   // Clear desk assignment
   const newFurniture = member.deskId
@@ -173,6 +178,9 @@ export function tickTeam(state: GameState): GameState {
     ? 0.1 : 0;
 
   const newTeam = state.business.team.map(member => {
+    // Skip freelancers — they are processed by freelance engine
+    if (member.status === 'freelance') return member;
+
     // Experience grows slowly
     const expGain = 1 + (member.role === 'developer' ? 1 : 0);
     const newExp = Math.min(100, member.experience + expGain);

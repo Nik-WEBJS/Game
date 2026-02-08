@@ -1,5 +1,6 @@
 import {
   Niche, Product, Technology, Market, MonetizationStrategy, GameEvent, ISOStandard,
+  TeamRole, FreelanceTaskType,
 } from './types';
 
 // ============================================================
@@ -407,4 +408,31 @@ export const ROLE_LABELS: Record<string, string> = {
   qa: 'QA Engineer',
   security: 'Security Specialist',
   marketing: 'Marketing',
+};
+
+// --- Freelance System Constants ---
+export const BASE_CONTRACT_VALUE = 4000;
+
+export const FREELANCE_OUTSOURCING_ROLE_MULT: Record<TeamRole, number> = {
+  developer: 1.0,
+  qa: 0.85,
+  marketing: 1.1,
+  security: 0.9,
+  manager: 1.3,
+};
+
+export const FREELANCE_ROLE_SPEED: Record<TeamRole, Record<FreelanceTaskType, number>> = {
+  developer: { outsourcing: 1.0, internal_help: 1.2 },
+  qa:        { outsourcing: 0.8, internal_help: 1.1 },
+  marketing: { outsourcing: 1.1, internal_help: 0.9 },
+  security:  { outsourcing: 0.9, internal_help: 0.8 },
+  manager:   { outsourcing: 1.2, internal_help: 1.0 },
+};
+
+export const FREELANCE_BURNOUT_PER_WEEK = { min: 3, max: 6 };
+export const FREELANCE_QUALITY_BOOST_PER_WEEK = 0.006; // 0.6%
+
+export const FREELANCE_DURATIONS: Record<FreelanceTaskType, { min: number; max: number }> = {
+  outsourcing:   { min: 3, max: 6 },
+  internal_help: { min: 2, max: 5 },
 };

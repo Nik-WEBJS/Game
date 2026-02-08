@@ -241,6 +241,35 @@ export const ru: TranslationKeys = {
   ipoSuccess: '🎉 IPO УСПЕШНО! Вы вывели компанию на биржу!',
   marketDominance: '🏆 ДОМИНИРОВАНИЕ НА РЫНКЕ! Ваша компания правит индустрией!',
 
+  // Freelance
+  freelance: 'Фриланс',
+  freelanceSend: 'Отправить на фриланс',
+  freelanceOutsourcing: 'Аутсорсинг',
+  freelanceInternalHelp: 'Помощь продукту',
+  freelanceSelectType: 'Выберите тип задачи',
+  freelanceSelectProduct: 'Выберите продукт',
+  freelanceExpectedReward: 'Ожидаемая награда',
+  freelanceExpectedEffect: 'Ожидаемый эффект',
+  freelanceDuration: 'Длительность',
+  freelanceBurnoutWarning: 'Выгорание будет расти быстрее!',
+  freelanceWeeksLeft: (w: number) => `${w} нед. осталось`,
+  freelanceProgress: 'Прогресс фриланса',
+  freelanceCantLast: 'Нельзя отправить последнего сотрудника.',
+  freelanceCantBurnout: 'Слишком высокое выгорание (≥85) для фриланса.',
+  freelanceCantCrisis: 'Нельзя отправить во время кризиса.',
+  freelanceAlready: 'Уже на фрилансе.',
+  freelanceWorking: 'Работает',
+  freelanceSentOutsourcing: (name: string, role: string, reward: string, weeks: number) =>
+    `💼 ${name} (${role}) отправлен на аутсорсинг. Награда: ${reward}, ${weeks} нед.`,
+  freelanceSentInternal: (name: string, role: string, weeks: number) =>
+    `🧪 ${name} (${role}) помогает разработке продукта. ${weeks} нед.`,
+  freelanceCompletedOutsourcing: (name: string, reward: string) =>
+    `✅ ${name} завершил аутсорсинг! Заработано ${reward}.`,
+  freelanceCompletedInternal: (name: string) =>
+    `✅ ${name} завершил помощь продукту! Качество улучшено.`,
+  freelanceRecall: 'Отозвать',
+  freelanceRecalled: (name: string) => `${name} отозван с фриланса.`,
+
   // Niches
   nicheFintechName: 'ФинТех',
   nicheFintechDesc: 'Финансовые технологии — платежи, банкинг, страхование.',

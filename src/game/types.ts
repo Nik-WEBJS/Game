@@ -67,6 +67,23 @@ export interface TraitEffects {
   moraleMod: number;
 }
 
+// --- Freelance ---
+export type FreelanceTaskType = 'outsourcing' | 'internal_help';
+
+export interface FreelanceTask {
+  id: string;
+  type: FreelanceTaskType;
+  targetProductId?: string;   // if internal_help
+  durationWeeks: number;
+  progress: number;           // 0..1
+  rewardMoney: number;        // if outsourcing
+  qualityBoost?: number;      // if internal_help
+  riskPenalty?: number;
+  startedAtWeek: number;
+}
+
+export type EmployeeStatus = 'office' | 'freelance';
+
 export interface TeamMember {
   id: string;
   role: TeamRole;
@@ -81,6 +98,8 @@ export interface TeamMember {
   trait: TraitId | null;
   zoneId: ZoneId | null;    // assigned office zone
   deskId: string | null;    // id of furniture item (desk) this employee is assigned to
+  status: EmployeeStatus;
+  freelanceTask: FreelanceTask | null;
 }
 
 // Employee level thresholds: experience needed to reach each level

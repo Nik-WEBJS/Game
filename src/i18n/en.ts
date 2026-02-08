@@ -239,6 +239,35 @@ export const en = {
   ipoSuccess: '🎉 IPO SUCCESS! You took your company public!',
   marketDominance: '🏆 MARKET DOMINANCE! Your company rules the industry!',
 
+  // Freelance
+  freelance: 'Freelance',
+  freelanceSend: 'Send to Freelance',
+  freelanceOutsourcing: 'Outsourcing',
+  freelanceInternalHelp: 'Help Product',
+  freelanceSelectType: 'Select task type',
+  freelanceSelectProduct: 'Select product',
+  freelanceExpectedReward: 'Expected reward',
+  freelanceExpectedEffect: 'Expected effect',
+  freelanceDuration: 'Duration',
+  freelanceBurnoutWarning: 'Burnout will increase faster!',
+  freelanceWeeksLeft: (w: number) => `${w}w left`,
+  freelanceProgress: 'Freelance progress',
+  freelanceCantLast: 'Cannot send last office employee.',
+  freelanceCantBurnout: 'Too much burnout (≥85) to freelance.',
+  freelanceCantCrisis: 'Cannot freelance during a crisis event.',
+  freelanceAlready: 'Already on freelance.',
+  freelanceWorking: 'Working',
+  freelanceSentOutsourcing: (name: string, role: string, reward: string, weeks: number) =>
+    `💼 ${name} (${role}) sent on outsourcing contract. Reward: ${reward}, ${weeks} weeks.`,
+  freelanceSentInternal: (name: string, role: string, weeks: number) =>
+    `🧪 ${name} (${role}) sent to help product development. ${weeks} weeks.`,
+  freelanceCompletedOutsourcing: (name: string, reward: string) =>
+    `✅ ${name} completed outsourcing! Earned ${reward}.`,
+  freelanceCompletedInternal: (name: string) =>
+    `✅ ${name} finished helping the product! Quality improved.`,
+  freelanceRecall: 'Recall',
+  freelanceRecalled: (name: string) => `${name} recalled from freelance.`,
+
   // Niches
   nicheFintechName: 'FinTech',
   nicheFintechDesc: 'Financial technology — payments, banking, insurance.',
