@@ -185,19 +185,24 @@ export function tickTeam(state: GameState): GameState {
     // Skip freelancers — they are processed by freelance engine
     if (member.status === 'freelance') return member;
 
-    // Experience grows slowly
-    const expGain = 1 + (member.role === 'developer' ? 1 : 0);
+    // Experience grows slowly — higher levels need more time
+    const levelPenalty = 1 / (1 + (member.level - 1) * 0.3); // lv1: 1.0, lv2: 0.77, lv3: 0.63, lv4: 0.53, lv5: 0.45
+    const expGain = (1 + (member.role === 'developer' ? 0.5 : 0)) * levelPenalty;
     const newExp = Math.min(100, member.experience + expGain);
 
-    // Burnout increases with workload, decreases with morale
-    const workload = state.business.metrics.risk * 15;
-    const recovery = member.morale * 0.05 + isoReduction * 10;
+    // Burnout scales with team size and office level — bigger company = more stress
+    const teamSize = state.business.team.filter(m => m.status === 'office').length;
+    const teamSizeStress = Math.max(0, (teamSize - 3) * 0.8); // stress grows with team size beyond 3
+    const levelStress = (member.level - 1) * 1.5; // higher level employees have more responsibility
+    const resistanceMod = 1 - (member.burnoutResistance ?? 0.3);
+    const workload = (state.business.metrics.risk * 12 + teamSizeStress + levelStress) * resistanceMod;
+    const recovery = member.morale * 0.06 + isoReduction * 10;
     const burnoutDelta = workload - recovery;
     const newBurnout = Math.max(0, Math.min(100, member.burnout + burnoutDelta));
 
-    // Morale affected by profit and burnout
-    const profitEffect = state.business.metrics.profit > 0 ? 2 : -3;
-    const burnoutEffect = newBurnout > 60 ? -3 : newBurnout > 30 ? -1 : 1;
+    // Morale — profit matters more at higher levels, burnout hits harder
+    const profitEffect = state.business.metrics.profit > 0 ? 1.5 : -2 - member.level * 0.5;
+    const burnoutEffect = newBurnout > 70 ? -4 : newBurnout > 40 ? -2 : newBurnout > 20 ? 0 : 1;
     const newMorale = Math.max(10, Math.min(100, member.morale + profitEffect + burnoutEffect));
 
     // Level up check

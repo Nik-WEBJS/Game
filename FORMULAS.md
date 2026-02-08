@@ -283,36 +283,63 @@ for i = 4 downto 0:
     break
 ```
 
-| Уровень | Порог опыта | Множитель зарплаты | Множитель выхода |
-|---------|-------------|-------------------|-----------------|
-| 1 | 0 | ×1.0 | ×1.0 |
-| 2 | 20 | ×1.15 | ×1.25 |
-| 3 | 45 | ×1.35 | ×1.55 |
-| 4 | 70 | ×1.6 | ×1.9 |
-| 5 | 90 | ×2.0 | ×2.5 |
+| Уровень | Порог опыта | Множитель зарплаты | Множитель выхода | Work cycle reward |
+|---------|-------------|-------------------|-----------------|-------------------|
+| 1 (Junior) | 0 | ×1.0 | ×0.6 | salary × 0.09 |
+| 2 (Middle) | 25 | ×1.2 | ×1.0 | salary × 0.15 |
+| 3 (Senior) | 50 | ×1.5 | ×1.5 | salary × 0.225 |
+| 4 (Lead) | 75 | ×1.9 | ×2.1 | salary × 0.315 |
+| 5 (Principal) | 95 | ×2.5 | ×3.0 | salary × 0.45 |
+
+**Опыт растёт медленнее на высоких уровнях:**
+```
+levelPenalty = 1 / (1 + (level - 1) × 0.3)
+expGain = (1 + (isDeveloper ? 0.5 : 0)) × levelPenalty
+// lv1: ×1.0, lv2: ×0.77, lv3: ×0.63, lv4: ×0.53, lv5: ×0.45
+```
 
 Зарплата пересчитывается автоматически:
 ```
 salary = round(BASE_SALARY[role] × SALARY_MULT[level - 1])
 ```
 
-### 4.3 Выгорание (Burnout)
+### 4.3 Выгорание (Burnout) — ОБНОВЛЕНО
+
+Выгорание масштабируется с размером команды и уровнем сотрудника:
 
 ```
-workload = risk × 15
-recovery = morale × 0.05 + isoReduction × 10
+teamSize = officeEmployees.length
+teamSizeStress = max(0, (teamSize - 3) × 0.8)   // стресс от большой команды
+levelStress = (level - 1) × 1.5                   // ответственность растёт с уровнем
+resistanceMod = 1 - burnoutResistance              // 0.2–0.5 → mod 0.5–0.8
+
+workload = (risk × 12 + teamSizeStress + levelStress) × resistanceMod
+recovery = morale × 0.06 + isoReduction × 10
 burnoutDelta = workload − recovery
 newBurnout = clamp(0, 100, burnout + burnoutDelta)
 ```
 
 - `isoReduction` = 0.1 если ISO сертифицирован, иначе 0
+- `burnoutResistance` — параметр кандидата (0.2–0.5), реально снижает выгорание
 - При burnout ≥ 95 → сотрудник **автоматически увольняется**
 
-### 4.4 Мораль (Morale)
+**Пример (lv3 Senior, team=8, risk=0.3, resistance=0.35):**
+```
+teamSizeStress = (8-3) × 0.8 = 4.0
+levelStress = 2 × 1.5 = 3.0
+resistanceMod = 1 - 0.35 = 0.65
+workload = (0.3 × 12 + 4.0 + 3.0) × 0.65 = (3.6 + 7.0) × 0.65 = 6.89
+```
+
+### 4.4 Мораль (Morale) — ОБНОВЛЕНО
+
+Мораль падает сильнее при убытках у высокоуровневых сотрудников:
 
 ```
-profitEffect = profit > 0 ? +2 : −3
-burnoutEffect = burnout > 60 ? −3 : burnout > 30 ? −1 : +1
+profitEffect = profit > 0 ? +1.5 : -(2 + level × 0.5)
+// lv1: -2.5 при убытках, lv5: -4.5 при убытках
+
+burnoutEffect = burnout > 70 ? -4 : burnout > 40 ? -2 : burnout > 20 ? 0 : +1
 newMorale = clamp(10, 100, morale + profitEffect + burnoutEffect)
 ```
 

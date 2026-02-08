@@ -105,9 +105,9 @@ export interface TeamMember {
 }
 
 // Employee level thresholds: experience needed to reach each level
-export const EMPLOYEE_LEVEL_THRESHOLDS = [0, 20, 45, 70, 90]; // level 1..5
-export const EMPLOYEE_LEVEL_SALARY_MULT = [1.0, 1.15, 1.35, 1.6, 2.0]; // salary multiplier per level
-export const EMPLOYEE_LEVEL_OUTPUT_MULT = [1.0, 1.25, 1.55, 1.9, 2.5]; // output multiplier per level
+export const EMPLOYEE_LEVEL_THRESHOLDS = [0, 25, 50, 75, 95]; // level 1..5
+export const EMPLOYEE_LEVEL_SALARY_MULT = [1.0, 1.2, 1.5, 1.9, 2.5]; // salary multiplier per level
+export const EMPLOYEE_LEVEL_OUTPUT_MULT = [0.6, 1.0, 1.5, 2.1, 3.0]; // output multiplier per level — juniors produce less
 
 // --- Employee Market ---
 export type CandidateRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
@@ -339,11 +339,13 @@ export interface OfficeConfig {
   };
 }
 
+// Level 1: 6 slots (2 dev, 1 qa, 1 manager, 1 security, 1 marketing)
+// Each level: slots × 2, cost grows exponentially
 export const OFFICE_LEVELS: { level: number; maxEmployees: number; upgradeCost: number; floorWidth: number; floorDepth: number }[] = [
-  { level: 1, maxEmployees: 3,  upgradeCost: 0,      floorWidth: 8.5,  floorDepth: 9.5 },
-  { level: 2, maxEmployees: 6,  upgradeCost: 15000,  floorWidth: 11,   floorDepth: 11 },
-  { level: 3, maxEmployees: 10, upgradeCost: 35000,  floorWidth: 13.5, floorDepth: 12.5 },
-  { level: 4, maxEmployees: 16, upgradeCost: 70000,  floorWidth: 16,   floorDepth: 14 },
+  { level: 1, maxEmployees: 6,   upgradeCost: 0,       floorWidth: 8.5,  floorDepth: 9.5 },
+  { level: 2, maxEmployees: 12,  upgradeCost: 25000,   floorWidth: 11,   floorDepth: 11 },
+  { level: 3, maxEmployees: 20,  upgradeCost: 60000,   floorWidth: 13.5, floorDepth: 12.5 },
+  { level: 4, maxEmployees: 30,  upgradeCost: 120000,  floorWidth: 16,   floorDepth: 14 },
 ];
 
 export interface Business {

@@ -522,8 +522,11 @@ function tickEmployeePointGeneration(state: GameState, weekFraction: number): Ga
     let cycles = member.workCyclesCompleted || 0;
 
     if (newProgress >= 1) {
-      // Work cycle complete — award money based on role output
-      const baseReward = member.salary * 0.4 * levelMult * (1 + member.talent * 0.3);
+      // Work cycle complete — reward scales steeply with level
+      // Level 1 (junior): salary × 0.15 × 0.6 = tiny income
+      // Level 5 (senior): salary × 0.15 × 3.0 × 1.3 = significant income
+      const levelRewardMult = levelMult * (1 + member.talent * 0.3);
+      const baseReward = member.salary * 0.15 * levelRewardMult;
       moneyEarned += Math.round(baseReward);
       newProgress -= 1;
       cycles += 1;
