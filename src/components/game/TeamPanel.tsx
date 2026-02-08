@@ -8,14 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { formatMoney } from '@/lib/utils';
-import { TeamRole } from '@/game/types';
-import { Users, UserPlus, UserMinus } from 'lucide-react';
+import { TeamRole, ZoneId } from '@/game/types';
+import { ZONES, TRAITS } from '@/game/data-advanced';
+import { Users, UserPlus, UserMinus, MapPin } from 'lucide-react';
 
 const ROLES: TeamRole[] = ['developer', 'manager', 'qa', 'security', 'marketing'];
 
 export function TeamPanel() {
   const {
-    business, hireTeamMember, fireTeamMember, canHireMember, getHireCost,
+    business, hireTeamMember, fireTeamMember, canHireMember, getHireCost, assignEmployeeZone,
   } = useGameStore();
   const { t } = useI18n();
 
@@ -53,9 +54,15 @@ export function TeamPanel() {
               className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/30"
             >
               <div className="flex items-center justify-between mb-2">
-                <div>
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium text-zinc-200">{member.name}</span>
-                  <Badge variant="info" className="ml-2">{roleName(member.role, t)}</Badge>
+                  <Badge variant="info">{roleName(member.role, t)}</Badge>
+                  {member.trait && (() => {
+                    const traitDef = TRAITS.find(tr => tr.id === member.trait);
+                    return traitDef ? (
+                      <span className="text-[10px] text-amber-400" title={traitDef.description}>✦ {traitDef.name}</span>
+                    ) : null;
+                  })()}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-zinc-400">{formatMoney(member.salary)}{t.perWeek}</span>
@@ -68,6 +75,23 @@ export function TeamPanel() {
                     <UserMinus className="w-3.5 h-3.5 text-red-400" />
                   </Button>
                 </div>
+              </div>
+              {/* Zone assignment */}
+              <div className="flex items-center gap-2 mb-2">
+                <MapPin className="w-3 h-3 text-zinc-500" />
+                <select
+                  value={member.zoneId ?? ''}
+                  onChange={(e) => assignEmployeeZone(member.id, (e.target.value || null) as ZoneId | null)}
+                  className="text-xs bg-zinc-700/50 border border-zinc-600/50 rounded px-2 py-0.5 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                >
+                  <option value="">No zone</option>
+                  {ZONES.map(z => (
+                    <option key={z.id} value={z.id}>{z.name}</option>
+                  ))}
+                </select>
+                {member.talent > 0.6 && (
+                  <span className="text-[10px] text-purple-400">Talent: {Math.round(member.talent * 100)}%</span>
+                )}
               </div>
               <div className="space-y-1.5">
                 <ProgressBar

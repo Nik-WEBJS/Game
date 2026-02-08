@@ -13,8 +13,53 @@ export interface Player {
   currentWeek: number;
 }
 
+// --- Office Zones ---
+export type ZoneId = 'development' | 'marketing' | 'security' | 'qa';
+
+export interface ZoneDefinition {
+  id: ZoneId;
+  name: string;
+  description: string;
+  bonuses: Partial<ZoneBonuses>;
+}
+
+export interface ZoneBonuses {
+  qualityMod: number;       // +quality
+  growthMod: number;        // +growth
+  riskMod: number;          // +/- risk
+  stabilityMod: number;     // +stability (inverse of bugs)
+  eventChanceMod: number;   // +chance of positive events
+}
+
 // --- Team ---
 export type TeamRole = 'developer' | 'manager' | 'qa' | 'security' | 'marketing';
+
+export type TraitId =
+  | 'visionary'
+  | 'workaholic'
+  | 'influencer'
+  | 'perfectionist'
+  | 'mentor'
+  | 'resilient'
+  | 'creative'
+  | 'analytical';
+
+export interface TraitDefinition {
+  id: TraitId;
+  name: string;
+  description: string;
+  effects: Partial<TraitEffects>;
+}
+
+export interface TraitEffects {
+  innovationMod: number;
+  experienceGainMod: number;
+  burnoutGainMod: number;
+  qualityMod: number;
+  speedMod: number;
+  marketingMod: number;
+  moraleMod: number;
+}
 
 export interface TeamMember {
   id: string;
@@ -24,6 +69,124 @@ export interface TeamMember {
   experience: number;       // 0..100
   burnout: number;          // 0..100, high = bad
   morale: number;           // 0..100
+  talent: number;           // 0..1, growth multiplier
+  burnoutResistance: number; // 0..1, slows burnout gain
+  trait: TraitId | null;
+  zoneId: ZoneId | null;    // assigned office zone
+}
+
+// --- Employee Market ---
+export type CandidateRarity = 'common' | 'uncommon' | 'rare' | 'legendary';
+
+export interface MarketCandidate {
+  id: string;
+  role: TeamRole;
+  name: string;
+  salary: number;
+  hireCost: number;
+  experience: number;
+  talent: number;
+  burnoutResistance: number;
+  trait: TraitId | null;
+  rarity: CandidateRarity;
+}
+
+// --- Niche Subtypes ---
+export type NicheSubtype = string; // e.g. 'payments' | 'lending' | 'crypto' for fintech
+
+export interface NicheVariant {
+  id: string;
+  parentNicheId: string;
+  name: string;
+  description: string;
+  demandMod: number;        // modifier on parent demand
+  complexityMod: number;    // modifier on parent complexity
+}
+
+// --- Business Style ---
+export type BusinessStyleId = 'bootstrapped' | 'vc_backed' | 'enterprise_first';
+
+export interface BusinessStyle {
+  id: BusinessStyleId;
+  name: string;
+  description: string;
+  modifiers: Partial<BusinessStyleModifiers>;
+}
+
+export interface BusinessStyleModifiers {
+  revenueMod: number;
+  costMod: number;
+  riskMod: number;
+  growthMod: number;
+  reputationMod: number;
+  startingMoney: number;
+}
+
+// --- Company Product (multi-product system) ---
+export type ProductLifecycle = 'mvp' | 'growth' | 'maturity' | 'decline';
+export type CompanyProductType = 'saas' | 'app' | 'media' | 'platform';
+
+export interface CompanyProduct {
+  id: string;
+  name: string;
+  type: CompanyProductType;
+  quality: number;          // 0..1
+  audience: number;         // 0..1, market reach
+  monetizationId: string;
+  lifecycle: ProductLifecycle;
+  lifecycleWeeks: number;   // weeks in current lifecycle stage
+  revenue: number;          // calculated per turn
+}
+
+// --- Technology / Influence Tree ---
+export type TechBranch = 'tech_core' | 'marketing_influence';
+
+export interface TechTreeNode {
+  id: string;
+  branch: TechBranch;
+  name: string;
+  description: string;
+  cost: number;
+  weeksToResearch: number;
+  requires: string[];       // prerequisite node IDs
+  effects: Partial<TechTreeEffects>;
+  unlocked: boolean;
+  researching: boolean;
+  researchProgress: number; // 0..100
+  completed: boolean;
+  requiredReputation?: number;
+}
+
+export interface TechTreeEffects {
+  qualityMod: number;
+  growthMod: number;
+  riskMod: number;
+  reputationMod: number;
+  userGrowthMod: number;
+  viralityMod: number;
+  talentAccessMod: number;
+}
+
+// --- Office Furniture ---
+export type FurnitureType = 'desk' | 'meeting_room' | 'server_room' | 'lounge' | 'stage';
+
+export interface FurnitureItem {
+  id: string;
+  type: FurnitureType;
+  name: string;
+  description: string;
+  cost: number;
+  gridSize: [number, number]; // width x depth in grid cells
+  position: [number, number] | null; // grid position, null = not placed
+  effects: Partial<FurnitureEffects>;
+}
+
+export interface FurnitureEffects {
+  teamSlotsMod: number;     // +employee capacity
+  moraleMod: number;
+  qualityMod: number;
+  burnoutMod: number;       // negative = reduces burnout
+  reputationMod: number;
 }
 
 // --- Niche ---
@@ -109,13 +272,20 @@ export interface BusinessMetrics {
 
 export interface Business {
   nicheId: string | null;
+  nicheVariantId: string | null;
   productId: string | null;
   monetizationId: string | null;
+  styleId: BusinessStyleId | null;
   technologies: string[];
   marketId: string;
   team: TeamMember[];
   isoStandards: ISOStandard[];
   metrics: BusinessMetrics;
+  companyProducts: CompanyProduct[];
+  techTree: TechTreeNode[];
+  furniture: FurnitureItem[];
+  employeeMarket: MarketCandidate[];
+  marketRefreshWeek: number; // week when market was last refreshed
 }
 
 // --- Events ---
@@ -170,5 +340,7 @@ export interface GameState {
   availableTechnologies: Technology[];
   availableMarkets: Market[];
   availableMonetizations: MonetizationStrategy[];
+  availableNicheVariants: NicheVariant[];
+  availableBusinessStyles: BusinessStyle[];
   weekHistory: BusinessMetrics[];
 }

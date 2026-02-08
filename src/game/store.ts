@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import { GameState, GamePhase, TeamRole, BusinessMetrics } from './types';
+import { GameState, GamePhase, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem } from './types';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, createISO9001 } from './data';
+import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, MARKET_REFRESH_INTERVAL, FURNITURE_CATALOG } from './data-advanced';
 import { applyEconomy, calculateEconomy } from './engines/economy';
 import { tickISO, startISO, advanceISO, canStartISO, canAdvanceISO } from './engines/iso';
 import { rollEvents, applyEvents } from './engines/events';
-import { tickTeam, hireMember, fireMember, canHire, getHireCost } from './engines/team';
+import { tickTeam, hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone } from './engines/team';
 import { checkWinLose, gainExperience } from './engines/progression';
 
 const INITIAL_MONEY = 50000;
@@ -22,8 +23,10 @@ function createInitialState(): GameState {
     },
     business: {
       nicheId: null,
+      nicheVariantId: null,
       productId: null,
       monetizationId: null,
+      styleId: null,
       technologies: [],
       marketId: 'domestic',
       team: [],
@@ -38,6 +41,11 @@ function createInitialState(): GameState {
         growthRate: 0,
         teamEfficiency: 0.5,
       },
+      companyProducts: [],
+      techTree: createTechTree(),
+      furniture: [],
+      employeeMarket: generateMarketPool(5),
+      marketRefreshWeek: 0,
     },
     phase: 'setup',
     logs: [
@@ -49,23 +57,57 @@ function createInitialState(): GameState {
     availableTechnologies: TECHNOLOGIES,
     availableMarkets: MARKETS,
     availableMonetizations: MONETIZATIONS,
+    availableNicheVariants: NICHE_VARIANTS,
+    availableBusinessStyles: BUSINESS_STYLES,
     weekHistory: [],
   };
 }
 
+// Helper: extract GameState from store (avoids repeating all fields)
+function toGameState(s: GameStore | GameState): GameState {
+  return {
+    player: s.player,
+    business: s.business,
+    phase: s.phase,
+    logs: s.logs,
+    activeEvents: s.activeEvents,
+    availableNiches: s.availableNiches,
+    availableProducts: s.availableProducts,
+    availableTechnologies: s.availableTechnologies,
+    availableMarkets: s.availableMarkets,
+    availableMonetizations: s.availableMonetizations,
+    availableNicheVariants: s.availableNicheVariants,
+    availableBusinessStyles: s.availableBusinessStyles,
+    weekHistory: s.weekHistory,
+  };
+}
+
 interface GameStore extends GameState {
-  // Actions
+  // Setup actions
   setNiche: (nicheId: string) => void;
+  setNicheVariant: (variantId: string | null) => void;
   setProduct: (productId: string) => void;
   setMonetization: (monetizationId: string) => void;
+  setBusinessStyle: (styleId: BusinessStyleId) => void;
   adoptTechnology: (techId: string) => void;
   removeTechnology: (techId: string) => void;
   startGame: () => void;
+  // Turn
   nextTurn: () => void;
+  // Team
   hireTeamMember: (role: TeamRole) => void;
   fireTeamMember: (memberId: string) => void;
+  hireFromMarket: (candidateId: string) => void;
+  assignEmployeeZone: (memberId: string, zoneId: ZoneId | null) => void;
+  // ISO
   startISOProcess: (isoId: string) => void;
   advanceISOStage: (isoId: string) => void;
+  // Tech tree
+  startResearch: (nodeId: string) => void;
+  // Furniture
+  buyFurniture: (type: string) => void;
+  placeFurniture: (furnitureId: string, position: [number, number]) => void;
+  // Misc
   resetGame: () => void;
   canStartISO: (isoId: string) => boolean;
   canAdvanceISO: (isoId: string) => boolean;
@@ -77,298 +119,237 @@ interface GameStore extends GameState {
 export const useGameStore = create<GameStore>((set, get) => ({
   ...createInitialState(),
 
-  setNiche: (nicheId: string) => {
-    set(state => ({
-      business: { ...state.business, nicheId },
+  setNiche: (nicheId) => {
+    set(s => ({ business: { ...s.business, nicheId, nicheVariantId: null } }));
+  },
+
+  setNicheVariant: (variantId) => {
+    set(s => ({ business: { ...s.business, nicheVariantId: variantId } }));
+  },
+
+  setProduct: (productId) => {
+    set(s => ({ business: { ...s.business, productId } }));
+  },
+
+  setMonetization: (monetizationId) => {
+    set(s => ({ business: { ...s.business, monetizationId } }));
+  },
+
+  setBusinessStyle: (styleId) => {
+    const style = BUSINESS_STYLES.find(s => s.id === styleId);
+    if (!style) return;
+    const startMoney = style.modifiers.startingMoney ?? INITIAL_MONEY;
+    set(s => ({
+      player: { ...s.player, money: startMoney },
+      business: { ...s.business, styleId },
     }));
   },
 
-  setProduct: (productId: string) => {
-    set(state => ({
-      business: { ...state.business, productId },
-    }));
-  },
-
-  setMonetization: (monetizationId: string) => {
-    set(state => ({
-      business: { ...state.business, monetizationId },
-    }));
-  },
-
-  adoptTechnology: (techId: string) => {
+  adoptTechnology: (techId) => {
     const state = get();
     const tech = TECHNOLOGIES.find(t => t.id === techId);
     if (!tech || state.business.technologies.includes(techId)) return;
     if (state.player.money < tech.cost) return;
-
     set(s => ({
       player: { ...s.player, money: s.player.money - tech.cost },
-      business: {
-        ...s.business,
-        technologies: [...s.business.technologies, techId],
-      },
-      logs: [
-        ...s.logs,
-        { week: s.player.currentWeek, message: `Adopted ${tech.name} for $${tech.cost.toLocaleString()}.`, type: 'info' as const },
-      ],
+      business: { ...s.business, technologies: [...s.business.technologies, techId] },
+      logs: [...s.logs, { week: s.player.currentWeek, message: `Adopted ${tech.name} for $${tech.cost.toLocaleString()}.`, type: 'info' as const }],
     }));
   },
 
-  removeTechnology: (techId: string) => {
-    set(state => ({
-      business: {
-        ...state.business,
-        technologies: state.business.technologies.filter(t => t !== techId),
-      },
+  removeTechnology: (techId) => {
+    set(s => ({
+      business: { ...s.business, technologies: s.business.technologies.filter(t => t !== techId) },
     }));
   },
 
   startGame: () => {
     const state = get();
     if (!state.business.nicheId || !state.business.productId || !state.business.monetizationId) return;
-
-    const fullState: GameState = {
-      player: state.player,
-      business: state.business,
-      phase: 'playing',
-      logs: state.logs,
-      activeEvents: [],
-      availableNiches: state.availableNiches,
-      availableProducts: state.availableProducts,
-      availableTechnologies: state.availableTechnologies,
-      availableMarkets: state.availableMarkets,
-      availableMonetizations: state.availableMonetizations,
-      weekHistory: [],
-    };
-
-    const withEconomy = applyEconomy(fullState);
-
+    const gs = toGameState({ ...state, phase: 'playing', activeEvents: [], weekHistory: [] });
+    const withEconomy = applyEconomy(gs);
     set({
       ...withEconomy,
       phase: 'playing',
       player: { ...withEconomy.player, currentWeek: 1 },
-      logs: [
-        ...withEconomy.logs,
-        { week: 1, message: '🚀 Your business is launched! Good luck!', type: 'success' },
-      ],
+      logs: [...withEconomy.logs, { week: 1, message: '🚀 Your business is launched! Good luck!', type: 'success' }],
     });
   },
 
   nextTurn: () => {
     const state = get();
     if (state.phase !== 'playing') return;
-
-    let gameState: GameState = {
-      player: state.player,
-      business: state.business,
-      phase: state.phase,
-      logs: state.logs,
-      activeEvents: state.activeEvents,
-      availableNiches: state.availableNiches,
-      availableProducts: state.availableProducts,
-      availableTechnologies: state.availableTechnologies,
-      availableMarkets: state.availableMarkets,
-      availableMonetizations: state.availableMonetizations,
-      weekHistory: state.weekHistory,
-    };
+    let gs = toGameState(state);
 
     // 1. Advance week
-    gameState = {
-      ...gameState,
-      player: { ...gameState.player, currentWeek: gameState.player.currentWeek + 1 },
-    };
+    gs = { ...gs, player: { ...gs.player, currentWeek: gs.player.currentWeek + 1 } };
 
-    // 2. Tick team (experience, burnout, morale)
-    gameState = tickTeam(gameState);
+    // 2. Tick team
+    gs = tickTeam(gs);
 
     // 3. Tick ISO
-    gameState = tickISO(gameState);
+    gs = tickISO(gs);
 
     // 4. Calculate economy
-    gameState = applyEconomy(gameState);
+    gs = applyEconomy(gs);
 
-    // 5. Roll and apply events
-    const events = rollEvents(gameState);
-    if (events.length > 0) {
-      gameState = applyEvents(gameState, events);
-    } else {
-      gameState = { ...gameState, activeEvents: [] };
-    }
+    // 5. Events
+    const events = rollEvents(gs);
+    gs = events.length > 0 ? applyEvents(gs, events) : { ...gs, activeEvents: [] };
 
-    // 6. Gain experience & reputation
-    gameState = gainExperience(gameState);
+    // 6. Experience & reputation
+    gs = gainExperience(gs);
 
-    // 7. Decay niche demand (trends age)
-    const niche = NICHES.find(n => n.id === gameState.business.nicheId);
-    if (niche) {
-      niche.baseDemand = Math.max(0.2, niche.baseDemand - niche.trendDecayRate);
-    }
+    // 7. Decay niche demand
+    const niche = NICHES.find(n => n.id === gs.business.nicheId);
+    if (niche) niche.baseDemand = Math.max(0.2, niche.baseDemand - niche.trendDecayRate);
 
-    // 8. Record history
-    gameState = {
-      ...gameState,
-      weekHistory: [...gameState.weekHistory, { ...gameState.business.metrics }],
-    };
+    // 8. Tick tech tree research
+    gs = tickTechTree(gs);
 
-    // 9. Check win/lose
-    gameState = checkWinLose(gameState);
+    // 9. Refresh employee market
+    gs = tickEmployeeMarket(gs);
 
-    set(gameState);
+    // 10. Record history
+    gs = { ...gs, weekHistory: [...gs.weekHistory, { ...gs.business.metrics }] };
+
+    // 11. Check win/lose
+    gs = checkWinLose(gs);
+
+    set(gs);
   },
 
-  hireTeamMember: (role: TeamRole) => {
+  hireTeamMember: (role) => {
+    set(hireMember(toGameState(get()), role));
+  },
+
+  fireTeamMember: (memberId) => {
+    set(fireMember(toGameState(get()), memberId));
+  },
+
+  hireFromMarket: (candidateId) => {
+    set(hireFromMarket(toGameState(get()), candidateId));
+  },
+
+  assignEmployeeZone: (memberId, zoneId) => {
+    set(assignZone(toGameState(get()), memberId, zoneId));
+  },
+
+  startISOProcess: (isoId) => {
+    set(startISO(toGameState(get()), isoId));
+  },
+
+  advanceISOStage: (isoId) => {
+    set(advanceISO(toGameState(get()), isoId));
+  },
+
+  startResearch: (nodeId) => {
     const state = get();
-    const gameState: GameState = {
-      player: state.player,
-      business: state.business,
-      phase: state.phase,
-      logs: state.logs,
-      activeEvents: state.activeEvents,
-      availableNiches: state.availableNiches,
-      availableProducts: state.availableProducts,
-      availableTechnologies: state.availableTechnologies,
-      availableMarkets: state.availableMarkets,
-      availableMonetizations: state.availableMonetizations,
-      weekHistory: state.weekHistory,
-    };
-    const result = hireMember(gameState, role);
-    set(result);
+    const node = state.business.techTree.find(n => n.id === nodeId);
+    if (!node || node.completed || node.researching) return;
+    if (!node.unlocked) return;
+    if (state.player.money < node.cost) return;
+    // Check if another research is already in progress
+    if (state.business.techTree.some(n => n.researching)) return;
+    if (node.requiredReputation && state.player.reputation < node.requiredReputation) return;
+
+    set(s => ({
+      player: { ...s.player, money: s.player.money - node.cost },
+      business: {
+        ...s.business,
+        techTree: s.business.techTree.map(n =>
+          n.id === nodeId ? { ...n, researching: true, researchProgress: 0 } : n
+        ),
+      },
+      logs: [...s.logs, { week: s.player.currentWeek, message: `Started researching ${node.name}.`, type: 'info' as const }],
+    }));
   },
 
-  fireTeamMember: (memberId: string) => {
+  buyFurniture: (type) => {
+    const catalog = FURNITURE_CATALOG.find(f => f.type === type);
+    if (!catalog) return;
     const state = get();
-    const gameState: GameState = {
-      player: state.player,
-      business: state.business,
-      phase: state.phase,
-      logs: state.logs,
-      activeEvents: state.activeEvents,
-      availableNiches: state.availableNiches,
-      availableProducts: state.availableProducts,
-      availableTechnologies: state.availableTechnologies,
-      availableMarkets: state.availableMarkets,
-      availableMonetizations: state.availableMonetizations,
-      weekHistory: state.weekHistory,
+    if (state.player.money < catalog.cost) return;
+
+    const item: FurnitureItem = {
+      ...catalog,
+      id: `furn_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      position: null,
     };
-    const result = fireMember(gameState, memberId);
-    set(result);
+
+    set(s => ({
+      player: { ...s.player, money: s.player.money - catalog.cost },
+      business: { ...s.business, furniture: [...s.business.furniture, item] },
+      logs: [...s.logs, { week: s.player.currentWeek, message: `Purchased ${catalog.name} for $${catalog.cost.toLocaleString()}.`, type: 'info' as const }],
+    }));
   },
 
-  startISOProcess: (isoId: string) => {
-    const state = get();
-    const gameState: GameState = {
-      player: state.player,
-      business: state.business,
-      phase: state.phase,
-      logs: state.logs,
-      activeEvents: state.activeEvents,
-      availableNiches: state.availableNiches,
-      availableProducts: state.availableProducts,
-      availableTechnologies: state.availableTechnologies,
-      availableMarkets: state.availableMarkets,
-      availableMonetizations: state.availableMonetizations,
-      weekHistory: state.weekHistory,
-    };
-    const result = startISO(gameState, isoId);
-    set(result);
+  placeFurniture: (furnitureId, position) => {
+    set(s => ({
+      business: {
+        ...s.business,
+        furniture: s.business.furniture.map(f =>
+          f.id === furnitureId ? { ...f, position } : f
+        ),
+      },
+    }));
   },
 
-  advanceISOStage: (isoId: string) => {
-    const state = get();
-    const gameState: GameState = {
-      player: state.player,
-      business: state.business,
-      phase: state.phase,
-      logs: state.logs,
-      activeEvents: state.activeEvents,
-      availableNiches: state.availableNiches,
-      availableProducts: state.availableProducts,
-      availableTechnologies: state.availableTechnologies,
-      availableMarkets: state.availableMarkets,
-      availableMonetizations: state.availableMonetizations,
-      weekHistory: state.weekHistory,
-    };
-    const result = advanceISO(gameState, isoId);
-    set(result);
-  },
+  resetGame: () => set(createInitialState()),
 
-  resetGame: () => {
-    set(createInitialState());
-  },
-
-  canStartISO: (isoId: string) => {
-    const state = get();
-    const gameState: GameState = {
-      player: state.player,
-      business: state.business,
-      phase: state.phase,
-      logs: state.logs,
-      activeEvents: state.activeEvents,
-      availableNiches: state.availableNiches,
-      availableProducts: state.availableProducts,
-      availableTechnologies: state.availableTechnologies,
-      availableMarkets: state.availableMarkets,
-      availableMonetizations: state.availableMonetizations,
-      weekHistory: state.weekHistory,
-    };
-    return canStartISO(gameState, isoId);
-  },
-
-  canAdvanceISO: (isoId: string) => {
-    const state = get();
-    const gameState: GameState = {
-      player: state.player,
-      business: state.business,
-      phase: state.phase,
-      logs: state.logs,
-      activeEvents: state.activeEvents,
-      availableNiches: state.availableNiches,
-      availableProducts: state.availableProducts,
-      availableTechnologies: state.availableTechnologies,
-      availableMarkets: state.availableMarkets,
-      availableMonetizations: state.availableMonetizations,
-      weekHistory: state.weekHistory,
-    };
-    return canAdvanceISO(gameState, isoId);
-  },
-
-  canHireMember: (role: TeamRole) => {
-    const state = get();
-    const gameState: GameState = {
-      player: state.player,
-      business: state.business,
-      phase: state.phase,
-      logs: state.logs,
-      activeEvents: state.activeEvents,
-      availableNiches: state.availableNiches,
-      availableProducts: state.availableProducts,
-      availableTechnologies: state.availableTechnologies,
-      availableMarkets: state.availableMarkets,
-      availableMonetizations: state.availableMonetizations,
-      weekHistory: state.weekHistory,
-    };
-    return canHire(gameState, role);
-  },
-
-  getHireCost: (role: TeamRole) => {
-    return getHireCost(role);
-  },
-
-  previewMetrics: () => {
-    const state = get();
-    const gameState: GameState = {
-      player: state.player,
-      business: state.business,
-      phase: state.phase,
-      logs: state.logs,
-      activeEvents: state.activeEvents,
-      availableNiches: state.availableNiches,
-      availableProducts: state.availableProducts,
-      availableTechnologies: state.availableTechnologies,
-      availableMarkets: state.availableMarkets,
-      availableMonetizations: state.availableMonetizations,
-      weekHistory: state.weekHistory,
-    };
-    return calculateEconomy(gameState);
-  },
+  canStartISO: (isoId) => canStartISO(toGameState(get()), isoId),
+  canAdvanceISO: (isoId) => canAdvanceISO(toGameState(get()), isoId),
+  canHireMember: (role) => canHire(toGameState(get()), role),
+  getHireCost: (role) => getHireCost(role),
+  previewMetrics: () => calculateEconomy(toGameState(get())),
 }));
+
+// --- Tech tree tick (called each turn) ---
+function tickTechTree(state: GameState): GameState {
+  let changed = false;
+  const newTree = state.business.techTree.map(node => {
+    if (!node.researching) return node;
+    const progressPerWeek = 100 / node.weeksToResearch;
+    const newProgress = Math.min(100, node.researchProgress + progressPerWeek);
+    if (newProgress >= 100) {
+      changed = true;
+      return { ...node, researching: false, researchProgress: 100, completed: true };
+    }
+    return { ...node, researchProgress: newProgress };
+  });
+
+  // Unlock nodes whose prerequisites are now completed
+  const finalTree = newTree.map(node => {
+    if (node.unlocked || node.completed) return node;
+    const allReqsMet = node.requires.every(reqId => newTree.find(n => n.id === reqId)?.completed);
+    if (allReqsMet) return { ...node, unlocked: true };
+    return node;
+  });
+
+  const newLogs = [...state.logs];
+  if (changed) {
+    const completed = finalTree.filter(n => n.completed && !state.business.techTree.find(o => o.id === n.id)?.completed);
+    for (const c of completed) {
+      newLogs.push({ week: state.player.currentWeek, message: `Research complete: ${c.name}!`, type: 'success' });
+    }
+  }
+
+  return { ...state, business: { ...state.business, techTree: finalTree }, logs: newLogs };
+}
+
+// --- Employee market refresh ---
+function tickEmployeeMarket(state: GameState): GameState {
+  const weeksSinceRefresh = state.player.currentWeek - state.business.marketRefreshWeek;
+  if (weeksSinceRefresh >= MARKET_REFRESH_INTERVAL) {
+    return {
+      ...state,
+      business: {
+        ...state.business,
+        employeeMarket: generateMarketPool(5),
+        marketRefreshWeek: state.player.currentWeek,
+      },
+      logs: [...state.logs, { week: state.player.currentWeek, message: 'Employee market refreshed with new candidates.', type: 'info' }],
+    };
+  }
+  return state;
+}

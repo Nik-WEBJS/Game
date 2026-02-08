@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '@/game/store';
 import { useI18n } from '@/i18n';
 import { eventTitle as getEventTitle, eventDesc as getEventDesc, roleName, isoName } from '@/i18n/game-text';
+import { ToastContainer, pushToast } from '@/components/ui/toast';
 import { TopBar } from './TopBar';
 import { MetricsPanel } from './MetricsPanel';
 import { TeamPanel } from './TeamPanel';
@@ -11,67 +12,57 @@ import { ISOPanel } from './ISOPanel';
 import { TechPanel } from './TechPanel';
 import { EventLog } from './EventLog';
 import { BusinessInfo } from './BusinessInfo';
+import { MarketPanel } from './MarketPanel';
+import { TechTreePanel } from './TechTreePanel';
+import { FurniturePanel } from './FurniturePanel';
 import { OfficeScene } from '@/office/OfficeScene';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Play, BarChart3, Users, ClipboardCheck, Cpu, ScrollText, Building2, ChevronRight,
+  ShoppingBag, FlaskConical, Armchair,
 } from 'lucide-react';
 
-type Tab = 'overview' | 'team' | 'tech' | 'iso' | 'log';
+type Tab = 'overview' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log';
 
 export function GameDashboard() {
   const { nextTurn, player, activeEvents } = useGameStore();
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const prevEventsRef = useRef<string[]>([]);
+
+  // Push toast notifications when new events appear
+  useEffect(() => {
+    const prevIds = prevEventsRef.current;
+    const newEvents = activeEvents.filter(e => !prevIds.includes(e.id));
+    for (const event of newEvents) {
+      pushToast({
+        type: event.type === 'crisis' ? 'danger' : event.type === 'positive' ? 'success' : event.type === 'iso' ? 'warning' : 'info',
+        title: getEventTitle(event.id, t, event.title),
+        description: getEventDesc(event.id, t, event.description),
+      });
+    }
+    prevEventsRef.current = activeEvents.map(e => e.id);
+  }, [activeEvents, t]);
 
   const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'overview', label: t.tabOverview, icon: BarChart3 },
     { id: 'team', label: t.tabTeam, icon: Users },
+    { id: 'market', label: 'Market', icon: ShoppingBag },
     { id: 'tech', label: t.tabTech, icon: Cpu },
+    { id: 'research', label: 'Research', icon: FlaskConical },
     { id: 'iso', label: t.tabISO, icon: ClipboardCheck },
+    { id: 'office', label: 'Office', icon: Armchair },
     { id: 'log', label: t.tabLog, icon: ScrollText },
   ];
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      <ToastContainer />
       <TopBar />
 
       <div className="max-w-[1600px] mx-auto px-4 py-4">
-        {/* Active Events Banner */}
-        {activeEvents.length > 0 && (
-          <div className="mb-4 space-y-2">
-            {activeEvents.map(event => {
-              const colors: Record<string, string> = {
-                market: 'border-blue-500/50 bg-blue-950/30',
-                internal: 'border-zinc-500/50 bg-zinc-800/30',
-                crisis: 'border-red-500/50 bg-red-950/30',
-                positive: 'border-emerald-500/50 bg-emerald-950/30',
-                iso: 'border-amber-500/50 bg-amber-950/30',
-              };
-              return (
-                <div
-                  key={event.id}
-                  className={`rounded-lg border p-3 flex items-center gap-3 ${colors[event.type] || ''}`}
-                >
-                  <Badge variant={
-                    event.type === 'crisis' ? 'danger' :
-                    event.type === 'positive' ? 'success' :
-                    event.type === 'iso' ? 'warning' : 'info'
-                  }>
-                    {event.type.toUpperCase()}
-                  </Badge>
-                  <div>
-                    <span className="text-sm font-medium text-zinc-200">{getEventTitle(event.id, t, event.title)}</span>
-                    <span className="text-xs text-zinc-400 ml-2">{getEventDesc(event.id, t, event.description)}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
         {/* Tab Navigation + Next Turn */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex gap-1 bg-zinc-900/80 rounded-lg p-1 border border-zinc-700/50">
@@ -101,12 +92,16 @@ export function GameDashboard() {
           </Button>
         </div>
 
+        {/* Pinned Office View */}
+        <div className="mb-4">
+          <OfficeScene />
+        </div>
+
         {/* Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {activeTab === 'overview' && (
             <>
               <div className="lg:col-span-2 space-y-4">
-                <OfficeScene />
                 <MetricsPanel />
                 <EventLog />
               </div>
@@ -145,6 +140,42 @@ export function GameDashboard() {
             <>
               <div className="lg:col-span-2">
                 <ISOPanel />
+              </div>
+              <div className="space-y-4">
+                <BusinessInfo />
+                <MetricsPanel />
+              </div>
+            </>
+          )}
+
+          {activeTab === 'market' && (
+            <>
+              <div className="lg:col-span-2">
+                <MarketPanel />
+              </div>
+              <div className="space-y-4">
+                <BusinessInfo />
+                <MetricsPanel />
+              </div>
+            </>
+          )}
+
+          {activeTab === 'research' && (
+            <>
+              <div className="lg:col-span-2">
+                <TechTreePanel />
+              </div>
+              <div className="space-y-4">
+                <BusinessInfo />
+                <MetricsPanel />
+              </div>
+            </>
+          )}
+
+          {activeTab === 'office' && (
+            <>
+              <div className="lg:col-span-2 space-y-4">
+                <FurniturePanel />
               </div>
               <div className="space-y-4">
                 <BusinessInfo />

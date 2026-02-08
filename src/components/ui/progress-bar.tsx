@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 interface ProgressBarProps {
   value: number; // 0..100
   max?: number;
-  color?: 'emerald' | 'red' | 'amber' | 'blue' | 'purple';
+  color?: 'emerald' | 'red' | 'amber' | 'blue' | 'purple' | 'cyan';
   size?: 'sm' | 'md';
   label?: string;
   showValue?: boolean;
@@ -16,6 +16,7 @@ const colorMap = {
   amber: 'bg-amber-500',
   blue: 'bg-blue-500',
   purple: 'bg-purple-500',
+  cyan: 'bg-cyan-500',
 };
 
 export function ProgressBar({

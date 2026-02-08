@@ -1,4 +1,4 @@
-import { GameState, TeamMember, TeamRole } from '../types';
+import { GameState, TeamMember, TeamRole, MarketCandidate } from '../types';
 import { generateTeamMemberName, ROLE_SALARIES } from '../data';
 
 let nextTeamId = 1;
@@ -12,6 +12,60 @@ export function createTeamMember(role: TeamRole): TeamMember {
     experience: 20 + Math.floor(Math.random() * 30),
     burnout: 0,
     morale: 70 + Math.floor(Math.random() * 20),
+    talent: 0.3 + Math.random() * 0.3,
+    burnoutResistance: 0.2 + Math.random() * 0.3,
+    trait: null,
+    zoneId: null,
+  };
+}
+
+export function hireFromMarket(state: GameState, candidateId: string): GameState {
+  const candidate = state.business.employeeMarket.find(c => c.id === candidateId);
+  if (!candidate) return state;
+  if (state.player.money < candidate.hireCost) return state;
+
+  const member: TeamMember = {
+    id: `team_${nextTeamId++}`,
+    role: candidate.role,
+    name: candidate.name,
+    salary: candidate.salary,
+    experience: candidate.experience,
+    burnout: 0,
+    morale: 75,
+    talent: candidate.talent,
+    burnoutResistance: candidate.burnoutResistance,
+    trait: candidate.trait,
+    zoneId: null,
+  };
+
+  return {
+    ...state,
+    player: { ...state.player, money: state.player.money - candidate.hireCost },
+    business: {
+      ...state.business,
+      team: [...state.business.team, member],
+      employeeMarket: state.business.employeeMarket.filter(c => c.id !== candidateId),
+    },
+    logs: [
+      ...state.logs,
+      {
+        week: state.player.currentWeek,
+        message: `Hired ${member.name} (${member.role}, ${candidate.rarity}) from market. Cost: $${candidate.hireCost.toLocaleString()}`,
+        type: 'info' as const,
+      },
+    ],
+  };
+}
+
+export function assignZone(state: GameState, memberId: string, zoneId: string | null): GameState {
+  return {
+    ...state,
+    business: {
+      ...state.business,
+      team: state.business.team.map(m =>
+        m.id === memberId ? { ...m, zoneId: zoneId as TeamMember['zoneId'] } : m
+      ),
+    },
   };
 }
 
