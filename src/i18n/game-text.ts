@@ -6,22 +6,32 @@ const NICHE_NAMES: Record<string, keyof T> = {
   fintech: 'nicheFintechName',
   healthtech: 'nicheHealthtechName',
   edtech: 'nicheEdtechName',
+  gamedev: 'nicheGamedevName',
+  ecommerce: 'nicheEcommerceName',
+  cybersec: 'nicheCybersecName',
 };
 const NICHE_DESCS: Record<string, keyof T> = {
   fintech: 'nicheFintechDesc',
   healthtech: 'nicheHealthtechDesc',
   edtech: 'nicheEdtechDesc',
+  gamedev: 'nicheGamedevDesc',
+  ecommerce: 'nicheEcommerceDesc',
+  cybersec: 'nicheCybersecDesc',
 };
 
 const PRODUCT_NAMES: Record<string, keyof T> = {
   saas_platform: 'productSaasName',
   mobile_app: 'productMobileName',
   marketplace: 'productMarketplaceName',
+  api_service: 'productApiName',
+  desktop_app: 'productDesktopName',
 };
 const PRODUCT_DESCS: Record<string, keyof T> = {
   saas_platform: 'productSaasDesc',
   mobile_app: 'productMobileDesc',
   marketplace: 'productMarketplaceDesc',
+  api_service: 'productApiDesc',
+  desktop_app: 'productDesktopDesc',
 };
 
 const TECH_NAMES: Record<string, keyof T> = {
@@ -41,20 +51,28 @@ const TECH_DESCS: Record<string, keyof T> = {
 
 const MARKET_NAMES: Record<string, keyof T> = {
   domestic: 'marketDomesticName',
+  europe: 'marketEuropeName',
+  asia: 'marketAsiaName',
 };
 const MARKET_DESCS: Record<string, keyof T> = {
   domestic: 'marketDomesticDesc',
+  europe: 'marketEuropeDesc',
+  asia: 'marketAsiaDesc',
 };
 
 const MON_NAMES: Record<string, keyof T> = {
   subscription: 'monSubName',
   freemium: 'monFreemiumName',
   transaction_fee: 'monTxName',
+  advertising: 'monAdsName',
+  licensing: 'monLicenseName',
 };
 const MON_DESCS: Record<string, keyof T> = {
   subscription: 'monSubDesc',
   freemium: 'monFreemiumDesc',
   transaction_fee: 'monTxDesc',
+  advertising: 'monAdsDesc',
+  licensing: 'monLicenseDesc',
 };
 
 const ISO_NAMES: Record<string, keyof T> = {
@@ -124,3 +142,73 @@ export function isoDesc(id: string, t: T, fallback: string) { return lookup(ISO_
 export function roleName(role: string, t: T) { return lookup(ROLE_KEYS, role, t, role); }
 export function eventTitle(id: string, t: T, fallback: string) { return lookup(EVENT_TITLES, id, t, fallback); }
 export function eventDesc(id: string, t: T, fallback: string) { return lookup(EVENT_DESCS, id, t, fallback); }
+
+// Business Styles
+const STYLE_NAMES: Record<string, keyof T> = {
+  bootstrapped: 'styleBootstrappedName',
+  vc_backed: 'styleVcName',
+  enterprise_first: 'styleEnterpriseName',
+};
+const STYLE_DESCS: Record<string, keyof T> = {
+  bootstrapped: 'styleBootstrappedDesc',
+  vc_backed: 'styleVcDesc',
+  enterprise_first: 'styleEnterpriseDesc',
+};
+export function styleName(id: string, t: T, fallback: string) { return lookup(STYLE_NAMES, id, t, fallback); }
+export function styleDesc(id: string, t: T, fallback: string) { return lookup(STYLE_DESCS, id, t, fallback); }
+
+// Tech Tree Nodes
+const TT_NAMES: Record<string, keyof T> = {
+  tt_architecture: 'ttArchitectureName',
+  tt_infra: 'ttInfraName',
+  tt_ai_ml: 'ttAiMlName',
+  tt_security: 'ttSecurityName',
+  tt_microservices: 'ttMicroservicesName',
+  tt_social: 'ttSocialName',
+  tt_shorts: 'ttShortsName',
+  tt_community: 'ttCommunityName',
+  tt_documentary: 'ttDocumentaryName',
+  tt_conferences: 'ttConferencesName',
+  tt_agile: 'ttAgileName',
+  tt_ci_cd: 'ttCiCdName',
+  tt_analytics: 'ttAnalyticsName',
+  tt_devops: 'ttDevopsName',
+  tt_automation: 'ttAutomationName',
+};
+const TT_DESCS: Record<string, keyof T> = {
+  tt_architecture: 'ttArchitectureDesc',
+  tt_infra: 'ttInfraDesc',
+  tt_ai_ml: 'ttAiMlDesc',
+  tt_security: 'ttSecurityDesc',
+  tt_microservices: 'ttMicroservicesDesc',
+  tt_social: 'ttSocialDesc',
+  tt_shorts: 'ttShortsDesc',
+  tt_community: 'ttCommunityDesc',
+  tt_documentary: 'ttDocumentaryDesc',
+  tt_conferences: 'ttConferencesDesc',
+  tt_agile: 'ttAgileDesc',
+  tt_ci_cd: 'ttCiCdDesc',
+  tt_analytics: 'ttAnalyticsDesc',
+  tt_devops: 'ttDevopsDesc',
+  tt_automation: 'ttAutomationDesc',
+};
+export function ttNodeName(id: string, t: T, fallback: string) { return lookup(TT_NAMES, id, t, fallback); }
+export function ttNodeDesc(id: string, t: T, fallback: string) { return lookup(TT_DESCS, id, t, fallback); }
+
+// Furniture
+const FURN_NAMES: Record<string, keyof T> = {
+  desk: 'furnitureDeskName',
+  meeting_room: 'furnitureMeetingName',
+  server_room: 'furnitureServerName',
+  lounge: 'furnitureLoungeName',
+  stage: 'furnitureStageName',
+};
+const FURN_DESCS: Record<string, keyof T> = {
+  desk: 'furnitureDeskDesc',
+  meeting_room: 'furnitureMeetingDesc',
+  server_room: 'furnitureServerDesc',
+  lounge: 'furnitureLoungeDesc',
+  stage: 'furnitureStageDesc',
+};
+export function furnitureName(type: string, t: T, fallback: string) { return lookup(FURN_NAMES, type, t, fallback); }
+export function furnitureDesc(type: string, t: T, fallback: string) { return lookup(FURN_DESCS, type, t, fallback); }

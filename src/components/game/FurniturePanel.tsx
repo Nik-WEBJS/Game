@@ -11,6 +11,7 @@ import { Armchair, Monitor, Server, Coffee, Presentation, Move, X, MapPin, Arrow
 import { FurnitureType, OFFICE_LEVELS, WallMaterial } from '@/game/types';
 import { FURNITURE_CATALOG } from '@/game/data-advanced';
 import { startPlacement, cancelPlacement, furniturePlacement, subscribePlacement } from '@/office/furnitureState';
+import { furnitureName, furnitureDesc } from '@/i18n/game-text';
 
 const TYPE_ICONS: Record<FurnitureType, typeof Monitor> = {
   desk: Monitor,
@@ -207,8 +208,8 @@ export function FurniturePanel() {
                   <Icon className="w-4 h-4 text-amber-400" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-zinc-100">{item.name}</div>
-                  <div className="text-[11px] text-zinc-400">{item.description}</div>
+                  <div className="text-sm font-medium text-zinc-100">{furnitureName(item.type, t, item.name)}</div>
+                  <div className="text-[11px] text-zinc-400">{furnitureDesc(item.type, t, item.description)}</div>
                   {effectEntries.length > 0 && (
                     <div className="flex gap-2 mt-0.5">
                       {effectEntries.map(([k, v]) => (

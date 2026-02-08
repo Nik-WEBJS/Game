@@ -1,5 +1,7 @@
 import { GameState, GameEvent } from '../types';
 import { EVENTS_POOL } from '../data';
+import { getT } from '../../i18n';
+import { eventTitle, eventDesc } from '../../i18n/game-text';
 
 export function rollEvents(state: GameState): GameEvent[] {
   // Filter events whose conditions are met
@@ -154,7 +156,7 @@ export function applyEvents(state: GameState, events: GameEvent[]): GameState {
 
     newLogs.push({
       week: state.player.currentWeek,
-      message: `${eventTypeIcon[event.type] || '📌'} ${event.title}: ${event.description}`,
+      message: `${eventTypeIcon[event.type] || '📌'} ${eventTitle(event.id, getT(), event.title)}: ${eventDesc(event.id, getT(), event.description)}`,
       type: event.type === 'crisis' ? 'danger' : event.type === 'positive' ? 'success' : 'event',
     });
   }

@@ -1,5 +1,7 @@
 import { GameState, TeamMember, TeamRole, MarketCandidate, OFFICE_LEVELS, EMPLOYEE_LEVEL_THRESHOLDS, EMPLOYEE_LEVEL_SALARY_MULT } from '../types';
 import { generateTeamMemberName, ROLE_SALARIES } from '../data';
+import { getT } from '../../i18n';
+import { roleName } from '../../i18n/game-text';
 
 let nextTeamId = 1;
 
@@ -56,7 +58,7 @@ export function hireFromMarket(state: GameState, candidateId: string): GameState
       ...state.logs,
       {
         week: state.player.currentWeek,
-        message: `Hired ${member.name} (${member.role}, ${candidate.rarity}) from market. Cost: $${candidate.hireCost.toLocaleString()}`,
+        message: getT().hiredMarketMessage(member.name, roleName(member.role, getT()), candidate.rarity, `$${candidate.hireCost.toLocaleString()}`),
         type: 'info' as const,
       },
     ],
@@ -132,7 +134,7 @@ export function hireMember(state: GameState, role: TeamRole): GameState {
       ...state.logs,
       {
         week: state.player.currentWeek,
-        message: `Hired ${member.name} as ${role}. Cost: $${cost.toLocaleString()}`,
+        message: getT().hiredMessage(member.name, roleName(role, getT()), `$${cost.toLocaleString()}`),
         type: 'info',
       },
     ],
@@ -159,7 +161,7 @@ export function fireMember(state: GameState, memberId: string): GameState {
       ...state.logs,
       {
         week: state.player.currentWeek,
-        message: `${member.name} (${member.role}) left the company.`,
+        message: getT().firedMessage(member.name, roleName(member.role, getT())),
         type: 'warning',
       },
     ],
@@ -216,7 +218,7 @@ export function tickTeam(state: GameState): GameState {
   for (const q of quitters) {
     newLogs.push({
       week: state.player.currentWeek,
-      message: `💀 ${q.name} (${q.role}) quit due to extreme burnout!`,
+      message: getT().quitBurnoutMessage(q.name, roleName(q.role, getT())),
       type: 'danger',
     });
   }

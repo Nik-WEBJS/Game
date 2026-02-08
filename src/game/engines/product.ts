@@ -1,4 +1,5 @@
 import { GameState, ProductLifecycle, LIFECYCLE_WEEKS, CompanyProduct } from '../types';
+import { getT } from '../../i18n';
 
 const LIFECYCLE_ORDER: ProductLifecycle[] = ['prototype', 'beta', 'release', 'growth', 'maturity', 'decline'];
 
@@ -13,6 +14,7 @@ function nextLifecycleStage(current: ProductLifecycle): ProductLifecycle | null 
 export function tickProducts(state: GameState): GameState {
   if (state.business.companyProducts.length === 0) return state;
 
+  const t = getT();
   const devCount = state.business.team.filter(m => m.role === 'developer').length;
   const qaCount = state.business.team.filter(m => m.role === 'qa').length;
   const newLogs = [...state.logs];
@@ -40,7 +42,7 @@ export function tickProducts(state: GameState): GameState {
         updated.lifecycleWeeks = 0;
         newLogs.push({
           week: state.player.currentWeek,
-          message: `${cp.name} advanced to ${next} stage!`,
+          message: t.productAdvancedMessage(cp.name, next),
           type: 'success',
         });
       }
@@ -52,7 +54,7 @@ export function tickProducts(state: GameState): GameState {
       updated.lifecycleWeeks = 0;
       newLogs.push({
         week: state.player.currentWeek,
-        message: `${cp.name} entered growth phase!`,
+        message: t.productGrowthMessage(cp.name),
         type: 'success',
       });
     } else if (cp.lifecycle === 'growth' && updated.lifecycleWeeks >= 16) {
@@ -60,7 +62,7 @@ export function tickProducts(state: GameState): GameState {
       updated.lifecycleWeeks = 0;
       newLogs.push({
         week: state.player.currentWeek,
-        message: `${cp.name} reached maturity.`,
+        message: t.productMaturityMessage(cp.name),
         type: 'info',
       });
     } else if (cp.lifecycle === 'maturity' && updated.lifecycleWeeks >= 24) {
@@ -68,7 +70,7 @@ export function tickProducts(state: GameState): GameState {
       updated.lifecycleWeeks = 0;
       newLogs.push({
         week: state.player.currentWeek,
-        message: `${cp.name} is in decline. Consider pivoting or launching a new product.`,
+        message: t.productDeclineMessage(cp.name),
         type: 'warning',
       });
     }

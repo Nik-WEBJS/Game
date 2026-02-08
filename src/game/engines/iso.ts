@@ -1,4 +1,5 @@
 import { GameState, ISOStandard, ISOStage } from '../types';
+import { getT } from '../../i18n';
 
 const STAGE_ORDER: ISOStage[] = ['none', 'audit', 'implementation', 'internal_check', 'certification', 'maintenance'];
 const STAGE_COST: Record<ISOStage, number> = {
@@ -30,13 +31,14 @@ export function getStageCost(stage: ISOStage): number {
 }
 
 export function getStageLabel(stage: ISOStage): string {
+  const t = getT();
   const labels: Record<ISOStage, string> = {
-    none: 'Not Started',
-    audit: 'Audit',
-    implementation: 'Implementation',
-    internal_check: 'Internal Check',
-    certification: 'Certification',
-    maintenance: 'Maintenance',
+    none: t.notStarted,
+    audit: t.audit,
+    implementation: t.implementation,
+    internal_check: t.internalCheck,
+    certification: t.certification,
+    maintenance: t.maintenance,
   };
   return labels[stage];
 }
@@ -64,7 +66,7 @@ export function startISO(state: GameState, isoId: string): GameState {
     business: { ...state.business, isoStandards: newIsos },
     logs: [
       ...state.logs,
-      { week: state.player.currentWeek, message: `Started ISO audit process.`, type: 'info' },
+      { week: state.player.currentWeek, message: getT().isoStartedMessage, type: 'info' },
     ],
   };
 }
@@ -82,7 +84,7 @@ export function advanceISO(state: GameState, isoId: string): GameState {
       ...state,
       logs: [
         ...state.logs,
-        { week: state.player.currentWeek, message: `Not enough money to advance ISO to ${getStageLabel(next)}.`, type: 'warning' },
+        { week: state.player.currentWeek, message: getT().isoNotEnoughMoney(getStageLabel(next)), type: 'warning' },
       ],
     };
   }
@@ -111,8 +113,8 @@ export function advanceISO(state: GameState, isoId: string): GameState {
       {
         week: state.player.currentWeek,
         message: isCertified
-          ? `🎉 ISO 9001 Certified! Entering maintenance phase.`
-          : `ISO advanced to: ${label}.`,
+          ? getT().isoCertifiedMessage
+          : getT().isoAdvancedMessage(label),
         type: isCertified ? 'success' : 'info',
       },
     ],
@@ -135,7 +137,7 @@ export function tickISO(state: GameState): GameState {
       if (failRoll < iso.failRisk) {
         newLogs.push({
           week: state.player.currentWeek,
-          message: `⚠️ ISO maintenance issue detected! Progress reduced.`,
+          message: getT().isoMaintenanceIssue,
           type: 'warning',
         });
         return { ...iso, turnsInMaintenance: iso.turnsInMaintenance + 1 };

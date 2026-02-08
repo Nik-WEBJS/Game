@@ -17,3 +17,8 @@ export const useI18n = create<I18nStore>((set) => ({
   t: en,
   setLocale: (locale: Locale) => set({ locale, t: translations[locale] }),
 }));
+
+// Non-React helper: get current translations from anywhere
+export function getT(): TranslationKeys {
+  return useI18n.getState().t;
+}

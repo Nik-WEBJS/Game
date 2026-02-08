@@ -1,4 +1,5 @@
 import { GameState, GamePhase } from '../types';
+import { getT } from '../../i18n';
 
 const IPO_THRESHOLD = 500000;
 const MARKET_DOMINANCE_REPUTATION = 95;
@@ -14,7 +15,7 @@ export function checkWinLose(state: GameState): GameState {
   if (state.player.money <= BANKRUPTCY_THRESHOLD) {
     newLogs.push({
       week: state.player.currentWeek,
-      message: '💸 BANKRUPT! Your company ran out of money.',
+      message: getT().bankruptMessage,
       type: 'danger',
     });
     return { ...state, phase: 'lost', logs: newLogs };
@@ -24,7 +25,7 @@ export function checkWinLose(state: GameState): GameState {
   if (state.player.reputation <= 0) {
     newLogs.push({
       week: state.player.currentWeek,
-      message: '📉 Your reputation has collapsed. Game over.',
+      message: getT().reputationCollapsed,
       type: 'danger',
     });
     return { ...state, phase: 'lost', logs: newLogs };
@@ -35,7 +36,7 @@ export function checkWinLose(state: GameState): GameState {
   if (state.player.money >= IPO_THRESHOLD && state.player.reputation >= 80) {
     newLogs.push({
       week: state.player.currentWeek,
-      message: '🎉 IPO SUCCESS! You took your company public!',
+      message: getT().ipoSuccess,
       type: 'success',
     });
     return { ...state, phase: 'won', logs: newLogs };
@@ -45,7 +46,7 @@ export function checkWinLose(state: GameState): GameState {
   if (state.player.reputation >= MARKET_DOMINANCE_REPUTATION && state.business.metrics.quality >= 0.9) {
     newLogs.push({
       week: state.player.currentWeek,
-      message: '🏆 MARKET DOMINANCE! Your company rules the industry!',
+      message: getT().marketDominance,
       type: 'success',
     });
     return { ...state, phase: 'won', logs: newLogs };

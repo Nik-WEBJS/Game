@@ -8,6 +8,8 @@ import { rollEvents, applyEvents } from './engines/events';
 import { tickTeam, hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone, assignDesk } from './engines/team';
 import { checkWinLose, gainExperience } from './engines/progression';
 import { tickProducts, createInitialProduct } from './engines/product';
+import { getT } from '../i18n';
+import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18n/game-text';
 
 const INITIAL_MONEY = 25000;
 
@@ -59,7 +61,7 @@ function createInitialState(): GameState {
     },
     phase: 'setup',
     logs: [
-      { week: 0, message: 'Welcome to Business Tycoon! Choose your niche, product, and strategy to begin.', type: 'info' },
+      { week: 0, message: getT().welcomeMessage, type: 'info' },
     ],
     activeEvents: [],
     availableNiches: NICHES,
@@ -179,7 +181,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(s => ({
       player: { ...s.player, money: s.player.money - tech.cost },
       business: { ...s.business, technologies: [...s.business.technologies, techId] },
-      logs: [...s.logs, { week: s.player.currentWeek, message: `Adopted ${tech.name} for $${tech.cost.toLocaleString()}.`, type: 'info' as const }],
+      logs: [...s.logs, { week: s.player.currentWeek, message: getT().adoptedTechMessage(tName(tech.id, getT(), tech.name), `$${tech.cost.toLocaleString()}`), type: 'info' as const }],
     }));
   },
 
@@ -211,7 +213,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ...withEconomy,
       phase: 'playing',
       player: { ...withEconomy.player, currentWeek: 1, gameSpeed: 1 as GameSpeed, weekProgress: 0, totalTimePlayed: 0 },
-      logs: [...withEconomy.logs, { week: 1, message: '🚀 Your business is launched! Your product starts in prototype stage.', type: 'success' }],
+      logs: [...withEconomy.logs, { week: 1, message: getT().launchedPrototypeMessage, type: 'success' }],
     });
   },
 
@@ -309,7 +311,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           n.id === nodeId ? { ...n, researching: true, researchProgress: 0 } : n
         ),
       },
-      logs: [...s.logs, { week: s.player.currentWeek, message: `Started researching ${node.name}.`, type: 'info' as const }],
+      logs: [...s.logs, { week: s.player.currentWeek, message: getT().startedResearchMessage(ttNodeName(node.id, getT(), node.name)), type: 'info' as const }],
     }));
   },
 
@@ -325,7 +327,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ...s.business,
         office: { ...s.business.office, level: nextLevelDef.level },
       },
-      logs: [...s.logs, { week: s.player.currentWeek, message: `Office upgraded to level ${nextLevelDef.level}! Max employees: ${nextLevelDef.maxEmployees}.`, type: 'success' as const }],
+      logs: [...s.logs, { week: s.player.currentWeek, message: getT().officeUpgradedMessage(nextLevelDef.level, nextLevelDef.maxEmployees), type: 'success' as const }],
     }));
   },
 
@@ -357,7 +359,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(s => ({
       player: { ...s.player, money: s.player.money - catalog.cost },
       business: { ...s.business, furniture: [...s.business.furniture, item] },
-      logs: [...s.logs, { week: s.player.currentWeek, message: `Purchased ${catalog.name} for $${catalog.cost.toLocaleString()}.`, type: 'info' as const }],
+      logs: [...s.logs, { week: s.player.currentWeek, message: getT().purchasedFurnitureMessage(furnName(catalog.type, getT(), catalog.name), `$${catalog.cost.toLocaleString()}`), type: 'info' as const }],
     }));
   },
 
@@ -425,7 +427,7 @@ function tickTechTree(state: GameState): GameState {
   if (changed) {
     const completed = finalTree.filter(n => n.completed && !state.business.techTree.find(o => o.id === n.id)?.completed);
     for (const c of completed) {
-      newLogs.push({ week: state.player.currentWeek, message: `Research complete: ${c.name}!`, type: 'success' });
+      newLogs.push({ week: state.player.currentWeek, message: getT().researchCompleteMessage(ttNodeName(c.id, getT(), c.name)), type: 'success' });
     }
   }
 
@@ -500,7 +502,7 @@ function tickEmployeeMarket(state: GameState): GameState {
         employeeMarket: generateMarketPool(5),
         marketRefreshWeek: state.player.currentWeek,
       },
-      logs: [...state.logs, { week: state.player.currentWeek, message: 'Employee market refreshed with new candidates.', type: 'info' }],
+      logs: [...state.logs, { week: state.player.currentWeek, message: getT().marketRefreshedMessage, type: 'info' }],
     };
   }
   return state;

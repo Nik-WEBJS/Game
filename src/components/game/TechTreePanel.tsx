@@ -7,12 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { formatMoney } from '@/lib/utils';
-import { GitBranch, Megaphone, Lock, FlaskConical, Check } from 'lucide-react';
+import { GitBranch, Megaphone, Lock, FlaskConical, Check, Settings } from 'lucide-react';
 import { TechBranch } from '@/game/types';
+import { ttNodeName, ttNodeDesc } from '@/i18n/game-text';
 
 const BRANCH_META: Record<TechBranch, { labelKey: string; color: string; icon: typeof GitBranch }> = {
   tech_core: { labelKey: 'techCore', color: 'text-cyan-400', icon: GitBranch },
   marketing_influence: { labelKey: 'marketingInfluence', color: 'text-purple-400', icon: Megaphone },
+  operations_process: { labelKey: 'operationsProcess', color: 'text-amber-400', icon: Settings },
 };
 
 export function TechTreePanel() {
@@ -21,7 +23,7 @@ export function TechTreePanel() {
   const tree = business.techTree;
   const isResearching = tree.some(n => n.researching);
 
-  const branches: TechBranch[] = ['tech_core', 'marketing_influence'];
+  const branches: TechBranch[] = ['tech_core', 'marketing_influence', 'operations_process'];
 
   return (
     <Card className="p-4">
@@ -69,11 +71,11 @@ export function TechTreePanel() {
                             ) : !node.unlocked ? (
                               <Lock className="w-3.5 h-3.5 text-zinc-500" />
                             ) : null}
-                            <span className="font-medium text-sm text-zinc-100">{node.name}</span>
+                            <span className="font-medium text-sm text-zinc-100">{ttNodeName(node.id, t, node.name)}</span>
                             {node.completed && <Badge variant="success" className="text-[10px]">{t.done}</Badge>}
                             {node.researching && <Badge variant="info" className="text-[10px]">{t.researching}</Badge>}
                           </div>
-                          <p className="text-[11px] text-zinc-400 mb-1.5">{node.description}</p>
+                          <p className="text-[11px] text-zinc-400 mb-1.5">{ttNodeDesc(node.id, t, node.description)}</p>
 
                           {node.researching && (
                             <ProgressBar
