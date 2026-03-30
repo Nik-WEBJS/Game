@@ -1,7 +1,8 @@
-import { GameState, TeamMember, TeamRole, MarketCandidate, OFFICE_LEVELS, EMPLOYEE_LEVEL_THRESHOLDS, EMPLOYEE_LEVEL_SALARY_MULT } from '../types';
+import { GameState, TeamMember, TeamRole, OFFICE_LEVELS, EMPLOYEE_LEVEL_THRESHOLDS, EMPLOYEE_LEVEL_SALARY_MULT } from '../types';
 import { generateTeamMemberName, ROLE_SALARIES } from '../data';
 import { getT } from '../../i18n';
 import { roleName } from '../../i18n/game-text';
+import { BALANCE } from '../config/balance';
 
 let nextTeamId = 1;
 
@@ -101,7 +102,7 @@ export function assignDesk(state: GameState, memberId: string, deskId: string | 
   );
 
   // Update furniture assignedEmployeeId
-  let newFurniture = state.business.furniture.map(f => {
+  const newFurniture = state.business.furniture.map(f => {
     if (f.id === prevDeskId) return { ...f, assignedEmployeeId: null };
     if (f.id === deskId) return { ...f, assignedEmployeeId: memberId };
     return f;
@@ -186,23 +187,37 @@ export function tickTeam(state: GameState): GameState {
     if (member.status === 'freelance') return member;
 
     // Experience grows slowly — higher levels need more time
-    const levelPenalty = 1 / (1 + (member.level - 1) * 0.3); // lv1: 1.0, lv2: 0.77, lv3: 0.63, lv4: 0.53, lv5: 0.45
-    const expGain = (1 + (member.role === 'developer' ? 0.5 : 0)) * levelPenalty;
+    const levelPenalty = 1 / (1 + (member.level - 1) * BALANCE.team.levelPenaltyPerLevel);
+    const expGain = (
+      BALANCE.team.baseExperienceGainPerWeek
+      + (member.role === 'developer' ? BALANCE.team.developerExperienceBonusPerWeek : 0)
+    ) * levelPenalty;
     const newExp = Math.min(100, member.experience + expGain);
 
     // Burnout scales with team size and office level — bigger company = more stress
     const teamSize = state.business.team.filter(m => m.status === 'office').length;
-    const teamSizeStress = Math.max(0, (teamSize - 3) * 0.8); // stress grows with team size beyond 3
-    const levelStress = (member.level - 1) * 1.5; // higher level employees have more responsibility
+    const teamSizeStress = Math.max(
+      0,
+      (teamSize - BALANCE.team.teamSizeStressThreshold) * BALANCE.team.teamSizeStressPerMember,
+    );
+    const levelStress = (member.level - 1) * BALANCE.team.levelStressPerLevel;
     const resistanceMod = 1 - (member.burnoutResistance ?? 0.3);
-    const workload = (state.business.metrics.risk * 12 + teamSizeStress + levelStress) * resistanceMod;
-    const recovery = member.morale * 0.06 + isoReduction * 10;
+    const workload = (state.business.metrics.risk * BALANCE.team.riskLoadMultiplier + teamSizeStress + levelStress) * resistanceMod;
+    const recovery = member.morale * BALANCE.team.moraleRecoveryFactor + isoReduction * BALANCE.team.isoRecoveryMultiplier;
     const burnoutDelta = workload - recovery;
     const newBurnout = Math.max(0, Math.min(100, member.burnout + burnoutDelta));
 
     // Morale — profit matters more at higher levels, burnout hits harder
-    const profitEffect = state.business.metrics.profit > 0 ? 1.5 : -2 - member.level * 0.5;
-    const burnoutEffect = newBurnout > 70 ? -4 : newBurnout > 40 ? -2 : newBurnout > 20 ? 0 : 1;
+    const profitEffect = state.business.metrics.profit > 0
+      ? BALANCE.team.moraleProfitBonus
+      : -BALANCE.team.moraleLossBaseOnNegativeProfit - member.level * BALANCE.team.moraleLossPerLevelOnNegativeProfit;
+    const burnoutEffect = newBurnout > BALANCE.team.burnoutEffectHighThreshold
+      ? BALANCE.team.burnoutEffectHighPenalty
+      : newBurnout > BALANCE.team.burnoutEffectMidThreshold
+        ? BALANCE.team.burnoutEffectMidPenalty
+        : newBurnout > BALANCE.team.burnoutEffectLowThreshold
+          ? 0
+          : BALANCE.team.burnoutEffectLowBonus;
     const newMorale = Math.max(10, Math.min(100, member.morale + profitEffect + burnoutEffect));
 
     // Level up check
@@ -228,8 +243,8 @@ export function tickTeam(state: GameState): GameState {
   });
 
   // Check for auto-quit (burnout >= 95)
-  const quitters = newTeam.filter(m => m.burnout >= 95);
-  const remaining = newTeam.filter(m => m.burnout < 95);
+  const quitters = newTeam.filter(m => m.burnout >= BALANCE.team.autoQuitBurnoutThreshold);
+  const remaining = newTeam.filter(m => m.burnout < BALANCE.team.autoQuitBurnoutThreshold);
 
   const newLogs = [...state.logs];
   for (const q of quitters) {

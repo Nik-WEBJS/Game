@@ -2,31 +2,28 @@ import { GameState, GameEvent } from '../types';
 import { EVENTS_POOL } from '../data';
 import { getT } from '../../i18n';
 import { eventTitle, eventDesc } from '../../i18n/game-text';
+import { BALANCE } from '../config/balance';
 
 // Event frequency and penalty scaling based on game progression
 function getProgressionScale(state: GameState): { frequencyMult: number; penaltyMult: number } {
   // Product lifecycle stage affects event intensity
   const product = state.business.companyProducts[0];
   const lifecycle = product?.lifecycle ?? 'prototype';
-  const lifecycleScale: Record<string, number> = {
-    prototype: 0.15, // almost no events
-    beta: 0.3,
-    release: 0.6,
-    growth: 0.85,
-    maturity: 1.0,
-    decline: 1.0,
-  };
+  const lifecycleScale = BALANCE.events.lifecycleScale as Record<string, number>;
   const stageMult = lifecycleScale[lifecycle] ?? 0.15;
 
   // More adopted technologies = more exposure to events
   const techCount = state.business.technologies.length;
-  const techMult = Math.min(1, 0.4 + techCount * 0.15); // 0.4 base, +0.15 per tech, cap 1.0
+  const techMult = Math.min(
+    BALANCE.events.techExposure.cap,
+    BALANCE.events.techExposure.base + techCount * BALANCE.events.techExposure.perTech,
+  );
 
   // Combine: early game with no tech = very few events
   const frequencyMult = stageMult * techMult;
 
   // Money penalties scale similarly (early = small fines)
-  const penaltyMult = Math.max(0.2, stageMult);
+  const penaltyMult = Math.max(BALANCE.events.penaltyMin, stageMult);
 
   return { frequencyMult, penaltyMult };
 }
@@ -48,8 +45,8 @@ export function rollEvents(state: GameState): GameEvent[] {
 
   // Base chance scaled by progression: early game = mostly no events
   const roll = Math.random();
-  const noEventChance = 0.2 + (1 - frequencyMult) * 0.6; // prototype: ~78% no event, growth: ~29%
-  const oneEventChance = noEventChance + (1 - noEventChance) * 0.75;
+  const noEventChance = BALANCE.events.noEventBase + (1 - frequencyMult) * BALANCE.events.noEventExtraAtLowProgress;
+  const oneEventChance = noEventChance + (1 - noEventChance) * BALANCE.events.oneEventShareFromRemainder;
   const eventCount = roll < noEventChance ? 0 : roll < oneEventChance ? 1 : 2;
 
   for (let i = 0; i < eventCount; i++) {

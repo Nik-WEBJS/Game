@@ -1,5 +1,6 @@
 import { GameState, ProductLifecycle, LIFECYCLE_WEEKS, CompanyProduct } from '../types';
 import { getT } from '../../i18n';
+import { BALANCE } from '../config/balance';
 
 const LIFECYCLE_ORDER: ProductLifecycle[] = ['prototype', 'beta', 'release', 'growth', 'maturity', 'decline'];
 
@@ -24,14 +25,14 @@ export function tickProducts(state: GameState): GameState {
 
     // Quality improves each week ONLY if developers are working
     if (devCount > 0) {
-      const devQualityGain = devCount * 0.008 + qaCount * 0.005;
+      const devQualityGain = devCount * BALANCE.product.qualityPerDevPerWeek + qaCount * BALANCE.product.qualityPerQaPerWeek;
       updated.quality = Math.min(1, updated.quality + devQualityGain);
     }
 
     // Audience grows ONLY from marketers — no one knows about a new company
     const marketingCount = state.business.team.filter(m => m.role === 'marketing' && m.status === 'office').length;
-    if (LIFECYCLE_ORDER.indexOf(cp.lifecycle) >= 2 && marketingCount > 0) { // release or later + has marketers
-      const audienceGain = marketingCount * 0.012;
+    if (LIFECYCLE_ORDER.indexOf(cp.lifecycle) >= BALANCE.product.releaseStageIndex && marketingCount > 0) {
+      const audienceGain = marketingCount * BALANCE.product.audiencePerMarketingPerWeek;
       updated.audience = Math.min(1, updated.audience + audienceGain);
     }
 
@@ -56,7 +57,11 @@ export function tickProducts(state: GameState): GameState {
     }
 
     // Auto-advance later stages based on conditions
-    if (cp.lifecycle === 'release' && updated.lifecycleWeeks >= 8 && updated.quality >= 0.5) {
+    if (
+      cp.lifecycle === 'release'
+      && updated.lifecycleWeeks >= BALANCE.product.releaseToGrowthWeeks
+      && updated.quality >= BALANCE.product.releaseQualityThreshold
+    ) {
       updated.lifecycle = 'growth';
       updated.lifecycleWeeks = 0;
       newLogs.push({
@@ -64,7 +69,7 @@ export function tickProducts(state: GameState): GameState {
         message: t.productGrowthMessage(cp.name),
         type: 'success',
       });
-    } else if (cp.lifecycle === 'growth' && updated.lifecycleWeeks >= 16) {
+    } else if (cp.lifecycle === 'growth' && updated.lifecycleWeeks >= BALANCE.product.growthToMaturityWeeks) {
       updated.lifecycle = 'maturity';
       updated.lifecycleWeeks = 0;
       newLogs.push({
@@ -72,7 +77,7 @@ export function tickProducts(state: GameState): GameState {
         message: t.productMaturityMessage(cp.name),
         type: 'info',
       });
-    } else if (cp.lifecycle === 'maturity' && updated.lifecycleWeeks >= 24) {
+    } else if (cp.lifecycle === 'maturity' && updated.lifecycleWeeks >= BALANCE.product.maturityToDeclineWeeks) {
       updated.lifecycle = 'decline';
       updated.lifecycleWeeks = 0;
       newLogs.push({
@@ -84,8 +89,8 @@ export function tickProducts(state: GameState): GameState {
 
     // Quality decay in decline
     if (updated.lifecycle === 'decline') {
-      updated.quality = Math.max(0.1, updated.quality - 0.005);
-      updated.audience = Math.max(0, updated.audience - 0.008);
+      updated.quality = Math.max(BALANCE.product.declineQualityFloor, updated.quality - BALANCE.product.declineQualityLossPerWeek);
+      updated.audience = Math.max(BALANCE.product.declineAudienceFloor, updated.audience - BALANCE.product.declineAudienceLossPerWeek);
     }
 
     return updated;

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sim:test": "tsc scripts/sim-smoke.ts --module commonjs --target es2020 --esModuleInterop --skipLibCheck --outDir .tmp-simtest && node .tmp-simtest/scripts/sim-smoke.js"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

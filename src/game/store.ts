@@ -3,14 +3,14 @@ import { persist } from 'zustand/middleware';
 import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType } from './types';
 import { BALANCE } from './config/balance';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, EVENTS_POOL, createISO9001 } from './data';
-import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, MARKET_REFRESH_INTERVAL, FURNITURE_CATALOG } from './data-advanced';
+import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, FURNITURE_CATALOG } from './data-advanced';
 import { calculateEconomy, calculateEconomyWithBreakdown, EconomyBreakdown } from './engines/economy';
-import { tickISO, startISO, advanceISO, canStartISO, canAdvanceISO, isManagerBusyWithISO } from './engines/iso';
-import { rollEvents, applyEvents } from './engines/events';
-import { tickTeam, hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone, assignDesk } from './engines/team';
-import { checkWinLose, gainExperience } from './engines/progression';
-import { tickProducts, createInitialProduct } from './engines/product';
-import { tickFreelance, sendToFreelance as sendFreelance, canSendToFreelance } from './engines/freelance';
+import { simulateWeek, runDeterministicSimulationTest, DeterministicSimulationResult } from './engines/simulation';
+import { startISO, advanceISO, canStartISO, canAdvanceISO, isManagerBusyWithISO } from './engines/iso';
+import { applyEvents } from './engines/events';
+import { hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone, assignDesk } from './engines/team';
+import { createInitialProduct } from './engines/product';
+import { sendToFreelance as sendFreelance, canSendToFreelance } from './engines/freelance';
 import { startPlacement } from '../office/furnitureState';
 import { getT } from '../i18n';
 import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18n/game-text';
@@ -18,16 +18,7 @@ import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18
 const INITIAL_MONEY = BALANCE.start.money;
 const SAVE_VERSION = BALANCE.saveVersion;
 const SAVE_KEY = 'business-tycoon-save';
-
-export interface DebugSelfTestResult {
-  ok: boolean;
-  seed: number;
-  weeks: number;
-  startWeek: number;
-  endWeek: number;
-  issues: string[];
-  summary: string;
-}
+export type DebugSelfTestResult = DeterministicSimulationResult;
 
 function createInitialState(): GameState {
   return {
@@ -319,7 +310,7 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
     if (newProgress >= 1) {
       // A full week has passed — run all weekly systems
       gs = { ...gs, player: { ...gs.player, currentWeek: gs.player.currentWeek + 1, weekProgress: newProgress - 1, totalTimePlayed: newTotalTime } };
-      gs = runWeeklySystems(gs);
+      gs = simulateWeek(gs);
     } else {
       gs = { ...gs, player: { ...gs.player, weekProgress: newProgress, totalTimePlayed: newTotalTime } };
     }
@@ -509,63 +500,10 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
     }
   },
   debugRunSelfTest: (weeks = 52, seed = 1337) => {
-    const count = Math.max(1, Math.min(520, Math.floor(weeks)));
-    const start = toGameState(get());
-    const snapshot = safeCloneState(start);
-    const nicheDemandSnapshot = NICHES.map(n => n.baseDemand);
-    const normalizedSeed = Number.isFinite(seed) ? (seed >>> 0) : 1337;
-    let sim = snapshot;
-    if (sim.phase !== 'playing') {
-      return {
-        ok: false,
-        seed: normalizedSeed,
-        weeks: count,
-        startWeek: sim.player.currentWeek,
-        endWeek: sim.player.currentWeek,
-        issues: ['phase_not_playing'],
-        summary: 'Self-test requires active playing phase.',
-      };
-    }
-
-    const result = withSeededRandom(normalizedSeed, () => {
-      const issues: string[] = [];
-      const startWeek = sim.player.currentWeek;
-      for (let i = 0; i < count; i++) {
-        if (sim.phase !== 'playing') break;
-        sim = {
-          ...sim,
-          player: {
-            ...sim.player,
-            currentWeek: sim.player.currentWeek + 1,
-            weekProgress: 0,
-          },
-        };
-        sim = runWeeklySystems(sim);
-        issues.push(...validateSimulationState(sim, i));
-      }
-      const uniqueIssues = Array.from(new Set(issues));
-      return {
-        ok: uniqueIssues.length === 0,
-        seed: normalizedSeed,
-        weeks: count,
-        startWeek,
-        endWeek: sim.player.currentWeek,
-        issues: uniqueIssues,
-        summary: uniqueIssues.length === 0
-          ? `Self-test passed for ${count} weeks (seed ${normalizedSeed}).`
-          : `Self-test found ${uniqueIssues.length} issue(s).`,
-      } satisfies DebugSelfTestResult;
-    });
-
-    // Restore global mutable niche demand after deterministic simulation.
-    NICHES.forEach((n, i) => {
-      n.baseDemand = nicheDemandSnapshot[i];
-    });
-
-    return result;
+    return runDeterministicSimulationTest(toGameState(get()), weeks, seed);
   },
   debugAdvanceWeeks: (weeks) => {
-    const count = Math.max(1, Math.min(520, Math.floor(weeks || 1)));
+    const count = Math.max(1, Math.min(BALANCE.simulation.maxFastForwardWeeks, Math.floor(weeks || 1)));
     set(s => {
       let gs = toGameState(s);
       for (let i = 0; i < count; i++) {
@@ -578,7 +516,7 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
             weekProgress: 0,
           },
         };
-        gs = runWeeklySystems(gs);
+        gs = simulateWeek(gs);
       }
       return gs;
     });
@@ -619,177 +557,6 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
     return mergeWithInitialState(persistedState as Partial<GameState>);
   },
 }));
-
-function runWeeklySystems(state: GameState): GameState {
-  let gs = tickTeam(state);
-  gs = tickProducts(gs);
-  gs = tickISO(gs);
-
-  const beforeMetrics = gs.business.metrics;
-  const econ = calculateEconomyWithBreakdown(gs);
-  gs = {
-    ...gs,
-    player: { ...gs.player, money: Math.round(gs.player.money + econ.metrics.profit) },
-    business: { ...gs.business, metrics: econ.metrics },
-  };
-  gs = appendMetricReasonLogs(gs, beforeMetrics, econ.metrics, econ.breakdown);
-
-  const events = rollEvents(gs);
-  gs = events.length > 0 ? applyEvents(gs, events) : { ...gs, activeEvents: [] };
-
-  gs = gainExperience(gs);
-
-  const niche = NICHES.find(n => n.id === gs.business.nicheId);
-  if (niche) niche.baseDemand = Math.max(0.2, niche.baseDemand - niche.trendDecayRate);
-
-  gs = tickFreelance(gs);
-  gs = tickTechTree(gs);
-  gs = tickEmployeeMarket(gs);
-  gs = { ...gs, weekHistory: [...gs.weekHistory, { ...gs.business.metrics }] };
-  gs = checkWinLose(gs);
-  return gs;
-}
-
-function appendMetricReasonLogs(
-  state: GameState,
-  prev: BusinessMetrics,
-  next: BusinessMetrics,
-  breakdown: EconomyBreakdown,
-): GameState {
-  const logs = [...state.logs];
-  const week = state.player.currentWeek;
-  const deltaProfit = next.profit - prev.profit;
-  const deltaQuality = next.quality - prev.quality;
-  const deltaDemand = next.demand - prev.demand;
-  const deltaRisk = next.risk - prev.risk;
-
-  if (Math.abs(deltaProfit) >= 100) {
-    const sign = deltaProfit > 0 ? '+' : '';
-    logs.push({
-      week,
-      type: deltaProfit > 0 ? 'success' : 'warning',
-      message: `Profit ${sign}$${Math.round(deltaProfit).toLocaleString()} (rev $${Math.round(breakdown.revenue.total).toLocaleString()} vs costs $${Math.round(breakdown.costs.total).toLocaleString()})`,
-    });
-  }
-  if (Math.abs(deltaQuality) >= 0.01) {
-    const sign = deltaQuality > 0 ? '+' : '';
-    logs.push({
-      week,
-      type: deltaQuality > 0 ? 'info' : 'warning',
-      message: `Quality ${sign}${(deltaQuality * 100).toFixed(1)}pp (team ${Math.round(next.teamEfficiency * 100)}%, tech bonus ${(breakdown.combination.factors.totalTechQualityBonus * 100).toFixed(1)}pp)`,
-    });
-  }
-  if (Math.abs(deltaDemand) >= 0.01) {
-    const sign = deltaDemand > 0 ? '+' : '';
-    logs.push({
-      week,
-      type: deltaDemand > 0 ? 'info' : 'warning',
-      message: `Demand ${sign}${(deltaDemand * 100).toFixed(1)}pp (audience ${(breakdown.combination.factors.avgAudience * 100).toFixed(0)}%, fit ${breakdown.combination.factors.productFit.toFixed(2)})`,
-    });
-  }
-  if (Math.abs(deltaRisk) >= 0.01) {
-    const sign = deltaRisk > 0 ? '+' : '';
-    logs.push({
-      week,
-      type: deltaRisk > 0 ? 'warning' : 'success',
-      message: `Risk ${sign}${(deltaRisk * 100).toFixed(1)}pp (complexity ${(breakdown.combination.factors.totalTechComplexity * 100).toFixed(1)}pp, ISO ${(breakdown.combination.factors.isoStabilization * 100).toFixed(1)}pp)`,
-    });
-  }
-
-  return { ...state, logs };
-}
-
-function safeCloneState<T>(value: T): T {
-  if (typeof structuredClone === 'function') {
-    return structuredClone(value);
-  }
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function withSeededRandom<T>(seed: number, fn: () => T): T {
-  const originalRandom = Math.random;
-  let s = seed >>> 0;
-  if (s === 0) s = 1;
-  Math.random = () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 4294967296;
-  };
-  try {
-    return fn();
-  } finally {
-    Math.random = originalRandom;
-  }
-}
-
-function validateSimulationState(state: GameState, step: number): string[] {
-  const issues: string[] = [];
-  const m = state.business.metrics;
-  const tag = `week_step_${step + 1}`;
-
-  const checkFinite = (value: number, name: string) => {
-    if (!Number.isFinite(value) || Number.isNaN(value)) {
-      issues.push(`${tag}:${name}_not_finite`);
-    }
-  };
-
-  checkFinite(state.player.money, 'money');
-  checkFinite(state.player.reputation, 'reputation');
-  checkFinite(m.revenue, 'revenue');
-  checkFinite(m.costs, 'costs');
-  checkFinite(m.profit, 'profit');
-  checkFinite(m.risk, 'risk');
-  checkFinite(m.quality, 'quality');
-  checkFinite(m.demand, 'demand');
-  checkFinite(m.growthRate, 'growth');
-  checkFinite(m.teamEfficiency, 'team_efficiency');
-
-  if (m.risk < 0 || m.risk > 1) issues.push(`${tag}:risk_out_of_bounds`);
-  if (m.quality < 0 || m.quality > 1) issues.push(`${tag}:quality_out_of_bounds`);
-  if (m.demand < 0 || m.demand > 1) issues.push(`${tag}:demand_out_of_bounds`);
-  if (m.teamEfficiency < 0 || m.teamEfficiency > 1) issues.push(`${tag}:team_efficiency_out_of_bounds`);
-
-  for (const member of state.business.team) {
-    if (member.burnout < 0 || member.burnout > 100) issues.push(`${tag}:member_burnout_out_of_bounds`);
-    if (member.morale < 0 || member.morale > 100) issues.push(`${tag}:member_morale_out_of_bounds`);
-    if (member.experience < 0 || member.experience > 100) issues.push(`${tag}:member_experience_out_of_bounds`);
-    if (member.level < 1 || member.level > 5) issues.push(`${tag}:member_level_out_of_bounds`);
-  }
-
-  return issues;
-}
-
-// --- Tech tree tick (called each turn) ---
-function tickTechTree(state: GameState): GameState {
-  let changed = false;
-  const newTree = state.business.techTree.map(node => {
-    if (!node.researching) return node;
-    const progressPerWeek = 100 / node.weeksToResearch;
-    const newProgress = Math.min(100, node.researchProgress + progressPerWeek);
-    if (newProgress >= 100) {
-      changed = true;
-      return { ...node, researching: false, researchProgress: 100, completed: true };
-    }
-    return { ...node, researchProgress: newProgress };
-  });
-
-  // Unlock nodes whose prerequisites are now completed
-  const finalTree = newTree.map(node => {
-    if (node.unlocked || node.completed) return node;
-    const allReqsMet = node.requires.every(reqId => newTree.find(n => n.id === reqId)?.completed);
-    if (allReqsMet) return { ...node, unlocked: true };
-    return node;
-  });
-
-  const newLogs = [...state.logs];
-  if (changed) {
-    const completed = finalTree.filter(n => n.completed && !state.business.techTree.find(o => o.id === n.id)?.completed);
-    for (const c of completed) {
-      newLogs.push({ week: state.player.currentWeek, message: getT().researchCompleteMessage(ttNodeName(c.id, getT(), c.name)), type: 'success' });
-    }
-  }
-
-  return { ...state, business: { ...state.business, techTree: finalTree }, logs: newLogs };
-}
 
 // --- Employee point generation (continuous, called every tick) ---
 // Employees sitting at desks generate points based on their zone assignment
@@ -882,21 +649,4 @@ function tickEmployeePointGeneration(state: GameState, weekFraction: number): Ga
       },
     },
   };
-}
-
-// --- Employee market refresh ---
-function tickEmployeeMarket(state: GameState): GameState {
-  const weeksSinceRefresh = state.player.currentWeek - state.business.marketRefreshWeek;
-  if (weeksSinceRefresh >= MARKET_REFRESH_INTERVAL) {
-    return {
-      ...state,
-      business: {
-        ...state.business,
-        employeeMarket: generateMarketPool(5, state.player.reputation),
-        marketRefreshWeek: state.player.currentWeek,
-      },
-      logs: [...state.logs, { week: state.player.currentWeek, message: getT().marketRefreshedMessage, type: 'info' }],
-    };
-  }
-  return state;
 }
