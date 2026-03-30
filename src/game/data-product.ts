@@ -129,6 +129,15 @@ export function createInitialLiveProduct(productId: string): LiveProduct {
       topPositiveFactors: [],
       topNegativeFactors: [],
       bottlenecks: [],
+      deltas: {
+        traffic: 0,
+        signups: 0,
+        activeUsers: 0,
+        payingUsers: 0,
+        satisfaction: 0,
+        conversion: 0,
+        churn: 0,
+      },
     },
   };
 }

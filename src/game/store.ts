@@ -116,7 +116,24 @@ function mergeWithInitialState(persisted: Partial<GameState> | undefined): GameS
       techTree: business.techTree ?? base.business.techTree,
       furniture: business.furniture ?? base.business.furniture,
       employeeMarket: business.employeeMarket ?? base.business.employeeMarket,
-      liveProduct: business.liveProduct ?? ((persisted.phase === 'playing' && business.productId) ? createInitialLiveProduct(business.productId) : base.business.liveProduct),
+      liveProduct: (() => {
+        const fallback = (persisted.phase === 'playing' && business.productId)
+          ? createInitialLiveProduct(business.productId)
+          : base.business.liveProduct;
+        const source = business.liveProduct ?? fallback;
+        if (!source) return null;
+        const baseLive = fallback ?? source;
+        return {
+          ...baseLive,
+          ...source,
+          metrics: { ...baseLive.metrics, ...source.metrics },
+          lastWeek: {
+            ...baseLive.lastWeek,
+            ...source.lastWeek,
+            deltas: { ...baseLive.lastWeek.deltas, ...(source.lastWeek?.deltas ?? {}) },
+          },
+        };
+      })(),
     },
     logs: persisted.logs ?? base.logs,
     activeEvents: persisted.activeEvents ?? base.activeEvents,

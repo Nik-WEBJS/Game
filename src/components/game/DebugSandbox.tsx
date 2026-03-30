@@ -41,6 +41,8 @@ export function DebugSandbox() {
       { label: 'ISO stabilization', value: f.isoStabilization },
       { label: 'Tech complexity', value: -f.totalTechComplexity },
       { label: 'Team load', value: -f.teamLoad },
+      { label: 'User scale', value: f.userScaleMult - 1 },
+      { label: 'Monetization quality', value: f.monetizationQualityMult - 1 },
     ];
   }, [breakdown]);
   const sortedByImpact = useMemo(
@@ -181,9 +183,15 @@ export function DebugSandbox() {
           <div>Quality: <span className="text-zinc-100">{(combo.quality * 100).toFixed(1)}%</span></div>
           <div>Risk: <span className="text-zinc-100">{(combo.risk * 100).toFixed(1)}%</span></div>
           <div>Audience: <span className="text-zinc-100">{(f.avgAudience * 100).toFixed(1)}%</span></div>
+          <div>Active users: <span className="text-zinc-100">{Math.round(f.liveActiveUsers).toLocaleString()}</span></div>
+          <div>Paying users: <span className="text-zinc-100">{Math.round(f.livePayingUsers).toLocaleString()}</span></div>
+          <div>Live conversion: <span className="text-zinc-100">{(f.liveConversion * 100).toFixed(1)}%</span></div>
+          <div>Live churn: <span className="text-zinc-100">{(f.liveChurn * 100).toFixed(1)}%</span></div>
           <div>Lifecycle mult: <span className="text-zinc-100">{f.lifecycleMult.toFixed(2)}</span></div>
           <div>Client tier mult: <span className="text-zinc-100">{f.clientTierMult.toFixed(2)}</span></div>
           <div>Tech synergy: <span className="text-zinc-100">{f.techSynergy.toFixed(2)}</span></div>
+          <div>User scale mult: <span className="text-zinc-100">{f.userScaleMult.toFixed(2)}</span></div>
+          <div>Monetization quality mult: <span className="text-zinc-100">{f.monetizationQualityMult.toFixed(2)}</span></div>
           <div className="text-zinc-500">
             Formula: rev = demand * quality * monetization * techSynergy * lifecycle * clientTier * baseScale
           </div>

@@ -50,7 +50,7 @@ const MENU_ITEMS: MenuItem[] = [
 export function GameDashboard() {
   const { player, activeEvents } = useGameStore();
   const { t, locale, setLocale } = useI18n();
-  const [openMenu, setOpenMenu] = useState<MenuId>(null);
+  const [openMenu, setOpenMenu] = useState<MenuId>('product');
   const prevEventsRef = useRef<string[]>([]);
 
   // Push toast notifications when new events appear

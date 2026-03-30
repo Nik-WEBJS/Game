@@ -45,6 +45,9 @@ function buildBreakdown(
   churn: number,
   effects: ProductFeatureEffects,
   metrics: GameState['business']['metrics'],
+  usedSlots: number,
+  totalSlots: number,
+  payingUsers: number,
 ): { positives: string[]; negatives: string[]; bottlenecks: string[] } {
   const positive: { label: string; value: number }[] = [];
   const negative: { label: string; value: number }[] = [];
@@ -75,6 +78,8 @@ function buildBreakdown(
   if (metrics.risk > 0.55) bottlenecks.push('Business risk is suppressing product growth');
   if (effects.reliabilityBoost < 0.02) bottlenecks.push('Weak infrastructure feature depth');
   if (metrics.quality < 0.45) bottlenecks.push('Low product quality harms satisfaction');
+  if (usedSlots >= totalSlots) bottlenecks.push('No free feature slots for expansion');
+  if (payingUsers < 25) bottlenecks.push('Low paying user base limits monetization');
 
   return {
     positives: positive.slice(0, 3).map(p => p.label),
@@ -150,23 +155,45 @@ export function tickLiveProduct(state: GameState): GameState {
       - state.business.metrics.risk * 0.03,
   );
 
-  const breakdown = buildBreakdown(trafficGrowth, conversion, churn, effects, state.business.metrics);
+  const usedSlots = getUsedSlots(live.features);
+  const breakdown = buildBreakdown(
+    trafficGrowth,
+    conversion,
+    churn,
+    effects,
+    state.business.metrics,
+    usedSlots,
+    live.featureSlots,
+    payingUsers,
+  );
+
+  const nextMetrics = {
+    traffic: Math.round(traffic),
+    signups: Math.round(signups),
+    activeUsers: Math.round(activeUsers),
+    payingUsers: Math.round(payingUsers),
+    satisfaction,
+    conversion,
+    churn,
+  };
+  const deltas = {
+    traffic: nextMetrics.traffic - live.metrics.traffic,
+    signups: nextMetrics.signups - live.metrics.signups,
+    activeUsers: nextMetrics.activeUsers - live.metrics.activeUsers,
+    payingUsers: nextMetrics.payingUsers - live.metrics.payingUsers,
+    satisfaction: nextMetrics.satisfaction - live.metrics.satisfaction,
+    conversion: nextMetrics.conversion - live.metrics.conversion,
+    churn: nextMetrics.churn - live.metrics.churn,
+  };
 
   const updatedLive = {
     ...live,
-    metrics: {
-      traffic: Math.round(traffic),
-      signups: Math.round(signups),
-      activeUsers: Math.round(activeUsers),
-      payingUsers: Math.round(payingUsers),
-      satisfaction,
-      conversion,
-      churn,
-    },
+    metrics: nextMetrics,
     lastWeek: {
       topPositiveFactors: breakdown.positives,
       topNegativeFactors: breakdown.negatives,
       bottlenecks: breakdown.bottlenecks,
+      deltas,
     },
   };
 
@@ -175,6 +202,17 @@ export function tickLiveProduct(state: GameState): GameState {
     idx === 0 ? { ...cp, audience: audienceRatio } : cp,
   );
 
+  const logs = [...state.logs];
+  if (Math.abs(deltas.activeUsers) >= 50 || Math.abs(deltas.payingUsers) >= 20) {
+    const activeSign = deltas.activeUsers >= 0 ? '+' : '';
+    const paidSign = deltas.payingUsers >= 0 ? '+' : '';
+    logs.push({
+      week: state.player.currentWeek,
+      type: deltas.activeUsers >= 0 ? 'info' : 'warning',
+      message: `Product pulse: active ${activeSign}${deltas.activeUsers}, paying ${paidSign}${deltas.payingUsers}, conv ${(nextMetrics.conversion * 100).toFixed(1)}%, churn ${(nextMetrics.churn * 100).toFixed(1)}%`,
+    });
+  }
+
   return {
     ...state,
     business: {
@@ -182,6 +220,7 @@ export function tickLiveProduct(state: GameState): GameState {
       liveProduct: updatedLive,
       companyProducts: updatedProducts,
     },
+    logs,
   };
 }
 

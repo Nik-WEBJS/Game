@@ -68,6 +68,15 @@ export function ProductPanel() {
 
   const slotCost = getProductFeatureSlotCost();
   const classes: Array<'core' | 'growth' | 'monetization' | 'infrastructure'> = ['core', 'growth', 'monetization', 'infrastructure'];
+  const deltas = live.lastWeek?.deltas ?? {
+    traffic: 0,
+    signups: 0,
+    activeUsers: 0,
+    payingUsers: 0,
+    satisfaction: 0,
+    conversion: 0,
+    churn: 0,
+  };
 
   return (
     <Card className="p-4">
@@ -116,6 +125,7 @@ export function ProductPanel() {
                   const installed = live.features.find(f => f.id === tpl.id && f.installed);
                   const installCheck = canInstallProductFeature(tpl.id);
                   const upgradeCheck = canUpgradeProductFeature(tpl.id);
+                  const prerequisites = tpl.requiredFeatureIds ?? [];
                   return (
                     <div key={tpl.id} className="rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-3">
                       <div className="flex items-start justify-between gap-3">
@@ -125,6 +135,16 @@ export function ProductPanel() {
                             {installed && <Badge variant="info">Lv{installed.level}</Badge>}
                           </div>
                           <p className="text-[11px] text-zinc-400">{tpl.description}</p>
+                          {prerequisites.length > 0 && (
+                            <div className="mt-1 text-[10px] text-zinc-500">
+                              Requires: {prerequisites.join(', ')}
+                            </div>
+                          )}
+                          {tpl.requiredReputation && (
+                            <div className="text-[10px] text-zinc-500">
+                              Reputation: {tpl.requiredReputation}+
+                            </div>
+                          )}
                           <div className="flex gap-2 mt-1.5 flex-wrap">
                             {tpl.effects.trafficBoost ? <Badge variant="success">+Traffic</Badge> : null}
                             {tpl.effects.conversionBoost ? <Badge variant="success">+Conversion</Badge> : null}
@@ -173,6 +193,17 @@ export function ProductPanel() {
       {(live.lastWeek.topPositiveFactors.length > 0 || live.lastWeek.topNegativeFactors.length > 0) && (
         <div className="mt-4 rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-3">
           <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Weekly explainability</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 mb-2 text-[11px]">
+            <DeltaChip label="Traffic" value={deltas.traffic} />
+            <DeltaChip label="Signups" value={deltas.signups} />
+            <DeltaChip label="Active" value={deltas.activeUsers} />
+            <DeltaChip label="Paying" value={deltas.payingUsers} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-1.5 mb-2 text-[11px]">
+            <PercentDeltaChip label="Satisfaction" value={deltas.satisfaction} />
+            <PercentDeltaChip label="Conversion" value={deltas.conversion} />
+            <PercentDeltaChip label="Churn" value={deltas.churn} inverseColor />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
             <div>
               <div className="text-emerald-300 mb-1">Top positive</div>
@@ -209,6 +240,30 @@ function MetricCard({ label, value, icon }: { label: string; value: string; icon
         <span>{label}</span>
       </div>
       <div className="text-sm font-semibold text-zinc-100">{value}</div>
+    </div>
+  );
+}
+
+function DeltaChip({ label, value }: { label: string; value: number }) {
+  const sign = value >= 0 ? '+' : '';
+  const good = value >= 0;
+  return (
+    <div className="rounded border border-zinc-700/40 bg-zinc-900/40 px-2 py-1">
+      <div className="text-zinc-500 text-[10px]">{label}</div>
+      <div className={good ? 'text-emerald-300' : 'text-red-300'}>{sign}{value}</div>
+    </div>
+  );
+}
+
+function PercentDeltaChip({ label, value, inverseColor = false }: { label: string; value: number; inverseColor?: boolean }) {
+  const sign = value >= 0 ? '+' : '';
+  const isGood = inverseColor ? value <= 0 : value >= 0;
+  return (
+    <div className="rounded border border-zinc-700/40 bg-zinc-900/40 px-2 py-1">
+      <div className="text-zinc-500 text-[10px]">{label}</div>
+      <div className={isGood ? 'text-emerald-300' : 'text-red-300'}>
+        {sign}{(value * 100).toFixed(2)}pp
+      </div>
     </div>
   );
 }

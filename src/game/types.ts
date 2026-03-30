@@ -239,6 +239,15 @@ export interface LiveProductWeekBreakdown {
   topPositiveFactors: string[];
   topNegativeFactors: string[];
   bottlenecks: string[];
+  deltas: {
+    traffic: number;
+    signups: number;
+    activeUsers: number;
+    payingUsers: number;
+    satisfaction: number;
+    conversion: number;
+    churn: number;
+  };
 }
 
 export interface LiveProduct {

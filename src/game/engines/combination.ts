@@ -27,7 +27,18 @@ export interface CombinationBreakdown {
     isoStabilization: number;
     growthAggression: number;
     teamLoad: number;
+    liveActiveUsers: number;
+    livePayingUsers: number;
+    liveConversion: number;
+    liveSatisfaction: number;
+    liveChurn: number;
+    userScaleMult: number;
+    monetizationQualityMult: number;
   };
+}
+
+function clamp(min: number, max: number, value: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 export function calculateCombination(state: GameState): CombinationResult {
@@ -68,6 +79,13 @@ export function calculateCombinationBreakdown(state: GameState): CombinationBrea
         isoStabilization: 0,
         growthAggression: 0,
         teamLoad: 0,
+        liveActiveUsers: 0,
+        livePayingUsers: 0,
+        liveConversion: 0,
+        liveSatisfaction: 0,
+        liveChurn: 0,
+        userScaleMult: 1,
+        monetizationQualityMult: 1,
       },
     };
   }
@@ -138,7 +156,15 @@ export function calculateCombinationBreakdown(state: GameState): CombinationBrea
   const avgAudience = business.companyProducts.length > 0
     ? business.companyProducts.reduce((s, cp) => s + cp.audience, 0) / business.companyProducts.length
     : 0;
-  const demand = Math.min(1, baseDemand * productFit * marketAccess * avgAudience);
+  const live = business.liveProduct;
+  const liveActiveUsers = live?.metrics.activeUsers ?? 0;
+  const livePayingUsers = live?.metrics.payingUsers ?? 0;
+  const liveConversion = live?.metrics.conversion ?? 0;
+  const liveSatisfaction = live?.metrics.satisfaction ?? 0.5;
+  const liveChurn = live?.metrics.churn ?? 0.1;
+
+  const satisfactionDemandMod = 0.75 + liveSatisfaction * 0.5;
+  const demand = Math.min(1, baseDemand * productFit * marketAccess * avgAudience * satisfactionDemandMod);
 
   // Product lifecycle revenue multiplier (from company products)
   let lifecycleMult = 0;
@@ -157,15 +183,24 @@ export function calculateCombinationBreakdown(state: GameState): CombinationBrea
   const repTier = rep < 30 ? 0.3 : rep < 60 ? 0.7 : rep < 80 ? 1.0 : 1.3;
   const clientTierMult = repTier * (0.4 + timeFactor * 0.6); // starts at 40% of tier, grows to 100%
 
-  // Revenue = demand * quality * monetization * techSynergy * lifecycle * clientTier * scale
+  // Live-product multipliers: active base and paid quality of demand
+  const paidRatio = liveActiveUsers > 0 ? livePayingUsers / liveActiveUsers : 0;
+  const userScaleMult = clamp(0.4, 1.8, 0.55 + liveActiveUsers / 50000);
+  const monetizationQualityMult = clamp(
+    0.4,
+    1.8,
+    0.65 + paidRatio * 2 + liveConversion * 0.45 + liveSatisfaction * 0.25 - liveChurn * 0.4,
+  );
+
+  // Revenue = demand * quality * monetization * techSynergy * lifecycle * clientTier * userMults * scale
   // No revenue without employees or if product is in prototype
   const BASE_REVENUE_SCALE = BALANCE.economy.baseRevenueScale;
   const revenue = hasEmployees
-    ? demand * quality * monetization.efficiency * techSynergy * lifecycleMult * clientTierMult * BASE_REVENUE_SCALE
+    ? demand * quality * monetization.efficiency * techSynergy * lifecycleMult * clientTierMult * userScaleMult * monetizationQualityMult * BASE_REVENUE_SCALE
     : 0;
 
   // Growth = revenue potential relative to current state + tech tree growth
-  const growth = (demand * productFit * techSynergy - 0.5) * 0.08 + ttGrowth;
+  const growth = (demand * productFit * techSynergy - 0.5) * 0.08 + ttGrowth + (liveConversion - liveChurn) * 0.18;
 
   // Risk = complexity + growth aggression - ISO stabilization - tech tree risk reduction
   const growthAggression = Math.max(0, growth) * 1.5;
@@ -207,6 +242,13 @@ export function calculateCombinationBreakdown(state: GameState): CombinationBrea
       isoStabilization,
       growthAggression,
       teamLoad,
+      liveActiveUsers,
+      livePayingUsers,
+      liveConversion,
+      liveSatisfaction,
+      liveChurn,
+      userScaleMult,
+      monetizationQualityMult,
     },
   };
 }
