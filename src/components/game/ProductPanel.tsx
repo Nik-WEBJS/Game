@@ -3,12 +3,14 @@
 import { useMemo, type ReactNode } from 'react';
 import { useGameStore } from '@/game/store';
 import { PRODUCT_FEATURE_TEMPLATES } from '@/game/data-product';
+import { getFeatureInstallRequirements, getFeatureUpgradeRequirements } from '@/game/engines/live-product';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { formatMoney } from '@/lib/utils';
 import { Boxes, PlusCircle, TrendingUp, Users } from 'lucide-react';
+import { ProductionResourceBundle } from '@/game/types';
 
 const CLASS_LABEL: Record<string, string> = {
   core: 'Core',
@@ -25,6 +27,7 @@ function reasonText(reason?: string): string {
     case 'reputation_required': return 'Reputation requirement not met';
     case 'missing_prerequisites': return 'Missing prerequisite feature';
     case 'not_enough_money': return 'Not enough money';
+    case 'not_enough_resources': return 'Not enough production resources';
     case 'no_slots': return 'No free feature slots';
     case 'not_installed': return 'Install feature first';
     case 'max_level': return 'Max level reached';
@@ -46,6 +49,7 @@ export function ProductPanel() {
 
   const live = business.liveProduct;
   const metrics = live?.metrics;
+  const inventory = business.production.inventory;
 
   const usedSlots = useMemo(() => {
     if (!live) return 0;
@@ -99,6 +103,16 @@ export function ProductPanel() {
       </div>
 
       <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-3 mb-4">
+        <div className="text-sm text-zinc-200 font-medium mb-2">Production inventory</div>
+        <div className="flex gap-1.5 flex-wrap">
+          <Badge variant="info">Code {inventory.code}</Badge>
+          <Badge variant="info">Design {inventory.design}</Badge>
+          <Badge variant="info">Ops {inventory.ops}</Badge>
+          <Badge variant="info">Support {inventory.support}</Badge>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-3 mb-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-zinc-200 font-medium">Feature slots</span>
           <Badge variant={usedSlots < live.featureSlots ? 'success' : 'warning'}>{usedSlots}/{live.featureSlots}</Badge>
@@ -125,6 +139,10 @@ export function ProductPanel() {
                   const installed = live.features.find(f => f.id === tpl.id && f.installed);
                   const installCheck = canInstallProductFeature(tpl.id);
                   const upgradeCheck = canUpgradeProductFeature(tpl.id);
+                  const installReq = getFeatureInstallRequirements(tpl.id);
+                  const upgradeReq = getFeatureUpgradeRequirements(tpl.id, installed?.level ?? 1);
+                  const missingInstall = missingResources(installReq, inventory);
+                  const missingUpgrade = missingResources(upgradeReq, inventory);
                   const prerequisites = tpl.requiredFeatureIds ?? [];
                   return (
                     <div key={tpl.id} className="rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-3">
@@ -143,6 +161,14 @@ export function ProductPanel() {
                           {tpl.requiredReputation && (
                             <div className="text-[10px] text-zinc-500">
                               Reputation: {tpl.requiredReputation}+
+                            </div>
+                          )}
+                          <div className="text-[10px] text-zinc-500 mt-1">
+                            {!installed ? 'Install req:' : `Upgrade req (Lv${installed.level + 1}):`} {formatRequirements(!installed ? installReq : upgradeReq)}
+                          </div>
+                          {(!installed ? missingInstall : missingUpgrade).length > 0 && (
+                            <div className="text-[10px] text-red-300 mt-0.5">
+                              Missing: {(!installed ? missingInstall : missingUpgrade).join(', ')}
                             </div>
                           )}
                           <div className="flex gap-2 mt-1.5 flex-wrap">
@@ -266,4 +292,20 @@ function PercentDeltaChip({ label, value, inverseColor = false }: { label: strin
       </div>
     </div>
   );
+}
+
+function formatRequirements(requirements: ProductionResourceBundle): string {
+  return `C${requirements.code} D${requirements.design} O${requirements.ops} S${requirements.support}`;
+}
+
+function missingResources(
+  requirements: ProductionResourceBundle,
+  inventory: ProductionResourceBundle,
+): string[] {
+  const missing: string[] = [];
+  if (inventory.code < requirements.code) missing.push(`Code ${requirements.code - inventory.code}`);
+  if (inventory.design < requirements.design) missing.push(`Design ${requirements.design - inventory.design}`);
+  if (inventory.ops < requirements.ops) missing.push(`Ops ${requirements.ops - inventory.ops}`);
+  if (inventory.support < requirements.support) missing.push(`Support ${requirements.support - inventory.support}`);
+  return missing;
 }

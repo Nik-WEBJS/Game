@@ -9,6 +9,7 @@ import { gainExperience, checkWinLose } from './progression';
 import { tickFreelance } from './freelance';
 import { calculateEconomyWithBreakdown, EconomyBreakdown } from './economy';
 import { tickLiveProduct } from './live-product';
+import { tickProduction } from './production';
 import { getT } from '../../i18n';
 import { ttNodeName } from '../../i18n/game-text';
 import { BALANCE } from '../config/balance';
@@ -27,6 +28,7 @@ export function simulateWeek(state: GameState): GameState {
   let gs = tickTeam(state);
   gs = tickProducts(gs);
   gs = tickISO(gs);
+  gs = tickProduction(gs);
   gs = tickLiveProduct(gs);
 
   const beforeMetrics = gs.business.metrics;
@@ -253,6 +255,23 @@ function validateSimulationState(state: GameState, step: number): string[] {
   checkFinite(m.demand, 'demand');
   checkFinite(m.growthRate, 'growth');
   checkFinite(m.teamEfficiency, 'team_efficiency');
+  const prod = state.business.production;
+  checkFinite(prod.inventory.code, 'production_inventory_code');
+  checkFinite(prod.inventory.design, 'production_inventory_design');
+  checkFinite(prod.inventory.ops, 'production_inventory_ops');
+  checkFinite(prod.inventory.support, 'production_inventory_support');
+  checkFinite(prod.nextQueueSeq, 'production_next_queue_seq');
+
+  if (prod.inventory.code < 0) issues.push(`${tag}:production_inventory_code_negative`);
+  if (prod.inventory.design < 0) issues.push(`${tag}:production_inventory_design_negative`);
+  if (prod.inventory.ops < 0) issues.push(`${tag}:production_inventory_ops_negative`);
+  if (prod.inventory.support < 0) issues.push(`${tag}:production_inventory_support_negative`);
+  for (const item of prod.queue) {
+    checkFinite(item.units, `production_queue_units_${item.id}`);
+    checkFinite(item.progress, `production_queue_progress_${item.id}`);
+    if (item.units <= 0) issues.push(`${tag}:production_queue_units_non_positive`);
+    if (item.progress < 0) issues.push(`${tag}:production_queue_progress_negative`);
+  }
 
   if (m.risk < 0 || m.risk > 1) issues.push(`${tag}:risk_out_of_bounds`);
   if (m.quality < 0 || m.quality > 1) issues.push(`${tag}:quality_out_of_bounds`);

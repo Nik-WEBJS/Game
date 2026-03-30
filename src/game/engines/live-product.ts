@@ -1,6 +1,8 @@
-﻿import { GameState, ProductFeatureEffects, ProductFeatureState, ProductFeatureTemplate } from '../types';
+import { GameState, ProductFeatureEffects, ProductFeatureState, ProductFeatureTemplate, ProductionResourceBundle } from '../types';
 import { MONETIZATIONS } from '../data';
 import { getFeatureTemplateById, PRODUCT_FEATURE_TEMPLATES } from '../data-product';
+import { normalizeResourceRequirements } from '../data-production';
+import { canConsumeProductionResources, consumeProductionResources } from './production';
 
 const ACTIVE_USERS_AUDIENCE_SCALE = 200000;
 
@@ -37,6 +39,30 @@ function getUsedSlots(features: ProductFeatureState[]): number {
   return features
     .filter(f => f.installed)
     .reduce((sum, f) => sum + (getFeatureTemplateById(f.id)?.slotCost ?? 0), 0);
+}
+
+function scaleRequirements(
+  required: Partial<ProductionResourceBundle> | undefined,
+  levelScale: number,
+): ProductionResourceBundle {
+  const normalized = normalizeResourceRequirements(required);
+  return {
+    code: Math.ceil(normalized.code * levelScale),
+    design: Math.ceil(normalized.design * levelScale),
+    ops: Math.ceil(normalized.ops * levelScale),
+    support: Math.ceil(normalized.support * levelScale),
+  };
+}
+
+export function getFeatureInstallRequirements(featureId: string): ProductionResourceBundle {
+  const tpl = getFeatureTemplateById(featureId);
+  return normalizeResourceRequirements(tpl?.installRequirements);
+}
+
+export function getFeatureUpgradeRequirements(featureId: string, currentLevel: number): ProductionResourceBundle {
+  const tpl = getFeatureTemplateById(featureId);
+  const levelScale = 1 + Math.max(0, currentLevel - 1) * 0.45;
+  return scaleRequirements(tpl?.levelUpRequirements, levelScale);
 }
 
 function buildBreakdown(
@@ -233,6 +259,8 @@ export function canInstallFeature(state: GameState, featureId: string): { ok: bo
   if (tpl.requiredReputation && state.player.reputation < tpl.requiredReputation) return { ok: false, reason: 'reputation_required' };
   if ((tpl.requiredFeatureIds ?? []).some(req => !live.features.some(f => f.id === req && f.installed))) return { ok: false, reason: 'missing_prerequisites' };
   if (state.player.money < tpl.unlockCost) return { ok: false, reason: 'not_enough_money' };
+  const requirements = getFeatureInstallRequirements(featureId);
+  if (!canConsumeProductionResources(state, requirements)) return { ok: false, reason: 'not_enough_resources' };
   const used = getUsedSlots(live.features);
   if (used + tpl.slotCost > live.featureSlots) return { ok: false, reason: 'no_slots' };
   return { ok: true };
@@ -243,20 +271,26 @@ export function installFeature(state: GameState, featureId: string): GameState {
   if (!check.ok) return state;
   const live = state.business.liveProduct!;
   const tpl = getFeatureTemplateById(featureId)!;
+  const requirements = getFeatureInstallRequirements(featureId);
   const existing = live.features.find(f => f.id === featureId);
   const features = existing
     ? live.features.map(f => (f.id === featureId ? { ...f, installed: true, level: Math.max(1, f.level) } : f))
     : [...live.features, { id: featureId, level: 1, installed: true }];
 
-  return {
+  let nextState: GameState = {
     ...state,
     player: { ...state.player, money: state.player.money - tpl.unlockCost },
     business: {
       ...state.business,
       liveProduct: { ...live, features },
     },
+  };
+  nextState = consumeProductionResources(nextState, requirements);
+
+  return {
+    ...nextState,
     logs: [
-      ...state.logs,
+      ...nextState.logs,
       {
         week: state.player.currentWeek,
         type: 'info',
@@ -272,7 +306,10 @@ function getFeatureLevelUpCost(featureId: string, currentLevel: number): number 
   return Math.round(tpl.levelUpCostBase * (1 + currentLevel * 0.6));
 }
 
-export function canUpgradeFeature(state: GameState, featureId: string): { ok: boolean; reason?: string; cost?: number } {
+export function canUpgradeFeature(
+  state: GameState,
+  featureId: string,
+): { ok: boolean; reason?: string; cost?: number; requirements?: ProductionResourceBundle } {
   const live = state.business.liveProduct;
   if (!live) return { ok: false, reason: 'not_found' };
   const feature = live.features.find(f => f.id === featureId && f.installed);
@@ -281,7 +318,9 @@ export function canUpgradeFeature(state: GameState, featureId: string): { ok: bo
   if (feature.level >= tpl.maxLevel) return { ok: false, reason: 'max_level' };
   const cost = getFeatureLevelUpCost(featureId, feature.level);
   if (state.player.money < cost) return { ok: false, reason: 'not_enough_money', cost };
-  return { ok: true, cost };
+  const requirements = getFeatureUpgradeRequirements(featureId, feature.level);
+  if (!canConsumeProductionResources(state, requirements)) return { ok: false, reason: 'not_enough_resources', cost, requirements };
+  return { ok: true, cost, requirements };
 }
 
 export function upgradeFeature(state: GameState, featureId: string): GameState {
@@ -290,8 +329,10 @@ export function upgradeFeature(state: GameState, featureId: string): GameState {
   const live = state.business.liveProduct!;
   const tpl = getFeatureTemplateById(featureId)!;
   const cost = check.cost ?? 0;
+  const currentLevel = live.features.find(f => f.id === featureId)?.level ?? 1;
+  const requirements = check.requirements ?? getFeatureUpgradeRequirements(featureId, currentLevel);
 
-  return {
+  let nextState: GameState = {
     ...state,
     player: { ...state.player, money: state.player.money - cost },
     business: {
@@ -301,12 +342,17 @@ export function upgradeFeature(state: GameState, featureId: string): GameState {
         features: live.features.map(f => (f.id === featureId ? { ...f, level: f.level + 1 } : f)),
       },
     },
+  };
+  nextState = consumeProductionResources(nextState, requirements);
+
+  return {
+    ...nextState,
     logs: [
-      ...state.logs,
+      ...nextState.logs,
       {
         week: state.player.currentWeek,
         type: 'success',
-        message: `Feature upgraded: ${tpl.name} -> Lv${(live.features.find(f => f.id === featureId)?.level ?? 1) + 1}`,
+        message: `Feature upgraded: ${tpl.name} -> Lv${currentLevel + 1}`,
       },
     ],
   };

@@ -30,6 +30,7 @@ export const en = {
   // Dashboard Tabs / Menu
   tabOverview: 'Overview',
   tabProduct: 'Product',
+  tabProduction: 'Production',
   tabTeam: 'Team',
   tabTech: 'Tech',
   tabISO: 'ISO',

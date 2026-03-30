@@ -207,6 +207,8 @@ export interface ProductFeatureTemplate {
   requiredFeatureIds?: string[];
   requiredReputation?: number;
   compatibleProductTypes?: CompanyProductType[];
+  installRequirements?: Partial<ProductionResourceBundle>;
+  levelUpRequirements?: Partial<ProductionResourceBundle>;
   effects: Partial<ProductFeatureEffects>;
 }
 
@@ -258,6 +260,42 @@ export interface LiveProduct {
   features: ProductFeatureState[];
   metrics: LiveProductMetrics;
   lastWeek: LiveProductWeekBreakdown;
+}
+
+// --- Production Chain (R2 MVP) ---
+export type ProductionResourceId = 'code' | 'design' | 'ops' | 'support';
+
+export interface ProductionResourceBundle {
+  code: number;
+  design: number;
+  ops: number;
+  support: number;
+}
+
+export interface ProductionQueueItem {
+  id: string;
+  resource: ProductionResourceId;
+  units: number;
+  progress: number;
+  createdWeek: number;
+  priority: number; // lower is higher priority
+}
+
+export interface ProductionWeekReport {
+  output: ProductionResourceBundle;
+  delivered: ProductionResourceBundle;
+  consumed: ProductionResourceBundle;
+  idle: ProductionResourceBundle;
+  completedQueueIds: string[];
+  blockedQueueIds: string[];
+}
+
+export interface ProductionState {
+  inventory: ProductionResourceBundle;
+  queue: ProductionQueueItem[];
+  nextQueueSeq: number;
+  pendingConsumed: ProductionResourceBundle;
+  lastWeek: ProductionWeekReport;
 }
 
 // --- Technology / Influence Tree ---
@@ -436,6 +474,7 @@ export interface Business {
   employeeMarket: MarketCandidate[];
   marketRefreshWeek: number; // week when market was last refreshed
   liveProduct: LiveProduct | null;
+  production: ProductionState;
 }
 
 // --- Events ---

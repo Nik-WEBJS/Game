@@ -32,6 +32,7 @@ export const ru: TranslationKeys = {
   // Dashboard Tabs / Menu
   tabOverview: 'Обзор',
   tabProduct: 'Продукт',
+  tabProduction: 'Производство',
   tabTeam: 'Команда',
   tabTech: 'Технологии',
   tabISO: 'ISO',

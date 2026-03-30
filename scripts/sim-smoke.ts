@@ -1,10 +1,11 @@
-﻿import { GameState, TeamMember, TeamRole } from '../src/game/types';
+import { GameState, TeamMember, TeamRole } from '../src/game/types';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, ROLE_SALARIES, createISO9001 } from '../src/game/data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool } from '../src/game/data-advanced';
 import { createInitialProduct } from '../src/game/engines/product';
 import { runDeterministicSimulationTest } from '../src/game/engines/simulation';
 import { BALANCE } from '../src/game/config/balance';
 import { createInitialLiveProduct } from '../src/game/data-product';
+import { createInitialProductionState } from '../src/game/data-production';
 
 function createMember(id: string, role: TeamRole, experience: number, talent: number): TeamMember {
   return {
@@ -82,6 +83,7 @@ function createSmokeState(): GameState {
       employeeMarket: generateMarketPool(5, 10),
       marketRefreshWeek: 0,
       liveProduct,
+      production: createInitialProductionState(),
     },
     phase: 'playing',
     logs: [{ week: 1, message: 'Smoke test start', type: 'info' }],
@@ -122,3 +124,4 @@ function run(): number {
 }
 
 process.exitCode = run();
+

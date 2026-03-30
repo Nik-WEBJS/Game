@@ -18,6 +18,8 @@ export const PRODUCT_FEATURE_TEMPLATES: ProductFeatureTemplate[] = [
     slotCost: 1,
     unlockCost: 0,
     levelUpCostBase: 1500,
+    installRequirements: { code: 8, design: 6, ops: 2, support: 1 },
+    levelUpRequirements: { code: 10, design: 8, ops: 3, support: 1 },
     effects: { conversionBoost: 0.01, satisfactionBoost: 0.01, retentionBoost: 0.005 },
   },
   {
@@ -30,6 +32,8 @@ export const PRODUCT_FEATURE_TEMPLATES: ProductFeatureTemplate[] = [
     unlockCost: 1200,
     levelUpCostBase: 1800,
     requiredFeatureIds: ['core_landing'],
+    installRequirements: { code: 20, design: 10, ops: 6, support: 2 },
+    levelUpRequirements: { code: 16, design: 8, ops: 4, support: 2 },
     effects: { retentionBoost: 0.01, satisfactionBoost: 0.008, conversionBoost: 0.005 },
   },
   {
@@ -42,6 +46,8 @@ export const PRODUCT_FEATURE_TEMPLATES: ProductFeatureTemplate[] = [
     unlockCost: 2500,
     levelUpCostBase: 2600,
     requiredFeatureIds: ['core_account'],
+    installRequirements: { code: 24, design: 16, ops: 6, support: 4 },
+    levelUpRequirements: { code: 18, design: 12, ops: 4, support: 4 },
     effects: { trafficBoost: 0.03, conversionBoost: 0.004 },
   },
   {
@@ -54,6 +60,8 @@ export const PRODUCT_FEATURE_TEMPLATES: ProductFeatureTemplate[] = [
     unlockCost: 2200,
     levelUpCostBase: 2400,
     requiredFeatureIds: ['core_landing'],
+    installRequirements: { code: 18, design: 15, ops: 4, support: 3 },
+    levelUpRequirements: { code: 14, design: 12, ops: 3, support: 3 },
     effects: { conversionBoost: 0.008, trafficBoost: 0.015 },
   },
   {
@@ -67,6 +75,8 @@ export const PRODUCT_FEATURE_TEMPLATES: ProductFeatureTemplate[] = [
     levelUpCostBase: 3000,
     requiredFeatureIds: ['core_account'],
     compatibleProductTypes: ['saas', 'platform', 'app'],
+    installRequirements: { code: 26, design: 12, ops: 8, support: 5 },
+    levelUpRequirements: { code: 20, design: 10, ops: 6, support: 5 },
     effects: { monetizationBoost: 0.012, satisfactionBoost: 0.004 },
   },
   {
@@ -79,6 +89,8 @@ export const PRODUCT_FEATURE_TEMPLATES: ProductFeatureTemplate[] = [
     unlockCost: 2400,
     levelUpCostBase: 2800,
     requiredFeatureIds: ['mon_subscription'],
+    installRequirements: { code: 22, design: 10, ops: 6, support: 5 },
+    levelUpRequirements: { code: 16, design: 8, ops: 5, support: 5 },
     effects: { monetizationBoost: 0.015, conversionBoost: 0.004 },
   },
   {
@@ -91,6 +103,8 @@ export const PRODUCT_FEATURE_TEMPLATES: ProductFeatureTemplate[] = [
     unlockCost: 2600,
     levelUpCostBase: 2600,
     requiredFeatureIds: ['core_landing'],
+    installRequirements: { code: 16, design: 6, ops: 18, support: 3 },
+    levelUpRequirements: { code: 12, design: 4, ops: 14, support: 3 },
     effects: { reliabilityBoost: 0.02, satisfactionBoost: 0.005 },
   },
   {
@@ -103,6 +117,8 @@ export const PRODUCT_FEATURE_TEMPLATES: ProductFeatureTemplate[] = [
     unlockCost: 3200,
     levelUpCostBase: 3200,
     requiredFeatureIds: ['infra_cache'],
+    installRequirements: { code: 20, design: 6, ops: 22, support: 4 },
+    levelUpRequirements: { code: 16, design: 5, ops: 16, support: 4 },
     effects: { reliabilityBoost: 0.025, retentionBoost: 0.004 },
   },
 ];

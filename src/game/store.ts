@@ -1,10 +1,11 @@
 ﻿import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType } from './types';
+import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType, ProductionResourceBundle, ProductionResourceId } from './types';
 import { BALANCE } from './config/balance';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, EVENTS_POOL, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, FURNITURE_CATALOG } from './data-advanced';
 import { createInitialLiveProduct } from './data-product';
+import { createInitialProductionState } from './data-production';
 import { calculateEconomy, calculateEconomyWithBreakdown, EconomyBreakdown } from './engines/economy';
 import { simulateWeek, runDeterministicSimulationTest, DeterministicSimulationResult } from './engines/simulation';
 import { startISO, advanceISO, canStartISO, canAdvanceISO, isManagerBusyWithISO } from './engines/iso';
@@ -13,6 +14,7 @@ import { hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZon
 import { createInitialProduct } from './engines/product';
 import { sendToFreelance as sendFreelance, canSendToFreelance } from './engines/freelance';
 import { installFeature, upgradeFeature, canInstallFeature, canUpgradeFeature, upgradeFeatureSlots, getFeatureSlotUpgradeCost } from './engines/live-product';
+import { cancelProductionQueueItem, enqueueProduction, estimateWeeklyProductionOutput, moveProductionQueueItem } from './engines/production';
 import { startPlacement } from '../office/furnitureState';
 import { getT } from '../i18n';
 import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18n/game-text';
@@ -69,6 +71,7 @@ function createInitialState(): GameState {
       employeeMarket: generateMarketPool(5, 10),
       marketRefreshWeek: 0,
       liveProduct: null,
+      production: createInitialProductionState(),
     },
     phase: 'setup',
     logs: [
@@ -116,6 +119,27 @@ function mergeWithInitialState(persisted: Partial<GameState> | undefined): GameS
       techTree: business.techTree ?? base.business.techTree,
       furniture: business.furniture ?? base.business.furniture,
       employeeMarket: business.employeeMarket ?? base.business.employeeMarket,
+      production: (() => {
+        const source = business.production;
+        const baseProduction = base.business.production;
+        if (!source) return baseProduction;
+        return {
+          ...baseProduction,
+          ...source,
+          queue: source.queue ?? baseProduction.queue,
+          nextQueueSeq: source.nextQueueSeq ?? baseProduction.nextQueueSeq,
+          inventory: { ...baseProduction.inventory, ...(source.inventory ?? {}) },
+          pendingConsumed: { ...baseProduction.pendingConsumed, ...(source.pendingConsumed ?? {}) },
+          lastWeek: {
+            ...baseProduction.lastWeek,
+            ...(source.lastWeek ?? {}),
+            output: { ...baseProduction.lastWeek.output, ...(source.lastWeek?.output ?? {}) },
+            delivered: { ...baseProduction.lastWeek.delivered, ...(source.lastWeek?.delivered ?? {}) },
+            consumed: { ...baseProduction.lastWeek.consumed, ...(source.lastWeek?.consumed ?? {}) },
+            idle: { ...baseProduction.lastWeek.idle, ...(source.lastWeek?.idle ?? {}) },
+          },
+        };
+      })(),
       liveProduct: (() => {
         const fallback = (persisted.phase === 'playing' && business.productId)
           ? createInitialLiveProduct(business.productId)
@@ -187,6 +211,10 @@ interface GameStore extends GameState {
   canInstallProductFeature: (featureId: string) => { ok: boolean; reason?: string };
   canUpgradeProductFeature: (featureId: string) => { ok: boolean; reason?: string; cost?: number };
   getProductFeatureSlotCost: () => number;
+  enqueueProductionQueue: (resource: ProductionResourceId, units: number) => void;
+  cancelProductionQueue: (queueId: string) => void;
+  moveProductionQueue: (queueId: string, direction: -1 | 1) => void;
+  estimateProductionOutput: () => ProductionResourceBundle;
   // Time
   setGameSpeed: (speed: GameSpeed) => void;
   gameTick: (deltaSec: number) => void;
@@ -327,6 +355,16 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
   canInstallProductFeature: (featureId) => canInstallFeature(toGameState(get()), featureId),
   canUpgradeProductFeature: (featureId) => canUpgradeFeature(toGameState(get()), featureId),
   getProductFeatureSlotCost: () => getFeatureSlotUpgradeCost(toGameState(get())),
+  enqueueProductionQueue: (resource, units) => {
+    set(enqueueProduction(toGameState(get()), resource, units));
+  },
+  cancelProductionQueue: (queueId) => {
+    set(cancelProductionQueueItem(toGameState(get()), queueId));
+  },
+  moveProductionQueue: (queueId, direction) => {
+    set(moveProductionQueueItem(toGameState(get()), queueId, direction));
+  },
+  estimateProductionOutput: () => estimateWeeklyProductionOutput(toGameState(get())),
 
   setGameSpeed: (speed) => {
     set(s => ({ player: { ...s.player, gameSpeed: speed } }));

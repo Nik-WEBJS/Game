@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '@/game/store';
-import { useI18n, Locale } from '@/i18n';
+import { useI18n } from '@/i18n';
+import { TranslationKeys } from '@/i18n/en';
 import { eventTitle as getEventTitle, eventDesc as getEventDesc, roleName, isoName } from '@/i18n/game-text';
 import { ToastContainer, pushToast } from '@/components/ui/toast';
 import { GameLoop } from './GameLoop';
@@ -14,6 +15,7 @@ import { TechPanel } from './TechPanel';
 import { EventLog } from './EventLog';
 import { BusinessInfo } from './BusinessInfo';
 import { ProductPanel } from './ProductPanel';
+import { ProductionPanel } from './ProductionPanel';
 import { MarketPanel } from './MarketPanel';
 import { TechTreePanel } from './TechTreePanel';
 import { FurniturePanel } from './FurniturePanel';
@@ -27,16 +29,23 @@ import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/lib/utils';
 import {
   BarChart3, Users, ClipboardCheck, Cpu, ScrollText,
-  ShoppingBag, FlaskConical, Armchair, X, DollarSign, Star, Globe, BookOpen, TrendingUp,
+  ShoppingBag, FlaskConical, Armchair, X, DollarSign, Star, Globe, BookOpen, TrendingUp, Factory,
 } from 'lucide-react';
 
-type MenuId = 'overview' | 'product' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log' | 'wiki' | null;
+type MenuId = 'overview' | 'product' | 'production' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log' | 'wiki' | null;
 
-type MenuItem = { id: Exclude<MenuId, null>; icon: typeof BarChart3; color: string; labelKey: string };
+type MenuItem = { id: Exclude<MenuId, null>; icon: typeof BarChart3; color: string; labelKey: keyof TranslationKeys };
+
+function menuLabel(t: TranslationKeys, key: keyof TranslationKeys): string {
+  const value = t[key];
+  if (typeof value === 'function') return String(key);
+  return value;
+}
 
 const MENU_ITEMS: MenuItem[] = [
   { id: 'overview', icon: BarChart3, color: 'from-emerald-500 to-emerald-700', labelKey: 'tabOverview' },
   { id: 'product', icon: TrendingUp, color: 'from-indigo-500 to-indigo-700', labelKey: 'tabProduct' },
+  { id: 'production', icon: Factory, color: 'from-cyan-500 to-cyan-700', labelKey: 'tabProduction' },
   { id: 'team', icon: Users, color: 'from-cyan-500 to-cyan-700', labelKey: 'tabTeam' },
   { id: 'market', icon: ShoppingBag, color: 'from-purple-500 to-purple-700', labelKey: 'tabMarket' },
   { id: 'tech', icon: Cpu, color: 'from-blue-500 to-blue-700', labelKey: 'tabTech' },
@@ -129,12 +138,12 @@ export function GameDashboard() {
                       ? `bg-gradient-to-br ${item.color} border-white/30 scale-110 shadow-xl`
                       : 'bg-zinc-900/70 backdrop-blur-md border-zinc-600/40 hover:border-zinc-400/60 hover:scale-105'
                   }`}
-                  title={(t as any)[item.labelKey]}
+                  title={menuLabel(t, item.labelKey)}
                 >
                   <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-zinc-300 group-hover:text-white'}`} />
                   {/* Label tooltip on hover */}
                   <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-medium text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                    {(t as any)[item.labelKey]}
+                    {menuLabel(t, item.labelKey)}
                   </span>
                 </button>
               );
@@ -185,7 +194,7 @@ export function GameDashboard() {
                       <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${item.color} flex items-center justify-center`}>
                         <Icon className="w-5 h-5 text-white" />
                       </div>
-                      <h2 className="text-lg font-semibold text-zinc-100">{(t as any)[item.labelKey]}</h2>
+                      <h2 className="text-lg font-semibold text-zinc-100">{menuLabel(t, item.labelKey)}</h2>
                     </>
                   );
                 })()}
@@ -216,6 +225,12 @@ export function GameDashboard() {
                 {openMenu === 'product' && (
                   <>
                     <div className="lg:col-span-2"><ProductPanel /></div>
+                    <div className="space-y-4"><MetricsPanel /></div>
+                  </>
+                )}
+                {openMenu === 'production' && (
+                  <>
+                    <div className="lg:col-span-2"><ProductionPanel /></div>
                     <div className="space-y-4"><MetricsPanel /></div>
                   </>
                 )}
