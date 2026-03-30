@@ -326,7 +326,7 @@ export const BALANCE = {
     },
   },
   progression: {
-    bankruptcyThreshold: -50000,
+    bankruptcyThreshold: -500000,
     ipoMoneyThreshold: 500000,
     ipoReputationThreshold: 80,
     marketDominanceReputation: 95,

@@ -31,7 +31,6 @@ export function createTeamMember(role: TeamRole): TeamMember {
 export function hireFromMarket(state: GameState, candidateId: string): GameState {
   const candidate = state.business.employeeMarket.find(c => c.id === candidateId);
   if (!candidate) return state;
-  if (state.player.money < candidate.hireCost) return state;
   const levelDef = OFFICE_LEVELS.find(l => l.level === state.business.office.level);
   if (levelDef && state.business.team.length >= levelDef.maxEmployees) return state;
 
@@ -118,10 +117,11 @@ export function getHireCost(role: TeamRole): number {
   return ROLE_SALARIES[role] * 2; // 2 months salary as hiring cost
 }
 
-export function canHire(state: GameState, role: TeamRole): boolean {
+export function canHire(state: GameState, _role: TeamRole): boolean {
+  void _role;
   const levelDef = OFFICE_LEVELS.find(l => l.level === state.business.office.level);
   if (levelDef && state.business.team.length >= levelDef.maxEmployees) return false;
-  return state.player.money >= getHireCost(role);
+  return true;
 }
 
 export function hireMember(state: GameState, role: TeamRole): GameState {

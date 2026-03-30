@@ -1,4 +1,4 @@
-import { GameState, ISOStandard, ISOStage } from '../types';
+import { GameState, ISOStage } from '../types';
 import { getT } from '../../i18n';
 
 const STAGE_ORDER: ISOStage[] = ['none', 'audit', 'implementation', 'internal_check', 'certification', 'maintenance'];
@@ -9,15 +9,6 @@ const STAGE_COST: Record<ISOStage, number> = {
   internal_check: 4000,
   certification: 6000,
   maintenance: 0,
-};
-
-const STAGE_WEEKS_REQUIRED: Record<ISOStage, number> = {
-  none: 0,
-  audit: 2,
-  implementation: 4,
-  internal_check: 2,
-  certification: 3,
-  maintenance: 999,
 };
 
 export function getNextStage(current: ISOStage): ISOStage | null {
@@ -49,8 +40,6 @@ export function canStartISO(state: GameState, isoId: string): { ok: boolean; rea
   if (iso.currentStage !== 'none') return { ok: false };
   const officeManagers = state.business.team.filter(m => m.role === 'manager' && m.status === 'office');
   if (officeManagers.length === 0) return { ok: false, reason: 'no_manager' };
-  const cost = getStageCost('audit');
-  if (state.player.money < cost) return { ok: false, reason: 'no_money' };
   return { ok: true };
 }
 
@@ -90,15 +79,6 @@ export function advanceISO(state: GameState, isoId: string): GameState {
   if (!next) return state;
 
   const cost = getStageCost(next);
-  if (state.player.money < cost) {
-    return {
-      ...state,
-      logs: [
-        ...state.logs,
-        { week: state.player.currentWeek, message: getT().isoNotEnoughMoney(getStageLabel(next)), type: 'warning' },
-      ],
-    };
-  }
 
   const newIsos = state.business.isoStandards.map(i => {
     if (i.id !== isoId) return i;
@@ -138,7 +118,7 @@ export function tickISO(state: GameState): GameState {
   // Base 15 progress + 12 per manager + 8 for QA
   const progressPerTurn = 15 + (managerCount * 12) + (hasQA ? 8 : 0);
 
-  let newState = { ...state };
+  const newState = { ...state };
   const newLogs = [...state.logs];
   const newIsos = state.business.isoStandards.map(iso => {
     if (iso.currentStage === 'none') return iso;
@@ -178,5 +158,5 @@ export function canAdvanceISO(state: GameState, isoId: string): boolean {
   if (getISOManagerCount(state) === 0) return false; // need manager to advance
   const next = getNextStage(iso.currentStage);
   if (!next) return false;
-  return state.player.money >= getStageCost(next);
+  return true;
 }

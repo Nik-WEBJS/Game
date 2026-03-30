@@ -277,7 +277,6 @@ export function canExecuteMnaAction(
   if (!competitor) return { ok: false, reason: 'competitor_not_found' };
   const cost = getMnaActionCost(state, action, competitorId);
   if (cost == null) return { ok: false, reason: 'invalid_action' };
-  if (state.player.money < cost) return { ok: false, reason: 'not_enough_money', cost };
   if (action === 'buy_user_base' && competitor.users < BALANCE.competition.mna.buyUserBase.minTargetUsers) {
     return { ok: false, reason: 'target_too_small', cost };
   }

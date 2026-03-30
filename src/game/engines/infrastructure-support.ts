@@ -86,7 +86,7 @@ export function upgradeCloudTier(state: GameState): GameState {
   const infra = state.business.infrastructure;
   if (infra.cloudTier >= 3) return state;
   const cost = getCloudTierUpgradeCost(state);
-  if (cost == null || state.player.money < cost) return state;
+  if (cost == null) return state;
   const nextTier = (infra.cloudTier + 1) as 1 | 2 | 3;
   return {
     ...state,
@@ -123,7 +123,6 @@ export function getOwnCapacityUpgradeCost(
 export function canUpgradeOwnCapacity(state: GameState, serverType: InfrastructureServerType): boolean {
   if (state.business.infrastructure.hostingMode !== 'own') return false;
   const cost = getOwnCapacityUpgradeCost(state, serverType);
-  if (state.player.money < cost.money) return false;
   return canConsumeProductionResources(state, { ops: cost.ops });
 }
 
@@ -166,9 +165,8 @@ export function runSupportBurst(state: GameState, requestedTickets = 40): GameSt
   const burstCfg = BALANCE.support.burst;
   const target = Math.max(1, Math.min(burstCfg.maxTicketsPerAction, Math.round(requestedTickets)));
   const supportInventory = state.business.production.inventory.support;
-  const maxByMoney = Math.floor(state.player.money / burstCfg.moneyCostPerTicket);
   const maxBySupport = Math.floor(supportInventory / burstCfg.supportUnitsPerTicket);
-  const resolved = Math.min(support.openTickets, target, maxByMoney, maxBySupport);
+  const resolved = Math.min(support.openTickets, target, maxBySupport);
   if (resolved <= 0) return state;
 
   const moneyCost = Math.round(resolved * burstCfg.moneyCostPerTicket);

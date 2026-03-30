@@ -377,7 +377,6 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
     const state = get();
     const tech = TECHNOLOGIES.find(t => t.id === techId);
     if (!tech || state.business.technologies.includes(techId)) return;
-    if (state.player.money < tech.cost) return;
     set(s => ({
       player: { ...s.player, money: s.player.money - tech.cost },
       business: { ...s.business, technologies: [...s.business.technologies, techId] },
@@ -532,7 +531,6 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
     const node = state.business.techTree.find(n => n.id === nodeId);
     if (!node || node.completed || node.researching) return;
     if (!node.unlocked) return;
-    if (state.player.money < node.cost) return;
     // Check if another research is already in progress
     if (state.business.techTree.some(n => n.researching)) return;
     if (node.requiredReputation && state.player.reputation < node.requiredReputation) return;
@@ -554,7 +552,6 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
     const currentLevel = state.business.office.level;
     const nextLevelDef = OFFICE_LEVELS.find(l => l.level === currentLevel + 1);
     if (!nextLevelDef) return; // already max level
-    if (state.player.money < nextLevelDef.upgradeCost) return;
     set(s => ({
       player: { ...s.player, money: s.player.money - nextLevelDef.upgradeCost },
       business: {
@@ -580,8 +577,6 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
   buyFurniture: (type) => {
     const catalog = FURNITURE_CATALOG.find(f => f.type === type);
     if (!catalog) return;
-    const state = get();
-    if (state.player.money < catalog.cost) return;
 
     const item: FurnitureItem = {
       ...catalog,

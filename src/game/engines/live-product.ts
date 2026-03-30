@@ -264,7 +264,6 @@ export function canInstallFeature(state: GameState, featureId: string): { ok: bo
   if (tpl.compatibleProductTypes && !tpl.compatibleProductTypes.includes(live.productType)) return { ok: false, reason: 'incompatible_product' };
   if (tpl.requiredReputation && state.player.reputation < tpl.requiredReputation) return { ok: false, reason: 'reputation_required' };
   if ((tpl.requiredFeatureIds ?? []).some(req => !live.features.some(f => f.id === req && f.installed))) return { ok: false, reason: 'missing_prerequisites' };
-  if (state.player.money < tpl.unlockCost) return { ok: false, reason: 'not_enough_money' };
   const requirements = getFeatureInstallRequirements(featureId);
   if (!canConsumeProductionResources(state, requirements)) return { ok: false, reason: 'not_enough_resources' };
   const used = getUsedSlots(live.features);
@@ -323,7 +322,6 @@ export function canUpgradeFeature(
   if (!feature || !tpl) return { ok: false, reason: 'not_installed' };
   if (feature.level >= tpl.maxLevel) return { ok: false, reason: 'max_level' };
   const cost = getFeatureLevelUpCost(featureId, feature.level);
-  if (state.player.money < cost) return { ok: false, reason: 'not_enough_money', cost };
   const requirements = getFeatureUpgradeRequirements(featureId, feature.level);
   if (!canConsumeProductionResources(state, requirements)) return { ok: false, reason: 'not_enough_resources', cost, requirements };
   return { ok: true, cost, requirements };
@@ -373,7 +371,6 @@ export function upgradeFeatureSlots(state: GameState): GameState {
   const live = state.business.liveProduct;
   if (!live) return state;
   const cost = getFeatureSlotUpgradeCost(state);
-  if (state.player.money < cost) return state;
   return {
     ...state,
     player: { ...state.player, money: state.player.money - cost },
