@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType } from './types';
+import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType } from './types';
 import { BALANCE } from './config/balance';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, EVENTS_POOL, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, MARKET_REFRESH_INTERVAL, FURNITURE_CATALOG } from './data-advanced';
@@ -17,6 +17,17 @@ import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18
 
 const INITIAL_MONEY = BALANCE.start.money;
 const SAVE_VERSION = BALANCE.saveVersion;
+const SAVE_KEY = 'business-tycoon-save';
+
+export interface DebugSelfTestResult {
+  ok: boolean;
+  seed: number;
+  weeks: number;
+  startWeek: number;
+  endWeek: number;
+  issues: string[];
+  summary: string;
+}
 
 function createInitialState(): GameState {
   return {
@@ -191,6 +202,9 @@ interface GameStore extends GameState {
   getHireCost: (role: TeamRole) => number;
   previewMetrics: () => BusinessMetrics;
   previewEconomyBreakdown: () => EconomyBreakdown;
+  exportSave: () => string | null;
+  importSave: (raw: string) => { ok: boolean; reason?: string };
+  debugRunSelfTest: (weeks?: number, seed?: number) => DebugSelfTestResult;
   debugAdvanceWeeks: (weeks: number) => void;
   debugTriggerEvent: (eventId: string) => void;
   debugClearSave: () => void;
@@ -474,6 +488,82 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
   getHireCost: (role) => getHireCost(role),
   previewMetrics: () => calculateEconomy(toGameState(get())),
   previewEconomyBreakdown: () => calculateEconomyWithBreakdown(toGameState(get())).breakdown,
+  exportSave: () => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(SAVE_KEY);
+  },
+  importSave: (raw) => {
+    if (typeof window === 'undefined') return { ok: false, reason: 'no_window' };
+    try {
+      const parsed = JSON.parse(raw);
+      const candidate = (parsed && typeof parsed === 'object' && 'state' in parsed)
+        ? (parsed.state as Partial<GameState>)
+        : (parsed as Partial<GameState>);
+      const merged = mergeWithInitialState(candidate);
+      const payload = JSON.stringify({ state: merged, version: SAVE_VERSION });
+      localStorage.setItem(SAVE_KEY, payload);
+      set(merged);
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: 'invalid_json' };
+    }
+  },
+  debugRunSelfTest: (weeks = 52, seed = 1337) => {
+    const count = Math.max(1, Math.min(520, Math.floor(weeks)));
+    const start = toGameState(get());
+    const snapshot = safeCloneState(start);
+    const nicheDemandSnapshot = NICHES.map(n => n.baseDemand);
+    const normalizedSeed = Number.isFinite(seed) ? (seed >>> 0) : 1337;
+    let sim = snapshot;
+    if (sim.phase !== 'playing') {
+      return {
+        ok: false,
+        seed: normalizedSeed,
+        weeks: count,
+        startWeek: sim.player.currentWeek,
+        endWeek: sim.player.currentWeek,
+        issues: ['phase_not_playing'],
+        summary: 'Self-test requires active playing phase.',
+      };
+    }
+
+    const result = withSeededRandom(normalizedSeed, () => {
+      const issues: string[] = [];
+      const startWeek = sim.player.currentWeek;
+      for (let i = 0; i < count; i++) {
+        if (sim.phase !== 'playing') break;
+        sim = {
+          ...sim,
+          player: {
+            ...sim.player,
+            currentWeek: sim.player.currentWeek + 1,
+            weekProgress: 0,
+          },
+        };
+        sim = runWeeklySystems(sim);
+        issues.push(...validateSimulationState(sim, i));
+      }
+      const uniqueIssues = Array.from(new Set(issues));
+      return {
+        ok: uniqueIssues.length === 0,
+        seed: normalizedSeed,
+        weeks: count,
+        startWeek,
+        endWeek: sim.player.currentWeek,
+        issues: uniqueIssues,
+        summary: uniqueIssues.length === 0
+          ? `Self-test passed for ${count} weeks (seed ${normalizedSeed}).`
+          : `Self-test found ${uniqueIssues.length} issue(s).`,
+      } satisfies DebugSelfTestResult;
+    });
+
+    // Restore global mutable niche demand after deterministic simulation.
+    NICHES.forEach((n, i) => {
+      n.baseDemand = nicheDemandSnapshot[i];
+    });
+
+    return result;
+  },
   debugAdvanceWeeks: (weeks) => {
     const count = Math.max(1, Math.min(520, Math.floor(weeks || 1)));
     set(s => {
@@ -502,12 +592,12 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
   },
   debugClearSave: () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('business-tycoon-save');
+      localStorage.removeItem(SAVE_KEY);
     }
     set(createInitialState());
   },
 }), {
-  name: 'business-tycoon-save',
+  name: SAVE_KEY,
   version: SAVE_VERSION,
   partialize: (state) => ({
     saveVersion: state.saveVersion,
@@ -607,6 +697,65 @@ function appendMetricReasonLogs(
   }
 
   return { ...state, logs };
+}
+
+function safeCloneState<T>(value: T): T {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function withSeededRandom<T>(seed: number, fn: () => T): T {
+  const originalRandom = Math.random;
+  let s = seed >>> 0;
+  if (s === 0) s = 1;
+  Math.random = () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+  try {
+    return fn();
+  } finally {
+    Math.random = originalRandom;
+  }
+}
+
+function validateSimulationState(state: GameState, step: number): string[] {
+  const issues: string[] = [];
+  const m = state.business.metrics;
+  const tag = `week_step_${step + 1}`;
+
+  const checkFinite = (value: number, name: string) => {
+    if (!Number.isFinite(value) || Number.isNaN(value)) {
+      issues.push(`${tag}:${name}_not_finite`);
+    }
+  };
+
+  checkFinite(state.player.money, 'money');
+  checkFinite(state.player.reputation, 'reputation');
+  checkFinite(m.revenue, 'revenue');
+  checkFinite(m.costs, 'costs');
+  checkFinite(m.profit, 'profit');
+  checkFinite(m.risk, 'risk');
+  checkFinite(m.quality, 'quality');
+  checkFinite(m.demand, 'demand');
+  checkFinite(m.growthRate, 'growth');
+  checkFinite(m.teamEfficiency, 'team_efficiency');
+
+  if (m.risk < 0 || m.risk > 1) issues.push(`${tag}:risk_out_of_bounds`);
+  if (m.quality < 0 || m.quality > 1) issues.push(`${tag}:quality_out_of_bounds`);
+  if (m.demand < 0 || m.demand > 1) issues.push(`${tag}:demand_out_of_bounds`);
+  if (m.teamEfficiency < 0 || m.teamEfficiency > 1) issues.push(`${tag}:team_efficiency_out_of_bounds`);
+
+  for (const member of state.business.team) {
+    if (member.burnout < 0 || member.burnout > 100) issues.push(`${tag}:member_burnout_out_of_bounds`);
+    if (member.morale < 0 || member.morale > 100) issues.push(`${tag}:member_morale_out_of_bounds`);
+    if (member.experience < 0 || member.experience > 100) issues.push(`${tag}:member_experience_out_of_bounds`);
+    if (member.level < 1 || member.level > 5) issues.push(`${tag}:member_level_out_of_bounds`);
+  }
+
+  return issues;
 }
 
 // --- Tech tree tick (called each turn) ---
