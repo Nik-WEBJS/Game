@@ -13,6 +13,7 @@ import { ISOPanel } from './ISOPanel';
 import { TechPanel } from './TechPanel';
 import { EventLog } from './EventLog';
 import { BusinessInfo } from './BusinessInfo';
+import { ProductPanel } from './ProductPanel';
 import { MarketPanel } from './MarketPanel';
 import { TechTreePanel } from './TechTreePanel';
 import { FurniturePanel } from './FurniturePanel';
@@ -26,15 +27,16 @@ import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/lib/utils';
 import {
   BarChart3, Users, ClipboardCheck, Cpu, ScrollText,
-  ShoppingBag, FlaskConical, Armchair, X, DollarSign, Star, Globe, BookOpen,
+  ShoppingBag, FlaskConical, Armchair, X, DollarSign, Star, Globe, BookOpen, TrendingUp,
 } from 'lucide-react';
 
-type MenuId = 'overview' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log' | 'wiki' | null;
+type MenuId = 'overview' | 'product' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log' | 'wiki' | null;
 
 type MenuItem = { id: Exclude<MenuId, null>; icon: typeof BarChart3; color: string; labelKey: string };
 
 const MENU_ITEMS: MenuItem[] = [
   { id: 'overview', icon: BarChart3, color: 'from-emerald-500 to-emerald-700', labelKey: 'tabOverview' },
+  { id: 'product', icon: TrendingUp, color: 'from-indigo-500 to-indigo-700', labelKey: 'tabProduct' },
   { id: 'team', icon: Users, color: 'from-cyan-500 to-cyan-700', labelKey: 'tabTeam' },
   { id: 'market', icon: ShoppingBag, color: 'from-purple-500 to-purple-700', labelKey: 'tabMarket' },
   { id: 'tech', icon: Cpu, color: 'from-blue-500 to-blue-700', labelKey: 'tabTech' },
@@ -209,6 +211,12 @@ export function GameDashboard() {
                       <QuickStats />
                       <EventLog />
                     </div>
+                  </>
+                )}
+                {openMenu === 'product' && (
+                  <>
+                    <div className="lg:col-span-2"><ProductPanel /></div>
+                    <div className="space-y-4"><MetricsPanel /></div>
                   </>
                 )}
                 {openMenu === 'team' && (

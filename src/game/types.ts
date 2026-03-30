@@ -192,6 +192,65 @@ export interface CompanyProduct {
   revenue: number;          // calculated per turn
 }
 
+// --- Live Product (R1 core loop) ---
+export type ProductFeatureClass = 'core' | 'growth' | 'monetization' | 'infrastructure';
+
+export interface ProductFeatureTemplate {
+  id: string;
+  name: string;
+  description: string;
+  class: ProductFeatureClass;
+  maxLevel: number;
+  slotCost: number;
+  unlockCost: number;
+  levelUpCostBase: number;
+  requiredFeatureIds?: string[];
+  requiredReputation?: number;
+  compatibleProductTypes?: CompanyProductType[];
+  effects: Partial<ProductFeatureEffects>;
+}
+
+export interface ProductFeatureEffects {
+  trafficBoost: number;      // adds to weekly traffic growth potential
+  conversionBoost: number;   // adds to signup conversion
+  retentionBoost: number;    // reduces churn
+  satisfactionBoost: number; // improves satisfaction drift
+  monetizationBoost: number; // boosts paid conversion / ARPU proxy
+  reliabilityBoost: number;  // lowers infrastructure pressure proxy
+}
+
+export interface ProductFeatureState {
+  id: string;
+  level: number;
+  installed: boolean;
+}
+
+export interface LiveProductMetrics {
+  traffic: number;
+  signups: number;
+  activeUsers: number;
+  payingUsers: number;
+  satisfaction: number; // 0..1
+  conversion: number;   // 0..1
+  churn: number;        // 0..1
+}
+
+export interface LiveProductWeekBreakdown {
+  topPositiveFactors: string[];
+  topNegativeFactors: string[];
+  bottlenecks: string[];
+}
+
+export interface LiveProduct {
+  id: string;
+  productId: string;
+  productType: CompanyProductType;
+  featureSlots: number;
+  features: ProductFeatureState[];
+  metrics: LiveProductMetrics;
+  lastWeek: LiveProductWeekBreakdown;
+}
+
 // --- Technology / Influence Tree ---
 export type TechBranch = 'tech_core' | 'marketing_influence' | 'operations_process';
 
@@ -367,6 +426,7 @@ export interface Business {
   furniture: FurnitureItem[];
   employeeMarket: MarketCandidate[];
   marketRefreshWeek: number; // week when market was last refreshed
+  liveProduct: LiveProduct | null;
 }
 
 // --- Events ---

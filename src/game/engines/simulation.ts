@@ -8,6 +8,7 @@ import { tickISO } from './iso';
 import { gainExperience, checkWinLose } from './progression';
 import { tickFreelance } from './freelance';
 import { calculateEconomyWithBreakdown, EconomyBreakdown } from './economy';
+import { tickLiveProduct } from './live-product';
 import { getT } from '../../i18n';
 import { ttNodeName } from '../../i18n/game-text';
 import { BALANCE } from '../config/balance';
@@ -26,6 +27,7 @@ export function simulateWeek(state: GameState): GameState {
   let gs = tickTeam(state);
   gs = tickProducts(gs);
   gs = tickISO(gs);
+  gs = tickLiveProduct(gs);
 
   const beforeMetrics = gs.business.metrics;
   const econ = calculateEconomyWithBreakdown(gs);

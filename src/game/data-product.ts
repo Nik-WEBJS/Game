@@ -1,0 +1,138 @@
+import { CompanyProductType, LiveProduct, ProductFeatureTemplate } from './types';
+
+export const PRODUCT_TYPE_BY_PRODUCT_ID: Record<string, CompanyProductType> = {
+  saas_platform: 'saas',
+  mobile_app: 'app',
+  marketplace: 'platform',
+  api_service: 'platform',
+  desktop_app: 'app',
+};
+
+export const PRODUCT_FEATURE_TEMPLATES: ProductFeatureTemplate[] = [
+  {
+    id: 'core_landing',
+    name: 'Landing Experience',
+    description: 'Better onboarding and first impression for visitors.',
+    class: 'core',
+    maxLevel: 3,
+    slotCost: 1,
+    unlockCost: 0,
+    levelUpCostBase: 1500,
+    effects: { conversionBoost: 0.01, satisfactionBoost: 0.01, retentionBoost: 0.005 },
+  },
+  {
+    id: 'core_account',
+    name: 'Account System',
+    description: 'Profile and account management to improve retention.',
+    class: 'core',
+    maxLevel: 3,
+    slotCost: 1,
+    unlockCost: 1200,
+    levelUpCostBase: 1800,
+    requiredFeatureIds: ['core_landing'],
+    effects: { retentionBoost: 0.01, satisfactionBoost: 0.008, conversionBoost: 0.005 },
+  },
+  {
+    id: 'growth_referral',
+    name: 'Referral Loop',
+    description: 'Users invite other users and increase traffic growth.',
+    class: 'growth',
+    maxLevel: 3,
+    slotCost: 1,
+    unlockCost: 2500,
+    levelUpCostBase: 2600,
+    requiredFeatureIds: ['core_account'],
+    effects: { trafficBoost: 0.03, conversionBoost: 0.004 },
+  },
+  {
+    id: 'growth_analytics',
+    name: 'Acquisition Analytics',
+    description: 'Improves campaign targeting and conversion quality.',
+    class: 'growth',
+    maxLevel: 2,
+    slotCost: 1,
+    unlockCost: 2200,
+    levelUpCostBase: 2400,
+    requiredFeatureIds: ['core_landing'],
+    effects: { conversionBoost: 0.008, trafficBoost: 0.015 },
+  },
+  {
+    id: 'mon_subscription',
+    name: 'Subscription Billing',
+    description: 'Recurring payment flow for monetization.',
+    class: 'monetization',
+    maxLevel: 3,
+    slotCost: 1,
+    unlockCost: 2800,
+    levelUpCostBase: 3000,
+    requiredFeatureIds: ['core_account'],
+    compatibleProductTypes: ['saas', 'platform', 'app'],
+    effects: { monetizationBoost: 0.012, satisfactionBoost: 0.004 },
+  },
+  {
+    id: 'mon_checkout',
+    name: 'Checkout Optimization',
+    description: 'Improves paid conversion and reduces checkout drop-off.',
+    class: 'monetization',
+    maxLevel: 2,
+    slotCost: 1,
+    unlockCost: 2400,
+    levelUpCostBase: 2800,
+    requiredFeatureIds: ['mon_subscription'],
+    effects: { monetizationBoost: 0.015, conversionBoost: 0.004 },
+  },
+  {
+    id: 'infra_cache',
+    name: 'Response Caching',
+    description: 'Reduces load pressure and service degradation.',
+    class: 'infrastructure',
+    maxLevel: 3,
+    slotCost: 1,
+    unlockCost: 2600,
+    levelUpCostBase: 2600,
+    requiredFeatureIds: ['core_landing'],
+    effects: { reliabilityBoost: 0.02, satisfactionBoost: 0.005 },
+  },
+  {
+    id: 'infra_queue',
+    name: 'Async Job Queue',
+    description: 'Stabilizes workload under growth spikes.',
+    class: 'infrastructure',
+    maxLevel: 2,
+    slotCost: 1,
+    unlockCost: 3200,
+    levelUpCostBase: 3200,
+    requiredFeatureIds: ['infra_cache'],
+    effects: { reliabilityBoost: 0.025, retentionBoost: 0.004 },
+  },
+];
+
+export function createInitialLiveProduct(productId: string): LiveProduct {
+  const productType = PRODUCT_TYPE_BY_PRODUCT_ID[productId] ?? 'saas';
+
+  return {
+    id: `lp_${Date.now()}`,
+    productId,
+    productType,
+    featureSlots: 2,
+    features: [{ id: 'core_landing', level: 1, installed: true }],
+    metrics: {
+      traffic: 200,
+      signups: 24,
+      activeUsers: 80,
+      payingUsers: 6,
+      satisfaction: 0.55,
+      conversion: 0.12,
+      churn: 0.08,
+    },
+    lastWeek: {
+      topPositiveFactors: [],
+      topNegativeFactors: [],
+      bottlenecks: [],
+    },
+  };
+}
+
+export function getFeatureTemplateById(featureId: string): ProductFeatureTemplate | undefined {
+  return PRODUCT_FEATURE_TEMPLATES.find(f => f.id === featureId);
+}

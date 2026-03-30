@@ -1,9 +1,10 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType } from './types';
 import { BALANCE } from './config/balance';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, EVENTS_POOL, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, FURNITURE_CATALOG } from './data-advanced';
+import { createInitialLiveProduct } from './data-product';
 import { calculateEconomy, calculateEconomyWithBreakdown, EconomyBreakdown } from './engines/economy';
 import { simulateWeek, runDeterministicSimulationTest, DeterministicSimulationResult } from './engines/simulation';
 import { startISO, advanceISO, canStartISO, canAdvanceISO, isManagerBusyWithISO } from './engines/iso';
@@ -11,6 +12,7 @@ import { applyEvents } from './engines/events';
 import { hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone, assignDesk } from './engines/team';
 import { createInitialProduct } from './engines/product';
 import { sendToFreelance as sendFreelance, canSendToFreelance } from './engines/freelance';
+import { installFeature, upgradeFeature, canInstallFeature, canUpgradeFeature, upgradeFeatureSlots, getFeatureSlotUpgradeCost } from './engines/live-product';
 import { startPlacement } from '../office/furnitureState';
 import { getT } from '../i18n';
 import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18n/game-text';
@@ -66,6 +68,7 @@ function createInitialState(): GameState {
       furniture: [],
       employeeMarket: generateMarketPool(5, 10),
       marketRefreshWeek: 0,
+      liveProduct: null,
     },
     phase: 'setup',
     logs: [
@@ -113,6 +116,7 @@ function mergeWithInitialState(persisted: Partial<GameState> | undefined): GameS
       techTree: business.techTree ?? base.business.techTree,
       furniture: business.furniture ?? base.business.furniture,
       employeeMarket: business.employeeMarket ?? base.business.employeeMarket,
+      liveProduct: business.liveProduct ?? ((persisted.phase === 'playing' && business.productId) ? createInitialLiveProduct(business.productId) : base.business.liveProduct),
     },
     logs: persisted.logs ?? base.logs,
     activeEvents: persisted.activeEvents ?? base.activeEvents,
@@ -160,6 +164,12 @@ interface GameStore extends GameState {
   adoptTechnology: (techId: string) => void;
   removeTechnology: (techId: string) => void;
   startGame: () => void;
+  installProductFeature: (featureId: string) => void;
+  upgradeProductFeature: (featureId: string) => void;
+  buyProductFeatureSlot: () => void;
+  canInstallProductFeature: (featureId: string) => { ok: boolean; reason?: string };
+  canUpgradeProductFeature: (featureId: string) => { ok: boolean; reason?: string; cost?: number };
+  getProductFeatureSlotCost: () => number;
   // Time
   setGameSpeed: (speed: GameSpeed) => void;
   gameTick: (deltaSec: number) => void;
@@ -266,12 +276,13 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
       productDef?.name ?? 'My Product',
       state.business.monetizationId!,
     );
+    const liveProduct = createInitialLiveProduct(state.business.productId!);
     const gs = toGameState({
       ...state,
       phase: 'playing',
       activeEvents: [],
       weekHistory: [],
-      business: { ...state.business, companyProducts: [initialProduct] },
+      business: { ...state.business, companyProducts: [initialProduct], liveProduct },
     });
     const econ = calculateEconomyWithBreakdown(gs);
     const withEconomy: GameState = {
@@ -286,6 +297,19 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
       logs: [...withEconomy.logs, { week: 1, message: getT().launchedPrototypeMessage, type: 'success' }],
     });
   },
+
+  installProductFeature: (featureId) => {
+    set(installFeature(toGameState(get()), featureId));
+  },
+  upgradeProductFeature: (featureId) => {
+    set(upgradeFeature(toGameState(get()), featureId));
+  },
+  buyProductFeatureSlot: () => {
+    set(upgradeFeatureSlots(toGameState(get())));
+  },
+  canInstallProductFeature: (featureId) => canInstallFeature(toGameState(get()), featureId),
+  canUpgradeProductFeature: (featureId) => canUpgradeFeature(toGameState(get()), featureId),
+  getProductFeatureSlotCost: () => getFeatureSlotUpgradeCost(toGameState(get())),
 
   setGameSpeed: (speed) => {
     set(s => ({ player: { ...s.player, gameSpeed: speed } }));
@@ -650,3 +674,4 @@ function tickEmployeePointGeneration(state: GameState, weekFraction: number): Ga
     },
   };
 }
+
