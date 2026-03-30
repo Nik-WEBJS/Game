@@ -1,12 +1,13 @@
 ﻿import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType, ProductionResourceBundle, ProductionResourceId, HostingMode, InfrastructureServerType } from './types';
+import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType, ProductionResourceBundle, ProductionResourceId, HostingMode, InfrastructureServerType, MnaActionType } from './types';
 import { BALANCE } from './config/balance';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, EVENTS_POOL, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, FURNITURE_CATALOG } from './data-advanced';
 import { createInitialLiveProduct } from './data-product';
 import { createInitialProductionState } from './data-production';
 import { createInitialInfrastructureState, createInitialSupportState } from './data-infrastructure';
+import { createInitialCampaignState, createInitialCompetitionState } from './data-competition';
 import { calculateEconomy, calculateEconomyWithBreakdown, EconomyBreakdown } from './engines/economy';
 import { simulateWeek, runDeterministicSimulationTest, DeterministicSimulationResult } from './engines/simulation';
 import { startISO, advanceISO, canStartISO, canAdvanceISO, isManagerBusyWithISO } from './engines/iso';
@@ -25,6 +26,11 @@ import {
   upgradeCloudTier as infraUpgradeCloudTier,
   upgradeOwnCapacity as infraUpgradeOwnCapacity,
 } from './engines/infrastructure-support';
+import {
+  canExecuteMnaAction as compCanExecuteMnaAction,
+  executeMnaAction as compExecuteMnaAction,
+  getMnaActionCost as compGetMnaActionCost,
+} from './engines/competition';
 import { startPlacement } from '../office/furnitureState';
 import { getT } from '../i18n';
 import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18n/game-text';
@@ -84,6 +90,8 @@ function createInitialState(): GameState {
       production: createInitialProductionState(),
       infrastructure: createInitialInfrastructureState(),
       support: createInitialSupportState(),
+      competition: createInitialCompetitionState(null),
+      campaign: createInitialCampaignState(),
     },
     phase: 'setup',
     logs: [
@@ -175,6 +183,33 @@ function mergeWithInitialState(persisted: Partial<GameState> | undefined): GameS
         if (!source) return baseSupport;
         return { ...baseSupport, ...source };
       })(),
+      competition: (() => {
+        const source = business.competition;
+        const fallback = (persisted.phase === 'playing' && business.nicheId)
+          ? createInitialCompetitionState(business.nicheId)
+          : base.business.competition;
+        const baseCompetition = fallback;
+        if (!source) return baseCompetition;
+        return {
+          ...baseCompetition,
+          ...source,
+          competitors: source.competitors ?? baseCompetition.competitors,
+          pendingPressureEvents: source.pendingPressureEvents ?? baseCompetition.pendingPressureEvents,
+          lastWeek: { ...baseCompetition.lastWeek, ...(source.lastWeek ?? {}) },
+        };
+      })(),
+      campaign: (() => {
+        const source = business.campaign;
+        const baseCampaign = base.business.campaign;
+        if (!source) return baseCampaign;
+        return {
+          ...baseCampaign,
+          ...source,
+          completedIds: source.completedIds ?? baseCampaign.completedIds,
+          discoveredIds: source.discoveredIds ?? baseCampaign.discoveredIds,
+          flags: { ...baseCampaign.flags, ...(source.flags ?? {}) },
+        };
+      })(),
       liveProduct: (() => {
         const fallback = (persisted.phase === 'playing' && business.productId)
           ? createInitialLiveProduct(business.productId)
@@ -257,6 +292,9 @@ interface GameStore extends GameState {
   canUpgradeOwnServerCapacity: (serverType: InfrastructureServerType) => boolean;
   getOwnServerUpgradeCost: (serverType: InfrastructureServerType) => { money: number; ops: number; step: number };
   runSupportBurst: (requestedTickets?: number) => void;
+  executeMnaAction: (action: MnaActionType, competitorId: string) => void;
+  canExecuteMnaAction: (action: MnaActionType, competitorId: string) => { ok: boolean; reason?: string; cost?: number };
+  getMnaActionCost: (action: MnaActionType, competitorId: string) => number | null;
   // Time
   setGameSpeed: (speed: GameSpeed) => void;
   gameTick: (deltaSec: number) => void;
@@ -364,12 +402,14 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
       state.business.monetizationId!,
     );
     const liveProduct = createInitialLiveProduct(state.business.productId!);
+    const competition = createInitialCompetitionState(state.business.nicheId);
+    const campaign = createInitialCampaignState();
     const gs = toGameState({
       ...state,
       phase: 'playing',
       activeEvents: [],
       weekHistory: [],
-      business: { ...state.business, companyProducts: [initialProduct], liveProduct },
+      business: { ...state.business, companyProducts: [initialProduct], liveProduct, competition, campaign },
     });
     const econ = calculateEconomyWithBreakdown(gs);
     const withEconomy: GameState = {
@@ -422,6 +462,11 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
   runSupportBurst: (requestedTickets) => {
     set(infraRunSupportBurst(toGameState(get()), requestedTickets));
   },
+  executeMnaAction: (action, competitorId) => {
+    set(compExecuteMnaAction(toGameState(get()), action, competitorId));
+  },
+  canExecuteMnaAction: (action, competitorId) => compCanExecuteMnaAction(toGameState(get()), action, competitorId),
+  getMnaActionCost: (action, competitorId) => compGetMnaActionCost(toGameState(get()), action, competitorId),
 
   setGameSpeed: (speed) => {
     set(s => ({ player: { ...s.player, gameSpeed: speed } }));

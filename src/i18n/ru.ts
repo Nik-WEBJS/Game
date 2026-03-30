@@ -34,6 +34,7 @@ export const ru: TranslationKeys = {
   tabProduct: 'Продукт',
   tabProduction: 'Производство',
   tabInfra: 'Инфраструктура',
+  tabCompetition: 'Конкуренция',
   tabTeam: 'Команда',
   tabTech: 'Технологии',
   tabISO: 'ISO',

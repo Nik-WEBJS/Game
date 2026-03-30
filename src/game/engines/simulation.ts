@@ -11,6 +11,7 @@ import { calculateEconomyWithBreakdown, EconomyBreakdown } from './economy';
 import { tickLiveProduct } from './live-product';
 import { tickProduction } from './production';
 import { tickInfrastructureAndSupport } from './infrastructure-support';
+import { tickCampaignMilestones, tickCompetition } from './competition';
 import { getT } from '../../i18n';
 import { ttNodeName } from '../../i18n/game-text';
 import { BALANCE } from '../config/balance';
@@ -32,6 +33,7 @@ export function simulateWeek(state: GameState): GameState {
   gs = tickProduction(gs);
   gs = tickLiveProduct(gs);
   gs = tickInfrastructureAndSupport(gs);
+  gs = tickCompetition(gs);
 
   const beforeMetrics = gs.business.metrics;
   const econ = calculateEconomyWithBreakdown(gs);
@@ -46,6 +48,7 @@ export function simulateWeek(state: GameState): GameState {
   gs = events.length > 0 ? applyEvents(gs, events) : { ...gs, activeEvents: [] };
 
   gs = gainExperience(gs);
+  gs = tickCampaignMilestones(gs);
 
   const niche = NICHES.find(n => n.id === gs.business.nicheId);
   if (niche) niche.baseDemand = Math.max(0.2, niche.baseDemand - niche.trendDecayRate);
@@ -260,6 +263,8 @@ function validateSimulationState(state: GameState, step: number): string[] {
   const prod = state.business.production;
   const infra = state.business.infrastructure;
   const support = state.business.support;
+  const competition = state.business.competition;
+  const campaign = state.business.campaign;
   checkFinite(prod.inventory.code, 'production_inventory_code');
   checkFinite(prod.inventory.design, 'production_inventory_design');
   checkFinite(prod.inventory.ops, 'production_inventory_ops');
@@ -288,6 +293,13 @@ function validateSimulationState(state: GameState, step: number): string[] {
   if (infra.lastWeek.outageRisk < 0 || infra.lastWeek.outageRisk > 1) issues.push(`${tag}:infra_outage_risk_out_of_bounds`);
   if (support.backlogPressure < 0 || support.backlogPressure > 1) issues.push(`${tag}:support_backlog_pressure_out_of_bounds`);
   if (support.openTickets < 0) issues.push(`${tag}:support_open_tickets_negative`);
+  checkFinite(competition.lastWeek.playerMarketShare, 'competition_player_market_share');
+  checkFinite(competition.lastWeek.playerRank, 'competition_player_rank');
+  checkFinite(competition.lastWeek.marketPressure, 'competition_market_pressure');
+  if (competition.lastWeek.playerMarketShare < 0 || competition.lastWeek.playerMarketShare > 1) issues.push(`${tag}:competition_market_share_out_of_bounds`);
+  if (competition.lastWeek.marketPressure < 0 || competition.lastWeek.marketPressure > 1) issues.push(`${tag}:competition_market_pressure_out_of_bounds`);
+  if (competition.lastWeek.playerRank < 1) issues.push(`${tag}:competition_player_rank_invalid`);
+  if (campaign.completedIds.length > 20) issues.push(`${tag}:campaign_completed_overflow`);
 
   if (m.risk < 0 || m.risk > 1) issues.push(`${tag}:risk_out_of_bounds`);
   if (m.quality < 0 || m.quality > 1) issues.push(`${tag}:quality_out_of_bounds`);

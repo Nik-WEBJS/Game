@@ -335,6 +335,47 @@ export interface SupportState {
   backlogPressure: number; // 0..1
 }
 
+// --- Competition + Campaign (R4 base) ---
+export type MnaActionType = 'buy_user_base' | 'acquire_technology' | 'acqui_hire' | 'brand_boost';
+
+export interface CompetitorCompany {
+  id: string;
+  name: string;
+  nicheId: string;
+  users: number;
+  growth: number;       // 0..1
+  quality: number;      // 0..1
+  reputation: number;   // 0..100
+  pressure: number;     // 0..1 market pressure value
+}
+
+export interface CompetitionWeekReport {
+  totalUsers: number;
+  playerUsers: number;
+  playerMarketShare: number; // 0..1
+  playerRank: number;        // 1 == top
+  marketPressure: number;    // 0..1
+  lastRankDelta: number;     // positive when rank improves
+  topCompetitorName: string | null;
+}
+
+export interface CompetitionState {
+  competitors: CompetitorCompany[];
+  lastWeek: CompetitionWeekReport;
+  pendingPressureEvents: string[];
+}
+
+export interface CampaignMilestoneState {
+  activeId: string | null;
+  completedIds: string[];
+  discoveredIds: string[];
+  lastCompletedWeek: number | null;
+  flags: {
+    hadOverload: boolean;
+    usedMna: boolean;
+  };
+}
+
 // --- Technology / Influence Tree ---
 export type TechBranch = 'tech_core' | 'marketing_influence' | 'operations_process';
 
@@ -514,6 +555,8 @@ export interface Business {
   production: ProductionState;
   infrastructure: InfrastructureState;
   support: SupportState;
+  competition: CompetitionState;
+  campaign: CampaignMilestoneState;
 }
 
 // --- Events ---

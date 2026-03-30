@@ -1,5 +1,5 @@
 export const BALANCE = {
-  saveVersion: 3,
+  saveVersion: 4,
   start: {
     money: 100000,
     reputation: 10,
