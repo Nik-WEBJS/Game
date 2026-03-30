@@ -447,14 +447,14 @@ export const en = {
   wikiIsoRecognitionDebuffs: 'None.',
   wikiIsoRecognitionAvoid: 'Cannot be avoided — it\'s a positive event.',
   // Tips
-  wikiTip1: 'Start with 1 Developer. Don\'t hire more until Beta stage.',
-  wikiTip2: 'Your product earns $0 during Prototype (4 weeks). Budget carefully!',
-  wikiTip3: 'ISO 9001 blocks 50% of crisis events — invest early if you can afford it.',
-  wikiTip4: 'Employee levels (1-5) multiply their output up to 2.5x. Keep your team long-term.',
-  wikiTip5: 'Marketing employees grow your audience only from Release stage onwards.',
-  wikiTip6: 'Tech synergies give +8% bonus per pair. Cloud + Microservices + AI is a strong combo.',
-  wikiTip7: 'Upgrade your office before hiring — each level unlocks more employee slots.',
-  wikiTip8: 'In Decline stage, quality and audience drop. Plan your next product early.',
+  wikiTip1: 'Minimum viable start: Developer + Marketing. With only 1 Developer you are usually cash-negative.',
+  wikiTip2: 'Do not overhire before stable Release and first audience traction: fixed costs burn cash fast.',
+  wikiTip3: 'Revenue follows audience: without marketing and traffic/conversion growth, income barely scales.',
+  wikiTip4: 'Keep production queues running (code/design/ops/support), or feature installs/upgrades will stall.',
+  wikiTip5: 'Reliable early path: core_account -> growth_analytics -> mon_subscription.',
+  wikiTip6: 'If satisfaction < 60% or churn > 12%, prioritize support + retention + reliability features.',
+  wikiTip7: 'If server load approaches 90%+, upgrade hosting early: overload cuts conversion and retention.',
+  wikiTip8: 'Use M&A-lite in mid-game (buy_user_base/brand_boost) when you have a cash buffer.',
 
   // Furniture Catalog
   furnitureDeskName: 'Work Desk',

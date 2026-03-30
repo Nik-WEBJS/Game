@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Business Tycoon Wiki (Short Guide)
 
-## Getting Started
+Игровой симулятор роста digital-продукта: продукт, фичи, производство, инфраструктура, поддержка, конкуренты и кампания.
 
-First, run the development server:
+## Быстрый старт проекта
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Открой `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Ключевая логика денег (важно)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Если у тебя только `1 developer`, почти всегда будет убыток. Это нормальное поведение текущей модели.
 
-## Learn More
+Почему:
+- выручка сильно зависит от `audience`;
+- `audience` растет в основном через `marketing`;
+- продукт сначала проходит `prototype -> beta -> release`;
+- пока продукта нет в рабочем состоянии и нет маркетинга, доход слабый, а зарплаты/хостинг уже списываются.
 
-To learn more about Next.js, take a look at the following resources:
+## Краткий гайд: как выйти в плюс
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Стартовая команда: минимум `developer + marketing` (лучше добавить `manager`).
+2. Первые недели: держи разработку до `release`, не раздувай штат.
+3. Производство: ставь очередь ресурсов (`code/design/ops/support`), чтобы хватало на фичи.
+4. Первые фичи: `core_account` -> затем growth/monetization ветка (`growth_analytics`, `mon_subscription`).
+5. Следи за инфраструктурой: при росте `load` заранее апгрейдь хостинг.
+6. Следи за support: backlog напрямую бьет по satisfaction/churn и режет рост.
+7. При доступности используй M&A-lite (особенно `buy_user_base`/`brand_boost`) для ускорения mid-game.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Антипаттерны (ведут к проигрышу)
 
-## Deploy on Vercel
+- играть с одним сотрудником;
+- нанимать много людей до появления стабильной воронки;
+- игнорировать маркетинг;
+- игнорировать `load` и `support queue`;
+- пытаться качать все фичи сразу без ресурсов.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Где смотреть детали
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Полная спецификация: `SPECIFICATION.md`
+- Формулы и расчеты: `FORMULAS.md`
+- План релизов: `ROADMAP.md`
+
