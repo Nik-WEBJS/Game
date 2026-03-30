@@ -2,6 +2,7 @@ import { GameState, BusinessMetrics } from '../types';
 import { TECHNOLOGIES } from '../data';
 import { calculateCombinationBreakdown } from './combination';
 import { BALANCE } from '../config/balance';
+import { getHostingWeeklyCost } from './infrastructure-support';
 
 export function calculateEconomy(state: GameState): BusinessMetrics {
   return calculateEconomyWithBreakdown(state).metrics;
@@ -14,6 +15,7 @@ export interface EconomyBreakdown {
   costs: {
     teamSalaries: number;
     infrastructure: number;
+    hosting: number;
     isoMaintenance: number;
     techComplexityCost: number;
     total: number;
@@ -43,8 +45,9 @@ export function calculateEconomyWithBreakdown(state: GameState): { metrics: Busi
     }, 0);
 
   const techComplexityCost = adoptedTechs.reduce((sum, t) => sum + t.complexityAdd * BALANCE.economy.techComplexityCostMult, 0);
+  const hosting = getHostingWeeklyCost(state);
 
-  const costs = teamSalaries + infrastructure + isoMaintenance + techComplexityCost;
+  const costs = teamSalaries + infrastructure + hosting + isoMaintenance + techComplexityCost;
 
   // --- Profit ---
   const profit = revenue - costs;
@@ -83,6 +86,7 @@ export function calculateEconomyWithBreakdown(state: GameState): { metrics: Busi
       costs: {
         teamSalaries,
         infrastructure,
+        hosting,
         isoMaintenance,
         techComplexityCost,
         total: costs,

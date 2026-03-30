@@ -6,6 +6,7 @@ import { runDeterministicSimulationTest } from '../src/game/engines/simulation';
 import { BALANCE } from '../src/game/config/balance';
 import { createInitialLiveProduct } from '../src/game/data-product';
 import { createInitialProductionState } from '../src/game/data-production';
+import { createInitialInfrastructureState, createInitialSupportState } from '../src/game/data-infrastructure';
 
 function createMember(id: string, role: TeamRole, experience: number, talent: number): TeamMember {
   return {
@@ -84,6 +85,8 @@ function createSmokeState(): GameState {
       marketRefreshWeek: 0,
       liveProduct,
       production: createInitialProductionState(),
+      infrastructure: createInitialInfrastructureState(),
+      support: createInitialSupportState(),
     },
     phase: 'playing',
     logs: [{ week: 1, message: 'Smoke test start', type: 'info' }],
@@ -124,4 +127,5 @@ function run(): number {
 }
 
 process.exitCode = run();
+
 

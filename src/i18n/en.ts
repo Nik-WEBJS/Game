@@ -31,6 +31,7 @@ export const en = {
   tabOverview: 'Overview',
   tabProduct: 'Product',
   tabProduction: 'Production',
+  tabInfra: 'Infrastructure',
   tabTeam: 'Team',
   tabTech: 'Tech',
   tabISO: 'ISO',

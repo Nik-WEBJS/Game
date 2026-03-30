@@ -177,7 +177,7 @@ export function DebugSandbox() {
         <div className="text-xs text-zinc-300 mb-2">Formula inspector</div>
         <div className="text-[11px] text-zinc-400 space-y-1">
           <div>Revenue: <span className="text-zinc-100">${Math.round(combo.revenue).toLocaleString()}</span></div>
-          <div>Costs: <span className="text-zinc-100">${Math.round(costs.total).toLocaleString()}</span> <span className="text-zinc-500">(salary ${Math.round(costs.teamSalaries).toLocaleString()}, infra ${Math.round(costs.infrastructure).toLocaleString()}, iso ${Math.round(costs.isoMaintenance).toLocaleString()}, complexity ${Math.round(costs.techComplexityCost).toLocaleString()})</span></div>
+          <div>Costs: <span className="text-zinc-100">${Math.round(costs.total).toLocaleString()}</span> <span className="text-zinc-500">(salary ${Math.round(costs.teamSalaries).toLocaleString()}, infra ${Math.round(costs.infrastructure).toLocaleString()}, hosting ${Math.round(costs.hosting).toLocaleString()}, iso ${Math.round(costs.isoMaintenance).toLocaleString()}, complexity ${Math.round(costs.techComplexityCost).toLocaleString()})</span></div>
           <div>Profit: <span className={profitNow >= 0 ? 'text-emerald-300' : 'text-red-300'}>${Math.round(profitNow).toLocaleString()}</span></div>
           <div>Demand: <span className="text-zinc-100">{(combo.demand * 100).toFixed(1)}%</span></div>
           <div>Quality: <span className="text-zinc-100">{(combo.quality * 100).toFixed(1)}%</span></div>

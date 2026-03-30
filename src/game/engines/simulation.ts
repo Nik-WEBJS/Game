@@ -10,6 +10,7 @@ import { tickFreelance } from './freelance';
 import { calculateEconomyWithBreakdown, EconomyBreakdown } from './economy';
 import { tickLiveProduct } from './live-product';
 import { tickProduction } from './production';
+import { tickInfrastructureAndSupport } from './infrastructure-support';
 import { getT } from '../../i18n';
 import { ttNodeName } from '../../i18n/game-text';
 import { BALANCE } from '../config/balance';
@@ -30,6 +31,7 @@ export function simulateWeek(state: GameState): GameState {
   gs = tickISO(gs);
   gs = tickProduction(gs);
   gs = tickLiveProduct(gs);
+  gs = tickInfrastructureAndSupport(gs);
 
   const beforeMetrics = gs.business.metrics;
   const econ = calculateEconomyWithBreakdown(gs);
@@ -256,6 +258,8 @@ function validateSimulationState(state: GameState, step: number): string[] {
   checkFinite(m.growthRate, 'growth');
   checkFinite(m.teamEfficiency, 'team_efficiency');
   const prod = state.business.production;
+  const infra = state.business.infrastructure;
+  const support = state.business.support;
   checkFinite(prod.inventory.code, 'production_inventory_code');
   checkFinite(prod.inventory.design, 'production_inventory_design');
   checkFinite(prod.inventory.ops, 'production_inventory_ops');
@@ -272,6 +276,18 @@ function validateSimulationState(state: GameState, step: number): string[] {
     if (item.units <= 0) issues.push(`${tag}:production_queue_units_non_positive`);
     if (item.progress < 0) issues.push(`${tag}:production_queue_progress_negative`);
   }
+  checkFinite(infra.lastWeek.load, 'infra_load');
+  checkFinite(infra.lastWeek.latencyMs, 'infra_latency');
+  checkFinite(infra.lastWeek.outageRisk, 'infra_outage_risk');
+  checkFinite(support.openTickets, 'support_open_tickets');
+  checkFinite(support.generatedLastWeek, 'support_generated');
+  checkFinite(support.resolvedLastWeek, 'support_resolved');
+  checkFinite(support.avgWaitWeeks, 'support_avg_wait');
+  checkFinite(support.backlogPressure, 'support_backlog_pressure');
+
+  if (infra.lastWeek.outageRisk < 0 || infra.lastWeek.outageRisk > 1) issues.push(`${tag}:infra_outage_risk_out_of_bounds`);
+  if (support.backlogPressure < 0 || support.backlogPressure > 1) issues.push(`${tag}:support_backlog_pressure_out_of_bounds`);
+  if (support.openTickets < 0) issues.push(`${tag}:support_open_tickets_negative`);
 
   if (m.risk < 0 || m.risk > 1) issues.push(`${tag}:risk_out_of_bounds`);
   if (m.quality < 0 || m.quality > 1) issues.push(`${tag}:quality_out_of_bounds`);

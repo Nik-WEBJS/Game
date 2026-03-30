@@ -1,11 +1,12 @@
 ﻿import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType, ProductionResourceBundle, ProductionResourceId } from './types';
+import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType, ProductionResourceBundle, ProductionResourceId, HostingMode, InfrastructureServerType } from './types';
 import { BALANCE } from './config/balance';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, EVENTS_POOL, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, FURNITURE_CATALOG } from './data-advanced';
 import { createInitialLiveProduct } from './data-product';
 import { createInitialProductionState } from './data-production';
+import { createInitialInfrastructureState, createInitialSupportState } from './data-infrastructure';
 import { calculateEconomy, calculateEconomyWithBreakdown, EconomyBreakdown } from './engines/economy';
 import { simulateWeek, runDeterministicSimulationTest, DeterministicSimulationResult } from './engines/simulation';
 import { startISO, advanceISO, canStartISO, canAdvanceISO, isManagerBusyWithISO } from './engines/iso';
@@ -15,6 +16,15 @@ import { createInitialProduct } from './engines/product';
 import { sendToFreelance as sendFreelance, canSendToFreelance } from './engines/freelance';
 import { installFeature, upgradeFeature, canInstallFeature, canUpgradeFeature, upgradeFeatureSlots, getFeatureSlotUpgradeCost } from './engines/live-product';
 import { cancelProductionQueueItem, enqueueProduction, estimateWeeklyProductionOutput, moveProductionQueueItem } from './engines/production';
+import {
+  canUpgradeOwnCapacity as infraCanUpgradeOwnCapacity,
+  getCloudTierUpgradeCost as infraGetCloudTierUpgradeCost,
+  getOwnCapacityUpgradeCost as infraGetOwnCapacityUpgradeCost,
+  runSupportBurst as infraRunSupportBurst,
+  setHostingMode as infraSetHostingMode,
+  upgradeCloudTier as infraUpgradeCloudTier,
+  upgradeOwnCapacity as infraUpgradeOwnCapacity,
+} from './engines/infrastructure-support';
 import { startPlacement } from '../office/furnitureState';
 import { getT } from '../i18n';
 import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18n/game-text';
@@ -72,6 +82,8 @@ function createInitialState(): GameState {
       marketRefreshWeek: 0,
       liveProduct: null,
       production: createInitialProductionState(),
+      infrastructure: createInitialInfrastructureState(),
+      support: createInitialSupportState(),
     },
     phase: 'setup',
     logs: [
@@ -139,6 +151,29 @@ function mergeWithInitialState(persisted: Partial<GameState> | undefined): GameS
             idle: { ...baseProduction.lastWeek.idle, ...(source.lastWeek?.idle ?? {}) },
           },
         };
+      })(),
+      infrastructure: (() => {
+        const source = business.infrastructure;
+        const baseInfra = base.business.infrastructure;
+        if (!source) return baseInfra;
+        return {
+          ...baseInfra,
+          ...source,
+          ownCapacity: { ...baseInfra.ownCapacity, ...(source.ownCapacity ?? {}) },
+          lastWeek: {
+            ...baseInfra.lastWeek,
+            ...(source.lastWeek ?? {}),
+            demand: { ...baseInfra.lastWeek.demand, ...(source.lastWeek?.demand ?? {}) },
+            capacity: { ...baseInfra.lastWeek.capacity, ...(source.lastWeek?.capacity ?? {}) },
+            utilization: { ...baseInfra.lastWeek.utilization, ...(source.lastWeek?.utilization ?? {}) },
+          },
+        };
+      })(),
+      support: (() => {
+        const source = business.support;
+        const baseSupport = base.business.support;
+        if (!source) return baseSupport;
+        return { ...baseSupport, ...source };
       })(),
       liveProduct: (() => {
         const fallback = (persisted.phase === 'playing' && business.productId)
@@ -215,6 +250,13 @@ interface GameStore extends GameState {
   cancelProductionQueue: (queueId: string) => void;
   moveProductionQueue: (queueId: string, direction: -1 | 1) => void;
   estimateProductionOutput: () => ProductionResourceBundle;
+  setHostingMode: (mode: HostingMode) => void;
+  upgradeCloudTier: () => void;
+  getCloudTierUpgradeCost: () => number | null;
+  upgradeOwnServerCapacity: (serverType: InfrastructureServerType) => void;
+  canUpgradeOwnServerCapacity: (serverType: InfrastructureServerType) => boolean;
+  getOwnServerUpgradeCost: (serverType: InfrastructureServerType) => { money: number; ops: number; step: number };
+  runSupportBurst: (requestedTickets?: number) => void;
   // Time
   setGameSpeed: (speed: GameSpeed) => void;
   gameTick: (deltaSec: number) => void;
@@ -365,6 +407,21 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
     set(moveProductionQueueItem(toGameState(get()), queueId, direction));
   },
   estimateProductionOutput: () => estimateWeeklyProductionOutput(toGameState(get())),
+  setHostingMode: (mode) => {
+    set(infraSetHostingMode(toGameState(get()), mode));
+  },
+  upgradeCloudTier: () => {
+    set(infraUpgradeCloudTier(toGameState(get())));
+  },
+  getCloudTierUpgradeCost: () => infraGetCloudTierUpgradeCost(toGameState(get())),
+  upgradeOwnServerCapacity: (serverType) => {
+    set(infraUpgradeOwnCapacity(toGameState(get()), serverType));
+  },
+  canUpgradeOwnServerCapacity: (serverType) => infraCanUpgradeOwnCapacity(toGameState(get()), serverType),
+  getOwnServerUpgradeCost: (serverType) => infraGetOwnCapacityUpgradeCost(toGameState(get()), serverType),
+  runSupportBurst: (requestedTickets) => {
+    set(infraRunSupportBurst(toGameState(get()), requestedTickets));
+  },
 
   setGameSpeed: (speed) => {
     set(s => ({ player: { ...s.player, gameSpeed: speed } }));

@@ -298,6 +298,43 @@ export interface ProductionState {
   lastWeek: ProductionWeekReport;
 }
 
+// --- Infrastructure + Support (R3 base) ---
+export type HostingMode = 'cloud' | 'own';
+export type InfrastructureServerType = 'web' | 'db' | 'cache';
+
+export interface InfrastructureCapacity {
+  web: number;
+  db: number;
+  cache: number;
+}
+
+export interface InfrastructureWeekReport {
+  demand: InfrastructureCapacity;
+  capacity: InfrastructureCapacity;
+  utilization: InfrastructureCapacity; // 0..n where 1 == full load
+  load: number;       // max utilization
+  latencyMs: number;
+  outageRisk: number; // 0..1
+  outage: boolean;
+  degradation: number; // 0..1 pressure applied to product loop
+}
+
+export interface InfrastructureState {
+  hostingMode: HostingMode;
+  cloudTier: 1 | 2 | 3;
+  ownCapacity: InfrastructureCapacity;
+  lastWeek: InfrastructureWeekReport;
+}
+
+export interface SupportState {
+  openTickets: number;
+  generatedLastWeek: number;
+  resolvedLastWeek: number;
+  avgWaitWeeks: number;
+  slaTargetWeeks: number;
+  backlogPressure: number; // 0..1
+}
+
 // --- Technology / Influence Tree ---
 export type TechBranch = 'tech_core' | 'marketing_influence' | 'operations_process';
 
@@ -475,6 +512,8 @@ export interface Business {
   marketRefreshWeek: number; // week when market was last refreshed
   liveProduct: LiveProduct | null;
   production: ProductionState;
+  infrastructure: InfrastructureState;
+  support: SupportState;
 }
 
 // --- Events ---

@@ -1,5 +1,5 @@
 export const BALANCE = {
-  saveVersion: 2,
+  saveVersion: 3,
   start: {
     money: 100000,
     reputation: 10,
@@ -39,6 +39,73 @@ export const BALANCE = {
       installMultiplier: 0.85,
       upgradePerLevelMultiplier: 0.3,
       minimumUnits: 1,
+    },
+  },
+  infrastructure: {
+    latency: {
+      baseMs: 95,
+      perLoadMs: 55,
+      overloadQuadraticMs: 220,
+      outageExtraMs: 320,
+    },
+    cloud: {
+      tiers: [
+        { tier: 1, capacity: { web: 55, db: 40, cache: 48 }, baseCost: 1600, variableCostPerLoad: 420 },
+        { tier: 2, capacity: { web: 90, db: 70, cache: 82 }, baseCost: 3200, variableCostPerLoad: 560 },
+        { tier: 3, capacity: { web: 150, db: 120, cache: 135 }, baseCost: 6200, variableCostPerLoad: 760 },
+      ] as const,
+      upgradeCost: [0, 18000, 36000] as const, // index == tier-1
+    },
+    own: {
+      baseCapacity: { web: 30, db: 24, cache: 26 },
+      expandStep: { web: 14, db: 10, cache: 12 },
+      expandMoneyCost: { web: 8200, db: 7800, cache: 7600 },
+      expandOpsCost: { web: 22, db: 20, cache: 18 },
+      maintenanceCostPerUnit: 32,
+    },
+    risk: {
+      ownHostingBaseRisk: 0.06,
+      cloudBaseRisk: 0.02,
+      overloadRiskScale: 0.7,
+      businessRiskScale: 0.18,
+      cloudRiskReduction: 0.78,
+    },
+    degradation: {
+      overloadScale: 0.24,
+      latencyThresholdMs: 220,
+      latencyScale: 0.0012,
+      outagePenalty: 0.18,
+      maxDegradation: 0.55,
+    },
+  },
+  support: {
+    slaTargetWeeks: 2,
+    ticketGeneration: {
+      basePerActiveUser: 0.012,
+      overloadScale: 22,
+      outageSpike: 55,
+      churnScale: 0.09,
+    },
+    teamCapacityByRole: {
+      developer: 1.2,
+      manager: 3.5,
+      qa: 8.5,
+      security: 2.3,
+      marketing: 1.6,
+    },
+    inventorySupport: {
+      maxSharePerWeek: 0.55,
+      ticketsPerUnit: 4,
+    },
+    penalty: {
+      backlogScale: 0.085,
+      waitBeyondSlaScale: 0.03,
+      maxPenalty: 0.22,
+    },
+    burst: {
+      moneyCostPerTicket: 18,
+      maxTicketsPerAction: 120,
+      supportUnitsPerTicket: 0.2,
     },
   },
   economy: {
