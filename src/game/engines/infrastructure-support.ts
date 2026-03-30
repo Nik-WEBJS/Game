@@ -30,10 +30,20 @@ function getCurrentCapacity(state: GameState): InfrastructureCapacity {
 function getDemandFromLiveProduct(state: GameState): InfrastructureCapacity {
   const live = state.business.liveProduct;
   if (!live) return { web: 0, db: 0, cache: 0 };
+  const model = BALANCE.infrastructure.demandModel;
   return {
-    web: Math.max(4, live.metrics.traffic / 120 + live.metrics.activeUsers / 2600),
-    db: Math.max(3, live.metrics.activeUsers / 1900 + live.metrics.payingUsers / 620),
-    cache: Math.max(2, live.metrics.traffic / 170 + live.metrics.activeUsers / 3600),
+    web: Math.max(
+      model.minimum.web,
+      live.metrics.traffic / model.webTrafficDivisor + live.metrics.activeUsers / model.webActiveDivisor,
+    ),
+    db: Math.max(
+      model.minimum.db,
+      live.metrics.activeUsers / model.dbActiveDivisor + live.metrics.payingUsers / model.dbPayingDivisor,
+    ),
+    cache: Math.max(
+      model.minimum.cache,
+      live.metrics.traffic / model.cacheTrafficDivisor + live.metrics.activeUsers / model.cacheActiveDivisor,
+    ),
   };
 }
 
@@ -254,12 +264,20 @@ export function tickInfrastructureAndSupport(state: GameState): GameState {
 
   const managerBusy = isManagerBusyWithISO(state);
   const teamCapacityByRole = BALANCE.support.teamCapacityByRole;
+  const teamEff = BALANCE.support.teamEfficiency;
   const teamSupportCapacity = state.business.team
     .filter(member => member.status === 'office')
     .reduce((sum, member) => {
       if (managerBusy && member.role === 'manager') return sum;
       const base = teamCapacityByRole[member.role];
-      const efficiency = clamp(0.35, 1.55, 0.7 + member.experience / 220 + member.morale / 280 - member.burnout / 260);
+      const efficiency = clamp(
+        teamEff.min,
+        teamEff.max,
+        teamEff.base
+          + member.experience / teamEff.experienceDivisor
+          + member.morale / teamEff.moraleDivisor
+          - member.burnout / teamEff.burnoutDivisor,
+      );
       return sum + base * efficiency;
     }, 0);
 
@@ -278,11 +296,20 @@ export function tickInfrastructureAndSupport(state: GameState): GameState {
     nextState = consumeProductionResources(nextState, { support: supportUnitsUsed });
   }
 
+  const queueDynamics = BALANCE.support.queueDynamics;
   const openTickets = Math.max(0, incomingTickets - resolvedTickets);
   const avgWaitWeeks = openTickets <= 0
-    ? support.avgWaitWeeks * 0.45
-    : Math.min(10, support.avgWaitWeeks * 0.65 + openTickets / Math.max(1, resolvedTickets));
-  const backlogPressure = clamp(0, 1, openTickets / Math.max(1, resolvedTickets * 2));
+    ? support.avgWaitWeeks * queueDynamics.waitDecayWhenClear
+    : Math.min(
+      10,
+      support.avgWaitWeeks * queueDynamics.waitCarry
+        + openTickets / Math.max(1, resolvedTickets * queueDynamics.waitRatioDivisor),
+    );
+  const backlogPressure = clamp(
+    0,
+    1,
+    openTickets / Math.max(1, resolvedTickets * queueDynamics.backlogResolvedScale + queueDynamics.backlogBuffer),
+  );
 
   const supportPenaltyCfg = BALANCE.support.penalty;
   const supportPenalty = clamp(
@@ -293,19 +320,26 @@ export function tickInfrastructureAndSupport(state: GameState): GameState {
   );
 
   const totalDegradation = clamp(0, degCfg.maxDegradation, infraDegradation + supportPenalty);
+  const impact = degCfg.productImpact;
 
   const before = live.metrics;
-  const updatedTraffic = Math.max(80, Math.round(before.traffic * (1 - totalDegradation * 0.12 - (outage ? 0.03 : 0))));
-  const updatedConversion = clamp(0.02, 0.45, before.conversion - totalDegradation * 0.2);
-  const updatedChurn = clamp(0.01, 0.45, before.churn + totalDegradation * 0.34);
-  const updatedSatisfaction = clamp(0.1, 0.99, before.satisfaction - totalDegradation * 0.78);
+  const updatedTraffic = Math.max(
+    80,
+    Math.round(before.traffic * (1 - totalDegradation * impact.trafficScale - (outage ? impact.outageTrafficShock : 0))),
+  );
+  const updatedConversion = clamp(0.02, 0.45, before.conversion - totalDegradation * impact.conversionScale);
+  const updatedChurn = clamp(0.01, 0.45, before.churn + totalDegradation * impact.churnScale);
+  const updatedSatisfaction = clamp(0.1, 0.99, before.satisfaction - totalDegradation * impact.satisfactionScale);
   const updatedSignups = Math.max(0, Math.round(updatedTraffic * updatedConversion));
-  const outageActiveShock = outage ? before.activeUsers * 0.015 : 0;
-  const updatedActiveUsers = Math.max(0, Math.round(before.activeUsers - outageActiveShock - before.activeUsers * totalDegradation * 0.02));
-  const outagePayingShock = outage ? before.payingUsers * 0.01 : 0;
+  const outageActiveShock = outage ? before.activeUsers * impact.outageActiveShock : 0;
+  const updatedActiveUsers = Math.max(
+    0,
+    Math.round(before.activeUsers - outageActiveShock - before.activeUsers * totalDegradation * impact.activeScale),
+  );
+  const outagePayingShock = outage ? before.payingUsers * impact.outagePayingShock : 0;
   const updatedPayingUsers = Math.min(
     updatedActiveUsers,
-    Math.max(0, Math.round(before.payingUsers - outagePayingShock - before.payingUsers * totalDegradation * 0.015)),
+    Math.max(0, Math.round(before.payingUsers - outagePayingShock - before.payingUsers * totalDegradation * impact.payingScale)),
   );
 
   const deltaTraffic = updatedTraffic - before.traffic;
