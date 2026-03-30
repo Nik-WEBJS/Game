@@ -19,6 +19,7 @@ import { FurniturePanel } from './FurniturePanel';
 import { WikiPanel } from './WikiPanel';
 import { MiniMetrics } from './MiniMetrics';
 import { OfficeScene } from '@/office/OfficeScene';
+import { DebugSandbox } from './DebugSandbox';
 import { subscribePlacement, furniturePlacement } from '@/office/furnitureState';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -90,6 +91,7 @@ export function GameDashboard() {
       {/* Real-time game loop */}
       <GameLoop />
       <ToastContainer />
+      <DebugSandbox />
 
       {/* Full-screen office view */}
       <div className="absolute inset-0">

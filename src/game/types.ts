@@ -411,6 +411,7 @@ export interface GameLog {
 }
 
 export interface GameState {
+  saveVersion: number;
   player: Player;
   business: Business;
   phase: GamePhase;

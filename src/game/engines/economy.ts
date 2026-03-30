@@ -1,10 +1,30 @@
 import { GameState, BusinessMetrics } from '../types';
 import { TECHNOLOGIES } from '../data';
-import { calculateCombination } from './combination';
+import { calculateCombinationBreakdown } from './combination';
+import { BALANCE } from '../config/balance';
 
 export function calculateEconomy(state: GameState): BusinessMetrics {
+  return calculateEconomyWithBreakdown(state).metrics;
+}
+
+export interface EconomyBreakdown {
+  revenue: {
+    total: number;
+  };
+  costs: {
+    teamSalaries: number;
+    infrastructure: number;
+    isoMaintenance: number;
+    techComplexityCost: number;
+    total: number;
+  };
+  combination: ReturnType<typeof calculateCombinationBreakdown>;
+}
+
+export function calculateEconomyWithBreakdown(state: GameState): { metrics: BusinessMetrics; breakdown: EconomyBreakdown } {
   const { business } = state;
-  const combo = calculateCombination(state);
+  const comboBreakdown = calculateCombinationBreakdown(state);
+  const combo = comboBreakdown.result;
 
   // --- Revenue ---
   const revenue = combo.revenue;
@@ -13,7 +33,7 @@ export function calculateEconomy(state: GameState): BusinessMetrics {
   const teamSalaries = business.team.reduce((sum, m) => sum + m.salary, 0);
 
   const adoptedTechs = TECHNOLOGIES.filter(t => business.technologies.includes(t.id));
-  const infrastructure = adoptedTechs.reduce((sum, t) => sum + t.cost * 0.03, 0); // 3% of cost per turn
+  const infrastructure = adoptedTechs.reduce((sum, t) => sum + t.cost * BALANCE.economy.infrastructureRate, 0);
 
   const isoMaintenance = business.isoStandards
     .filter(iso => iso.currentStage !== 'none')
@@ -22,7 +42,7 @@ export function calculateEconomy(state: GameState): BusinessMetrics {
       return sum + iso.maintenanceCost * 0.5; // half cost during implementation
     }, 0);
 
-  const techComplexityCost = adoptedTechs.reduce((sum, t) => sum + t.complexityAdd * 500, 0);
+  const techComplexityCost = adoptedTechs.reduce((sum, t) => sum + t.complexityAdd * BALANCE.economy.techComplexityCostMult, 0);
 
   const costs = teamSalaries + infrastructure + isoMaintenance + techComplexityCost;
 
@@ -45,7 +65,7 @@ export function calculateEconomy(state: GameState): BusinessMetrics {
     ));
   }
 
-  return {
+  const metrics = {
     revenue,
     costs,
     profit,
@@ -55,10 +75,25 @@ export function calculateEconomy(state: GameState): BusinessMetrics {
     growthRate: combo.growth,
     teamEfficiency,
   };
+
+  return {
+    metrics,
+    breakdown: {
+      revenue: { total: revenue },
+      costs: {
+        teamSalaries,
+        infrastructure,
+        isoMaintenance,
+        techComplexityCost,
+        total: costs,
+      },
+      combination: comboBreakdown,
+    },
+  };
 }
 
 export function applyEconomy(state: GameState): GameState {
-  const metrics = calculateEconomy(state);
+  const { metrics } = calculateEconomyWithBreakdown(state);
   const newMoney = state.player.money + metrics.profit;
 
   return {

@@ -1,7 +1,40 @@
 import { GameState, CombinationResult, LIFECYCLE_REVENUE_MULT, EMPLOYEE_LEVEL_OUTPUT_MULT } from '../types';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS } from '../data';
+import { BALANCE } from '../config/balance';
+
+export interface CombinationBreakdown {
+  result: CombinationResult;
+  factors: {
+    hasEmployees: boolean;
+    baseDemand: number;
+    baseComplexity: number;
+    productFit: number;
+    marketAccess: number;
+    monetizationEfficiency: number;
+    monetizationRiskModifier: number;
+    totalTechComplexity: number;
+    totalTechQualityBonus: number;
+    synergyCount: number;
+    techSynergy: number;
+    teamEfficiency: number;
+    avgLevelMult: number;
+    techTreeQuality: number;
+    techTreeGrowth: number;
+    techTreeRisk: number;
+    avgAudience: number;
+    lifecycleMult: number;
+    clientTierMult: number;
+    isoStabilization: number;
+    growthAggression: number;
+    teamLoad: number;
+  };
+}
 
 export function calculateCombination(state: GameState): CombinationResult {
+  return calculateCombinationBreakdown(state).result;
+}
+
+export function calculateCombinationBreakdown(state: GameState): CombinationBreakdown {
   const { business } = state;
 
   const niche = NICHES.find(n => n.id === business.nicheId);
@@ -10,7 +43,33 @@ export function calculateCombination(state: GameState): CombinationResult {
   const monetization = MONETIZATIONS.find(m => m.id === business.monetizationId);
 
   if (!niche || !product || !market || !monetization) {
-    return { revenue: 0, growth: 0, risk: 0.1, quality: 0, demand: 0 };
+    return {
+      result: { revenue: 0, growth: 0, risk: 0.1, quality: 0, demand: 0 },
+      factors: {
+        hasEmployees: false,
+        baseDemand: 0,
+        baseComplexity: 0,
+        productFit: 1,
+        marketAccess: 1,
+        monetizationEfficiency: 0,
+        monetizationRiskModifier: 0,
+        totalTechComplexity: 0,
+        totalTechQualityBonus: 0,
+        synergyCount: 0,
+        techSynergy: 1,
+        teamEfficiency: 0,
+        avgLevelMult: 1,
+        techTreeQuality: 0,
+        techTreeGrowth: 0,
+        techTreeRisk: 0,
+        avgAudience: 0,
+        lifecycleMult: 0,
+        clientTierMult: 0,
+        isoStabilization: 0,
+        growthAggression: 0,
+        teamLoad: 0,
+      },
+    };
   }
 
   // Base niche values
@@ -100,7 +159,7 @@ export function calculateCombination(state: GameState): CombinationResult {
 
   // Revenue = demand * quality * monetization * techSynergy * lifecycle * clientTier * scale
   // No revenue without employees or if product is in prototype
-  const BASE_REVENUE_SCALE = 18000;
+  const BASE_REVENUE_SCALE = BALANCE.economy.baseRevenueScale;
   const revenue = hasEmployees
     ? demand * quality * monetization.efficiency * techSynergy * lifecycleMult * clientTierMult * BASE_REVENUE_SCALE
     : 0;
@@ -123,5 +182,31 @@ export function calculateCombination(state: GameState): CombinationResult {
     + ttRisk
   ));
 
-  return { revenue, growth, risk, quality, demand };
+  return {
+    result: { revenue, growth, risk, quality, demand },
+    factors: {
+      hasEmployees,
+      baseDemand,
+      baseComplexity,
+      productFit,
+      marketAccess,
+      monetizationEfficiency: monetization.efficiency,
+      monetizationRiskModifier: monetization.riskModifier,
+      totalTechComplexity: totalComplexity,
+      totalTechQualityBonus: totalQualityBonus,
+      synergyCount,
+      techSynergy,
+      teamEfficiency: teamEff,
+      avgLevelMult,
+      techTreeQuality: ttQuality,
+      techTreeGrowth: ttGrowth,
+      techTreeRisk: ttRisk,
+      avgAudience,
+      lifecycleMult,
+      clientTierMult,
+      isoStabilization,
+      growthAggression,
+      teamLoad,
+    },
+  };
 }

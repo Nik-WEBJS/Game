@@ -1,9 +1,12 @@
 import { GameState, GamePhase } from '../types';
 import { getT } from '../../i18n';
+import { BALANCE } from '../config/balance';
 
-const IPO_THRESHOLD = 500000;
-const MARKET_DOMINANCE_REPUTATION = 95;
-const BANKRUPTCY_THRESHOLD = -50000;
+const IPO_THRESHOLD = BALANCE.progression.ipoMoneyThreshold;
+const IPO_REPUTATION = BALANCE.progression.ipoReputationThreshold;
+const MARKET_DOMINANCE_REPUTATION = BALANCE.progression.marketDominanceReputation;
+const MARKET_DOMINANCE_QUALITY = BALANCE.progression.marketDominanceQuality;
+const BANKRUPTCY_THRESHOLD = BALANCE.progression.bankruptcyThreshold;
 
 export function checkWinLose(state: GameState): GameState {
   if (state.phase !== 'playing') return state;
@@ -33,7 +36,7 @@ export function checkWinLose(state: GameState): GameState {
 
   // --- Win conditions (soft-win) ---
   // IPO
-  if (state.player.money >= IPO_THRESHOLD && state.player.reputation >= 80) {
+  if (state.player.money >= IPO_THRESHOLD && state.player.reputation >= IPO_REPUTATION) {
     newLogs.push({
       week: state.player.currentWeek,
       message: getT().ipoSuccess,
@@ -43,7 +46,7 @@ export function checkWinLose(state: GameState): GameState {
   }
 
   // Market dominance
-  if (state.player.reputation >= MARKET_DOMINANCE_REPUTATION && state.business.metrics.quality >= 0.9) {
+  if (state.player.reputation >= MARKET_DOMINANCE_REPUTATION && state.business.metrics.quality >= MARKET_DOMINANCE_QUALITY) {
     newLogs.push({
       week: state.player.currentWeek,
       message: getT().marketDominance,

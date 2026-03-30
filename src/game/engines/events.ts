@@ -190,9 +190,23 @@ export function applyEvents(state: GameState, events: GameEvent[]): GameState {
       iso: '📋',
     };
 
+    const details: string[] = [];
+    if (eff.moneyDelta) {
+      const scaledMoney = eff.moneyDelta < 0
+        ? Math.round(eff.moneyDelta * penaltyMult)
+        : eff.moneyDelta;
+      details.push(`money ${scaledMoney > 0 ? '+' : ''}$${Math.abs(scaledMoney).toLocaleString()}`);
+    }
+    if (eff.reputationDelta) details.push(`rep ${eff.reputationDelta > 0 ? '+' : ''}${eff.reputationDelta}`);
+    if (eff.demandDelta) details.push(`demand ${eff.demandDelta > 0 ? '+' : ''}${(eff.demandDelta * 100).toFixed(1)}pp`);
+    if (eff.qualityDelta) details.push(`quality ${eff.qualityDelta > 0 ? '+' : ''}${(eff.qualityDelta * 100).toFixed(1)}pp`);
+    if (eff.riskDelta) details.push(`risk ${eff.riskDelta > 0 ? '+' : ''}${(eff.riskDelta * 100).toFixed(1)}pp`);
+    if (eff.burnoutDelta) details.push(`burnout ${eff.burnoutDelta > 0 ? '+' : ''}${eff.burnoutDelta}`);
+    if (eff.isoProgressDelta) details.push(`iso ${eff.isoProgressDelta > 0 ? '+' : ''}${eff.isoProgressDelta}`);
+
     newLogs.push({
       week: state.player.currentWeek,
-      message: `${eventTypeIcon[event.type] || '📌'} ${eventTitle(event.id, getT(), event.title)}: ${eventDesc(event.id, getT(), event.description)}`,
+      message: `${eventTypeIcon[event.type] || '📌'} ${eventTitle(event.id, getT(), event.title)}: ${eventDesc(event.id, getT(), event.description)}${details.length ? ` [${details.join(', ')}]` : ''}`,
       type: event.type === 'crisis' ? 'danger' : event.type === 'positive' ? 'success' : 'event',
     });
   }

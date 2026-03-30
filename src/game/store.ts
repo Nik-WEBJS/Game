@@ -1,8 +1,10 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { GameState, GamePhase, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType } from './types';
-import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, createISO9001 } from './data';
+import { BALANCE } from './config/balance';
+import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, EVENTS_POOL, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, MARKET_REFRESH_INTERVAL, FURNITURE_CATALOG } from './data-advanced';
-import { applyEconomy, calculateEconomy } from './engines/economy';
+import { calculateEconomy, calculateEconomyWithBreakdown, EconomyBreakdown } from './engines/economy';
 import { tickISO, startISO, advanceISO, canStartISO, canAdvanceISO, isManagerBusyWithISO } from './engines/iso';
 import { rollEvents, applyEvents } from './engines/events';
 import { tickTeam, hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone, assignDesk } from './engines/team';
@@ -13,13 +15,15 @@ import { startPlacement } from '../office/furnitureState';
 import { getT } from '../i18n';
 import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18n/game-text';
 
-const INITIAL_MONEY = 100000;
+const INITIAL_MONEY = BALANCE.start.money;
+const SAVE_VERSION = BALANCE.saveVersion;
 
 function createInitialState(): GameState {
   return {
+    saveVersion: SAVE_VERSION,
     player: {
       money: INITIAL_MONEY,
-      reputation: 10,
+      reputation: BALANCE.start.reputation,
       experience: 0,
       unlockedNiches: ['fintech', 'healthtech', 'edtech', 'gamedev', 'ecommerce', 'cybersec'],
       unlockedProducts: ['saas_platform', 'mobile_app', 'marketplace', 'api_service', 'desktop_app'],
@@ -77,9 +81,55 @@ function createInitialState(): GameState {
   };
 }
 
+function mergeWithInitialState(persisted: Partial<GameState> | undefined): GameState {
+  const base = createInitialState();
+  if (!persisted) return base;
+
+  const business = (persisted.business ?? {}) as Partial<GameState['business']>;
+  const office = (business.office ?? {}) as Partial<GameState['business']['office']>;
+
+  return {
+    ...base,
+    ...persisted,
+    player: { ...base.player, ...(persisted.player ?? {}) },
+    business: {
+      ...base.business,
+      ...business,
+      office: {
+        ...base.business.office,
+        ...office,
+        wallMaterials: {
+          ...base.business.office.wallMaterials,
+          ...(office.wallMaterials ?? {}),
+        },
+      },
+      metrics: { ...base.business.metrics, ...(business.metrics ?? {}) },
+      technologies: business.technologies ?? base.business.technologies,
+      team: business.team ?? base.business.team,
+      isoStandards: business.isoStandards ?? base.business.isoStandards,
+      companyProducts: business.companyProducts ?? base.business.companyProducts,
+      techTree: business.techTree ?? base.business.techTree,
+      furniture: business.furniture ?? base.business.furniture,
+      employeeMarket: business.employeeMarket ?? base.business.employeeMarket,
+    },
+    logs: persisted.logs ?? base.logs,
+    activeEvents: persisted.activeEvents ?? base.activeEvents,
+    weekHistory: persisted.weekHistory ?? base.weekHistory,
+    // Static catalogs are always taken from current code version
+    availableNiches: base.availableNiches,
+    availableProducts: base.availableProducts,
+    availableTechnologies: base.availableTechnologies,
+    availableMarkets: base.availableMarkets,
+    availableMonetizations: base.availableMonetizations,
+    availableNicheVariants: base.availableNicheVariants,
+    availableBusinessStyles: base.availableBusinessStyles,
+  };
+}
+
 // Helper: extract GameState from store (avoids repeating all fields)
 function toGameState(s: GameStore | GameState): GameState {
   return {
+    saveVersion: s.saveVersion,
     player: s.player,
     business: s.business,
     phase: s.phase,
@@ -140,9 +190,13 @@ interface GameStore extends GameState {
   canHireMember: (role: TeamRole) => boolean;
   getHireCost: (role: TeamRole) => number;
   previewMetrics: () => BusinessMetrics;
+  previewEconomyBreakdown: () => EconomyBreakdown;
+  debugAdvanceWeeks: (weeks: number) => void;
+  debugTriggerEvent: (eventId: string) => void;
+  debugClearSave: () => void;
 }
 
-export const useGameStore = create<GameStore>((set, get) => ({
+export const useGameStore = create<GameStore>()(persist((set, get) => ({
   ...createInitialState(),
 
   setCompanyName: (name) => {
@@ -214,7 +268,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       weekHistory: [],
       business: { ...state.business, companyProducts: [initialProduct] },
     });
-    const withEconomy = applyEconomy(gs);
+    const econ = calculateEconomyWithBreakdown(gs);
+    const withEconomy: GameState = {
+      ...gs,
+      player: { ...gs.player, money: Math.round(gs.player.money + econ.metrics.profit) },
+      business: { ...gs.business, metrics: econ.metrics },
+    };
     set({
       ...withEconomy,
       phase: 'playing',
@@ -233,7 +292,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     if (state.phase !== 'playing' || state.player.gameSpeed === 0) return;
 
-    const SECONDS_PER_WEEK = 10; // 1 game week = 10 real seconds at 1x
+    const SECONDS_PER_WEEK = BALANCE.time.secondsPerWeekAt1x;
     const speedMul = state.player.gameSpeed; // 1, 2, or 3
     const weekDelta = (deltaSec * speedMul) / SECONDS_PER_WEEK;
     const newProgress = state.player.weekProgress + weekDelta;
@@ -246,25 +305,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (newProgress >= 1) {
       // A full week has passed — run all weekly systems
       gs = { ...gs, player: { ...gs.player, currentWeek: gs.player.currentWeek + 1, weekProgress: newProgress - 1, totalTimePlayed: newTotalTime } };
-
-      gs = tickTeam(gs);
-      gs = tickProducts(gs);
-      gs = tickISO(gs);
-      gs = applyEconomy(gs);
-
-      const events = rollEvents(gs);
-      gs = events.length > 0 ? applyEvents(gs, events) : { ...gs, activeEvents: [] };
-
-      gs = gainExperience(gs);
-
-      const niche = NICHES.find(n => n.id === gs.business.nicheId);
-      if (niche) niche.baseDemand = Math.max(0.2, niche.baseDemand - niche.trendDecayRate);
-
-      gs = tickFreelance(gs);
-      gs = tickTechTree(gs);
-      gs = tickEmployeeMarket(gs);
-      gs = { ...gs, weekHistory: [...gs.weekHistory, { ...gs.business.metrics }] };
-      gs = checkWinLose(gs);
+      gs = runWeeklySystems(gs);
     } else {
       gs = { ...gs, player: { ...gs.player, weekProgress: newProgress, totalTimePlayed: newTotalTime } };
     }
@@ -432,7 +473,141 @@ export const useGameStore = create<GameStore>((set, get) => ({
   canHireMember: (role) => canHire(toGameState(get()), role),
   getHireCost: (role) => getHireCost(role),
   previewMetrics: () => calculateEconomy(toGameState(get())),
+  previewEconomyBreakdown: () => calculateEconomyWithBreakdown(toGameState(get())).breakdown,
+  debugAdvanceWeeks: (weeks) => {
+    const count = Math.max(1, Math.min(520, Math.floor(weeks || 1)));
+    set(s => {
+      let gs = toGameState(s);
+      for (let i = 0; i < count; i++) {
+        if (gs.phase !== 'playing') break;
+        gs = {
+          ...gs,
+          player: {
+            ...gs.player,
+            currentWeek: gs.player.currentWeek + 1,
+            weekProgress: 0,
+          },
+        };
+        gs = runWeeklySystems(gs);
+      }
+      return gs;
+    });
+  },
+  debugTriggerEvent: (eventId) => {
+    const state = get();
+    const event = EVENTS_POOL.find(e => e.id === eventId);
+    if (!event) return;
+    const gs = applyEvents(toGameState(state), [event]);
+    set(gs);
+  },
+  debugClearSave: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('business-tycoon-save');
+    }
+    set(createInitialState());
+  },
+}), {
+  name: 'business-tycoon-save',
+  version: SAVE_VERSION,
+  partialize: (state) => ({
+    saveVersion: state.saveVersion,
+    player: state.player,
+    business: state.business,
+    phase: state.phase,
+    logs: state.logs.slice(-250),
+    activeEvents: state.activeEvents,
+    weekHistory: state.weekHistory,
+    availableNiches: state.availableNiches,
+    availableProducts: state.availableProducts,
+    availableTechnologies: state.availableTechnologies,
+    availableMarkets: state.availableMarkets,
+    availableMonetizations: state.availableMonetizations,
+    availableNicheVariants: state.availableNicheVariants,
+    availableBusinessStyles: state.availableBusinessStyles,
+  }),
+  migrate: (persistedState) => {
+    return mergeWithInitialState(persistedState as Partial<GameState>);
+  },
 }));
+
+function runWeeklySystems(state: GameState): GameState {
+  let gs = tickTeam(state);
+  gs = tickProducts(gs);
+  gs = tickISO(gs);
+
+  const beforeMetrics = gs.business.metrics;
+  const econ = calculateEconomyWithBreakdown(gs);
+  gs = {
+    ...gs,
+    player: { ...gs.player, money: Math.round(gs.player.money + econ.metrics.profit) },
+    business: { ...gs.business, metrics: econ.metrics },
+  };
+  gs = appendMetricReasonLogs(gs, beforeMetrics, econ.metrics, econ.breakdown);
+
+  const events = rollEvents(gs);
+  gs = events.length > 0 ? applyEvents(gs, events) : { ...gs, activeEvents: [] };
+
+  gs = gainExperience(gs);
+
+  const niche = NICHES.find(n => n.id === gs.business.nicheId);
+  if (niche) niche.baseDemand = Math.max(0.2, niche.baseDemand - niche.trendDecayRate);
+
+  gs = tickFreelance(gs);
+  gs = tickTechTree(gs);
+  gs = tickEmployeeMarket(gs);
+  gs = { ...gs, weekHistory: [...gs.weekHistory, { ...gs.business.metrics }] };
+  gs = checkWinLose(gs);
+  return gs;
+}
+
+function appendMetricReasonLogs(
+  state: GameState,
+  prev: BusinessMetrics,
+  next: BusinessMetrics,
+  breakdown: EconomyBreakdown,
+): GameState {
+  const logs = [...state.logs];
+  const week = state.player.currentWeek;
+  const deltaProfit = next.profit - prev.profit;
+  const deltaQuality = next.quality - prev.quality;
+  const deltaDemand = next.demand - prev.demand;
+  const deltaRisk = next.risk - prev.risk;
+
+  if (Math.abs(deltaProfit) >= 100) {
+    const sign = deltaProfit > 0 ? '+' : '';
+    logs.push({
+      week,
+      type: deltaProfit > 0 ? 'success' : 'warning',
+      message: `Profit ${sign}$${Math.round(deltaProfit).toLocaleString()} (rev $${Math.round(breakdown.revenue.total).toLocaleString()} vs costs $${Math.round(breakdown.costs.total).toLocaleString()})`,
+    });
+  }
+  if (Math.abs(deltaQuality) >= 0.01) {
+    const sign = deltaQuality > 0 ? '+' : '';
+    logs.push({
+      week,
+      type: deltaQuality > 0 ? 'info' : 'warning',
+      message: `Quality ${sign}${(deltaQuality * 100).toFixed(1)}pp (team ${Math.round(next.teamEfficiency * 100)}%, tech bonus ${(breakdown.combination.factors.totalTechQualityBonus * 100).toFixed(1)}pp)`,
+    });
+  }
+  if (Math.abs(deltaDemand) >= 0.01) {
+    const sign = deltaDemand > 0 ? '+' : '';
+    logs.push({
+      week,
+      type: deltaDemand > 0 ? 'info' : 'warning',
+      message: `Demand ${sign}${(deltaDemand * 100).toFixed(1)}pp (audience ${(breakdown.combination.factors.avgAudience * 100).toFixed(0)}%, fit ${breakdown.combination.factors.productFit.toFixed(2)})`,
+    });
+  }
+  if (Math.abs(deltaRisk) >= 0.01) {
+    const sign = deltaRisk > 0 ? '+' : '';
+    logs.push({
+      week,
+      type: deltaRisk > 0 ? 'warning' : 'success',
+      message: `Risk ${sign}${(deltaRisk * 100).toFixed(1)}pp (complexity ${(breakdown.combination.factors.totalTechComplexity * 100).toFixed(1)}pp, ISO ${(breakdown.combination.factors.isoStabilization * 100).toFixed(1)}pp)`,
+    });
+  }
+
+  return { ...state, logs };
+}
 
 // --- Tech tree tick (called each turn) ---
 function tickTechTree(state: GameState): GameState {
@@ -472,8 +647,8 @@ function tickTechTree(state: GameState): GameState {
 // Zone → metric mapping: development→quality, marketing→growthRate, security→risk(-), qa→quality
 // Also advances work progress bar — when full, awards money and auto-restarts
 function tickEmployeePointGeneration(state: GameState, weekFraction: number): GameState {
-  const POINTS_PER_WEEK = 0.02; // base metric gain per employee per week
-  const WORK_CYCLE_WEEKS = 1; // 1 week per work cycle
+  const POINTS_PER_WEEK = BALANCE.employee.pointsPerWeek;
+  const WORK_CYCLE_WEEKS = BALANCE.employee.workCycleWeeks;
   let qualityDelta = 0;
   let growthDelta = 0;
   let riskDelta = 0;
