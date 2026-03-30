@@ -9,6 +9,7 @@ import {
 import { CAMPAIGN_MILESTONES } from '../data-competition';
 import { TECHNOLOGIES } from '../data';
 import { createTeamMember } from './team';
+import { BALANCE } from '../config/balance';
 
 function clamp(min: number, max: number, value: number): number {
   return Math.max(min, Math.min(max, value));
@@ -29,15 +30,22 @@ function getOfficeFreeSlots(state: GameState): number {
 }
 
 function scoreCompetitorGrowth(state: GameState, competitor: CompetitorCompany): number {
+  const cfg = BALANCE.competition.growthModel;
   const playerQuality = state.business.metrics.quality;
-  const reputationPressure = (competitor.reputation - state.player.reputation) / 1200;
-  const qualityPressure = (competitor.quality - playerQuality) * 0.04;
-  const randomNoise = (Math.random() - 0.5) * 0.025;
-  return clamp(-0.03, 0.16, competitor.growth + reputationPressure + qualityPressure + randomNoise);
+  const reputationPressure = (competitor.reputation - state.player.reputation) / cfg.reputationPressureDivisor;
+  const qualityPressure = (competitor.quality - playerQuality) * cfg.qualityPressureScale;
+  const randomNoise = (Math.random() - 0.5) * cfg.randomNoiseScale;
+  return clamp(cfg.growthFloor, cfg.growthCap, competitor.growth + reputationPressure + qualityPressure + randomNoise);
 }
 
 function getCompetitorsSortedByUsers(competitors: CompetitorCompany[]): CompetitorCompany[] {
   return [...competitors].sort((a, b) => b.users - a.users);
+}
+
+function getLifecyclePressureScale(state: GameState): number {
+  const lifecycle = state.business.companyProducts[0]?.lifecycle ?? 'prototype';
+  const map = BALANCE.competition.lifecyclePressureScale;
+  return map[lifecycle] ?? 1;
 }
 
 export function tickCompetition(state: GameState): GameState {
@@ -45,17 +53,37 @@ export function tickCompetition(state: GameState): GameState {
   if (!live) return state;
   const previous = state.business.competition;
   const previousRank = previous.lastWeek.playerRank;
+  const growthCfg = BALANCE.competition.growthModel;
+  const impactCfg = BALANCE.competition.playerImpact;
+  const eventCfg = BALANCE.competition.pressureEvents;
+  const lifecycleScale = getLifecyclePressureScale(state);
 
   const competitors = previous.competitors.map((competitor) => {
     const growth = scoreCompetitorGrowth(state, competitor);
-    const users = Math.max(100, Math.round(competitor.users * (1 + growth)));
-    const quality = clamp(0.2, 0.92, competitor.quality + (Math.random() - 0.5) * 0.02 + growth * 0.03);
-    const reputation = Math.round(clamp(5, 99, competitor.reputation + growth * 18 + (Math.random() - 0.5) * 2));
-    const pressure = clamp(0.06, 0.4, 0.08 + users / 40000 + quality * 0.09);
+    const users = Math.max(growthCfg.usersFloor, Math.round(competitor.users * (1 + growth)));
+    const quality = clamp(
+      growthCfg.qualityFloor,
+      growthCfg.qualityCap,
+      competitor.quality + (Math.random() - 0.5) * growthCfg.qualityNoiseScale + growth * growthCfg.qualityGrowthInfluence,
+    );
+    const reputation = Math.round(clamp(
+      growthCfg.reputationFloor,
+      growthCfg.reputationCap,
+      competitor.reputation + growth * growthCfg.reputationGrowthScale + (Math.random() - 0.5) * growthCfg.reputationNoiseScale,
+    ));
+    const pressure = clamp(
+      growthCfg.pressureFloor,
+      growthCfg.pressureCap,
+      growthCfg.pressureBase + users / growthCfg.pressureUsersDivisor + quality * growthCfg.pressureQualityScale,
+    );
     return {
       ...competitor,
       users,
-      growth: clamp(0.01, 0.18, competitor.growth * 0.8 + growth * 0.2),
+      growth: clamp(
+        growthCfg.smoothedGrowthFloor,
+        growthCfg.smoothedGrowthCap,
+        competitor.growth * growthCfg.blendPrevGrowth + growth * growthCfg.blendNewGrowth,
+      ),
       quality,
       reputation,
       pressure,
@@ -71,7 +99,7 @@ export function tickCompetition(state: GameState): GameState {
     const share = competitor.users / totalUsers;
     return sum + share * competitor.pressure;
   }, 0);
-  const marketPressure = clamp(0, 0.55, weightedPressure);
+  const marketPressure = clamp(0, growthCfg.marketPressureCap, weightedPressure * lifecycleScale);
 
   const ranking = [...competitors, {
     id: 'player',
@@ -93,30 +121,34 @@ export function tickCompetition(state: GameState): GameState {
     churn: live.metrics.churn,
   };
 
-  const baseTrafficPenalty = marketPressure * 0.055;
-  const baseConversionPenalty = marketPressure * 0.03;
-  const baseChurnBoost = marketPressure * 0.016;
-  const baseSatisfactionPenalty = marketPressure * 0.024;
+  const baseTrafficPenalty = marketPressure * impactCfg.trafficPenaltyScale;
+  const baseConversionPenalty = marketPressure * impactCfg.conversionPenaltyScale;
+  const baseChurnBoost = marketPressure * impactCfg.churnBoostScale;
+  const baseSatisfactionPenalty = marketPressure * impactCfg.satisfactionPenaltyScale;
 
   liveAdjust.traffic = Math.max(80, Math.round(liveAdjust.traffic * (1 - baseTrafficPenalty)));
   liveAdjust.conversion = clamp(0.02, 0.45, liveAdjust.conversion - baseConversionPenalty);
   liveAdjust.churn = clamp(0.01, 0.45, liveAdjust.churn + baseChurnBoost);
   liveAdjust.satisfaction = clamp(0.1, 0.99, liveAdjust.satisfaction - baseSatisfactionPenalty);
   liveAdjust.signups = Math.max(0, Math.round(liveAdjust.traffic * liveAdjust.conversion));
-  liveAdjust.activeUsers = Math.max(0, Math.round(liveAdjust.activeUsers * (1 - marketPressure * 0.006)));
-  liveAdjust.payingUsers = Math.min(liveAdjust.activeUsers, Math.max(0, Math.round(liveAdjust.payingUsers * (1 - marketPressure * 0.005))));
+  liveAdjust.activeUsers = Math.max(0, Math.round(liveAdjust.activeUsers * (1 - marketPressure * impactCfg.activeUsersPenaltyScale)));
+  liveAdjust.payingUsers = Math.min(liveAdjust.activeUsers, Math.max(0, Math.round(liveAdjust.payingUsers * (1 - marketPressure * impactCfg.payingUsersPenaltyScale))));
 
-  if (playerMarketShare < 0.2 && marketPressure > 0.15 && Math.random() < 0.28) {
+  if (
+    playerMarketShare < eventCfg.surgeShareThreshold
+    && marketPressure > eventCfg.surgePressureThreshold
+    && Math.random() < eventCfg.surgeChance
+  ) {
     pressureEvents.push('competitor_campaign_surge');
-    liveAdjust.traffic = Math.max(80, Math.round(liveAdjust.traffic * 0.97));
-    liveAdjust.satisfaction = clamp(0.1, 0.99, liveAdjust.satisfaction - 0.012);
-    repDelta -= 1;
+    liveAdjust.traffic = Math.max(80, Math.round(liveAdjust.traffic * eventCfg.surgeTrafficMultiplier));
+    liveAdjust.satisfaction = clamp(0.1, 0.99, liveAdjust.satisfaction - eventCfg.surgeSatisfactionPenalty);
+    repDelta += eventCfg.surgeReputationDelta;
   }
-  if (playerRank === 1 && Math.random() < 0.16) {
+  if (playerRank <= eventCfg.breakthroughRankRequired && Math.random() < eventCfg.breakthroughChance) {
     pressureEvents.push('competitive_breakthrough');
-    liveAdjust.traffic = Math.max(80, Math.round(liveAdjust.traffic * 1.015));
-    liveAdjust.satisfaction = clamp(0.1, 0.99, liveAdjust.satisfaction + 0.006);
-    repDelta += 1;
+    liveAdjust.traffic = Math.max(80, Math.round(liveAdjust.traffic * eventCfg.breakthroughTrafficMultiplier));
+    liveAdjust.satisfaction = clamp(0.1, 0.99, liveAdjust.satisfaction + eventCfg.breakthroughSatisfactionBonus);
+    repDelta += eventCfg.breakthroughReputationDelta;
   }
 
   liveAdjust.signups = Math.max(0, Math.round(liveAdjust.traffic * liveAdjust.conversion));
@@ -138,7 +170,7 @@ export function tickCompetition(state: GameState): GameState {
       ...live.lastWeek,
       topNegativeFactors: unique(['Competitor market pressure', ...live.lastWeek.topNegativeFactors]).slice(0, 3),
       bottlenecks: unique([
-        ...(marketPressure > 0.14 ? ['Competition pressure is limiting growth'] : []),
+        ...(marketPressure > impactCfg.bottleneckPressureThreshold ? ['Competition pressure is limiting growth'] : []),
         ...live.lastWeek.bottlenecks,
       ]).slice(0, 5),
       deltas: {
@@ -209,15 +241,28 @@ export function tickCompetition(state: GameState): GameState {
 export function getMnaActionCost(state: GameState, action: MnaActionType, competitorId: string): number | null {
   const competitor = getCompetitorById(state, competitorId);
   if (!competitor) return null;
+  const mna = BALANCE.competition.mna;
   switch (action) {
     case 'buy_user_base':
-      return Math.max(7000, Math.round(competitor.users * 9 + competitor.reputation * 120));
+      return Math.max(
+        mna.buyUserBase.minCost,
+        Math.round(competitor.users * mna.buyUserBase.usersCost + competitor.reputation * mna.buyUserBase.reputationCost),
+      );
     case 'acquire_technology':
-      return Math.max(9000, Math.round(competitor.quality * 12000 + competitor.reputation * 150));
+      return Math.max(
+        mna.acquireTechnology.minCost,
+        Math.round(competitor.quality * mna.acquireTechnology.qualityCost + competitor.reputation * mna.acquireTechnology.reputationCost),
+      );
     case 'acqui_hire':
-      return Math.max(10000, Math.round(8000 + competitor.users * 3));
+      return Math.max(
+        mna.acquiHire.minCost,
+        Math.round(mna.acquiHire.baseCost + competitor.users * mna.acquiHire.usersCost),
+      );
     case 'brand_boost':
-      return Math.max(6000, Math.round(5000 + competitor.reputation * 110));
+      return Math.max(
+        mna.brandBoost.minCost,
+        Math.round(mna.brandBoost.baseCost + competitor.reputation * mna.brandBoost.reputationCost),
+      );
     default:
       return null;
   }
@@ -233,7 +278,9 @@ export function canExecuteMnaAction(
   const cost = getMnaActionCost(state, action, competitorId);
   if (cost == null) return { ok: false, reason: 'invalid_action' };
   if (state.player.money < cost) return { ok: false, reason: 'not_enough_money', cost };
-  if (action === 'buy_user_base' && competitor.users < 150) return { ok: false, reason: 'target_too_small', cost };
+  if (action === 'buy_user_base' && competitor.users < BALANCE.competition.mna.buyUserBase.minTargetUsers) {
+    return { ok: false, reason: 'target_too_small', cost };
+  }
   if (action === 'acquire_technology') {
     const available = TECHNOLOGIES.filter(tech => !state.business.technologies.includes(tech.id));
     if (available.length === 0) return { ok: false, reason: 'no_technology_left', cost };
@@ -259,6 +306,7 @@ export function executeMnaAction(state: GameState, action: MnaActionType, compet
   if (!check.ok) return state;
   const cost = check.cost ?? 0;
   const competitor = getCompetitorById(state, competitorId)!;
+  const mna = BALANCE.competition.mna;
 
   let nextState: GameState = {
     ...state,
@@ -270,17 +318,41 @@ export function executeMnaAction(state: GameState, action: MnaActionType, compet
   };
 
   if (action === 'buy_user_base') {
-    const transfer = Math.max(40, Math.round(competitor.users * (0.18 + Math.random() * 0.1)));
+    const transfer = Math.max(
+      mna.buyUserBase.transferMin,
+      Math.round(competitor.users * (mna.buyUserBase.transferShareBase + Math.random() * mna.buyUserBase.transferShareRange)),
+    );
     const updatedCompetitors = nextState.business.competition.competitors.map((entry) =>
-      entry.id === competitorId ? { ...entry, users: Math.max(80, entry.users - transfer), pressure: clamp(0.05, 0.35, entry.pressure - 0.02) } : entry,
+      entry.id === competitorId
+        ? {
+          ...entry,
+          users: Math.max(BALANCE.competition.growthModel.usersFloor, entry.users - transfer),
+          pressure: clamp(
+            BALANCE.competition.growthModel.pressureFloor,
+            BALANCE.competition.growthModel.pressureCap,
+            entry.pressure - mna.buyUserBase.pressureReduction,
+          ),
+        }
+        : entry,
     );
     const live = nextState.business.liveProduct;
     if (live) {
       const active = live.metrics.activeUsers + transfer;
-      const paying = Math.min(active, live.metrics.payingUsers + Math.round(transfer * Math.max(0.03, live.metrics.conversion * 0.4)));
+      const paying = Math.min(
+        active,
+        live.metrics.payingUsers + Math.round(
+          transfer * Math.max(
+            mna.buyUserBase.payingShareMin,
+            live.metrics.conversion * mna.buyUserBase.payingShareFromConversionScale,
+          ),
+        ),
+      );
       nextState = {
         ...nextState,
-        player: { ...nextState.player, reputation: Math.round(clamp(0, 100, nextState.player.reputation + 2)) },
+        player: {
+          ...nextState.player,
+          reputation: Math.round(clamp(0, 100, nextState.player.reputation + mna.buyUserBase.reputationReward)),
+        },
         business: {
           ...nextState.business,
           liveProduct: {
@@ -305,11 +377,23 @@ export function executeMnaAction(state: GameState, action: MnaActionType, compet
     if (available.length > 0) {
       const tech = available[Math.floor(Math.random() * available.length)];
       const updatedCompetitors = nextState.business.competition.competitors.map((entry) =>
-        entry.id === competitorId ? { ...entry, quality: clamp(0.2, 0.9, entry.quality - 0.04) } : entry,
+        entry.id === competitorId
+          ? {
+            ...entry,
+            quality: clamp(
+              BALANCE.competition.growthModel.qualityFloor,
+              BALANCE.competition.growthModel.qualityCap,
+              entry.quality - mna.acquireTechnology.competitorQualityPenalty,
+            ),
+          }
+          : entry,
       );
       nextState = {
         ...nextState,
-        player: { ...nextState.player, reputation: Math.round(clamp(0, 100, nextState.player.reputation + 3)) },
+        player: {
+          ...nextState.player,
+          reputation: Math.round(clamp(0, 100, nextState.player.reputation + mna.acquireTechnology.reputationReward)),
+        },
         business: {
           ...nextState.business,
           technologies: [...nextState.business.technologies, tech.id],
@@ -332,23 +416,39 @@ export function executeMnaAction(state: GameState, action: MnaActionType, compet
 
   if (action === 'acqui_hire') {
     const slots = getOfficeFreeSlots(nextState);
-    const hires = Math.min(slots, 2);
+    const hires = Math.min(slots, mna.acquiHire.maxHires);
     const preferredRoles: TeamRole[] = ['qa', 'security', 'developer', 'marketing', 'manager'];
     const newMembers = Array.from({ length: hires }).map((_, idx) => {
       const role = preferredRoles[idx % preferredRoles.length];
       const member = createTeamMember(role);
       return {
         ...member,
-        experience: clamp(20, 100, member.experience + 18),
-        morale: clamp(45, 100, member.morale + 8),
+        experience: clamp(20, 100, member.experience + mna.acquiHire.experienceBonus),
+        morale: clamp(45, 100, member.morale + mna.acquiHire.moraleBonus),
       };
     });
     const updatedCompetitors = nextState.business.competition.competitors.map((entry) =>
-      entry.id === competitorId ? { ...entry, users: Math.max(80, Math.round(entry.users * 0.9)), pressure: clamp(0.05, 0.35, entry.pressure - 0.03) } : entry,
+      entry.id === competitorId
+        ? {
+          ...entry,
+          users: Math.max(
+            BALANCE.competition.growthModel.usersFloor,
+            Math.round(entry.users * mna.acquiHire.competitorUsersMultiplier),
+          ),
+          pressure: clamp(
+            BALANCE.competition.growthModel.pressureFloor,
+            BALANCE.competition.growthModel.pressureCap,
+            entry.pressure - mna.acquiHire.pressureReduction,
+          ),
+        }
+        : entry,
     );
     nextState = {
       ...nextState,
-      player: { ...nextState.player, reputation: Math.round(clamp(0, 100, nextState.player.reputation + 2)) },
+      player: {
+        ...nextState.player,
+        reputation: Math.round(clamp(0, 100, nextState.player.reputation + mna.acquiHire.reputationReward)),
+      },
       business: {
         ...nextState.business,
         team: [...nextState.business.team, ...newMembers],
@@ -362,12 +462,28 @@ export function executeMnaAction(state: GameState, action: MnaActionType, compet
 
   if (action === 'brand_boost') {
     const updatedCompetitors = nextState.business.competition.competitors.map((entry) =>
-      entry.id === competitorId ? { ...entry, reputation: Math.max(5, entry.reputation - 4), pressure: clamp(0.05, 0.35, entry.pressure - 0.02) } : entry,
+      entry.id === competitorId
+        ? {
+          ...entry,
+          reputation: Math.max(
+            BALANCE.competition.growthModel.reputationFloor,
+            entry.reputation - mna.brandBoost.competitorReputationPenalty,
+          ),
+          pressure: clamp(
+            BALANCE.competition.growthModel.pressureFloor,
+            BALANCE.competition.growthModel.pressureCap,
+            entry.pressure - mna.brandBoost.pressureReduction,
+          ),
+        }
+        : entry,
     );
     const live = nextState.business.liveProduct;
     nextState = {
       ...nextState,
-      player: { ...nextState.player, reputation: Math.round(clamp(0, 100, nextState.player.reputation + 6)) },
+      player: {
+        ...nextState.player,
+        reputation: Math.round(clamp(0, 100, nextState.player.reputation + mna.brandBoost.reputationReward)),
+      },
       business: {
         ...nextState.business,
         liveProduct: live
@@ -375,8 +491,8 @@ export function executeMnaAction(state: GameState, action: MnaActionType, compet
             ...live,
             metrics: {
               ...live.metrics,
-              traffic: Math.round(live.metrics.traffic * 1.1),
-              satisfaction: clamp(0.1, 0.99, live.metrics.satisfaction + 0.015),
+              traffic: Math.round(live.metrics.traffic * mna.brandBoost.trafficMultiplier),
+              satisfaction: clamp(0.1, 0.99, live.metrics.satisfaction + mna.brandBoost.satisfactionBonus),
             },
           }
           : live,

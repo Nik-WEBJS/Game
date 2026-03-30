@@ -285,18 +285,18 @@ export const EVENTS_POOL: GameEvent[] = [
     type: 'market',
     title: 'Competitor Price War',
     description: 'Rivals launched aggressive discount campaigns in your niche.',
-    effects: { demandDelta: -0.06, moneyDelta: -4000, riskDelta: 0.05 },
+    effects: { demandDelta: -0.04, moneyDelta: -2500, riskDelta: 0.03 },
     condition: (state) => state.business.competition.lastWeek.marketPressure > 0.14,
-    weight: 8,
+    weight: 5,
   },
   {
     id: 'competitor_scandal',
     type: 'positive',
     title: 'Competitor Scandal',
     description: 'A top rival was hit by a PR scandal and users started switching.',
-    effects: { demandDelta: 0.07, reputationDelta: 6, moneyDelta: 3500 },
+    effects: { demandDelta: 0.06, reputationDelta: 5, moneyDelta: 3000 },
     condition: (state) => state.business.competition.lastWeek.playerRank <= 3,
-    weight: 5,
+    weight: 4,
   },
   // Internal events
   {

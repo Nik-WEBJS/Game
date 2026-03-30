@@ -1,4 +1,5 @@
 import { CampaignMilestoneState, CompetitionState, CompetitorCompany } from './types';
+import { BALANCE } from './config/balance';
 
 const COMPETITOR_PREFIX = [
   'Nova', 'Vertex', 'Pulse', 'Orbit', 'Vector', 'Atlas', 'Nimbus', 'Grid', 'Apex', 'Signal', 'Neon', 'Quantum',
@@ -20,24 +21,26 @@ function createCompetitorName(existing: Set<string>): string {
 }
 
 function createCompetitor(id: string, nicheId: string, existingNames: Set<string>): CompetitorCompany {
+  const initial = BALANCE.competition.initial;
   const name = createCompetitorName(existingNames);
   existingNames.add(name);
   return {
     id,
     name,
     nicheId,
-    users: 280 + Math.floor(Math.random() * 1300),
-    growth: 0.03 + Math.random() * 0.08,
-    quality: 0.35 + Math.random() * 0.35,
-    reputation: 18 + Math.floor(Math.random() * 45),
-    pressure: 0.08 + Math.random() * 0.14,
+    users: initial.usersMin + Math.floor(Math.random() * initial.usersRange),
+    growth: initial.growthMin + Math.random() * initial.growthRange,
+    quality: initial.qualityMin + Math.random() * initial.qualityRange,
+    reputation: initial.reputationMin + Math.floor(Math.random() * initial.reputationRange),
+    pressure: initial.pressureMin + Math.random() * initial.pressureRange,
   };
 }
 
 export function createInitialCompetitionState(nicheId: string | null): CompetitionState {
+  const count = BALANCE.competition.initial.competitorsCount;
   const existingNames = new Set<string>();
   const competitors: CompetitorCompany[] = nicheId
-    ? Array.from({ length: 5 }).map((_, idx) => createCompetitor(`comp_${idx + 1}`, nicheId, existingNames))
+    ? Array.from({ length: count }).map((_, idx) => createCompetitor(`comp_${idx + 1}`, nicheId, existingNames))
     : [];
 
   return {
@@ -68,20 +71,13 @@ export const CAMPAIGN_MILESTONES: CampaignMilestoneDefinition[] = [
     id: 'unlock_first_feature',
     title: 'Unlock First Feature',
     description: 'Install a second product feature.',
-    rewardMoney: 3000,
+    rewardMoney: 3500,
     rewardReputation: 2,
   },
   {
     id: 'reach_1k_active_users',
     title: 'Reach 1K Active Users',
     description: 'Grow to at least 1,000 active users.',
-    rewardMoney: 7000,
-    rewardReputation: 4,
-  },
-  {
-    id: 'survive_first_overload',
-    title: 'Survive First Overload',
-    description: 'Experience server load above 100% and keep operating.',
     rewardMoney: 9000,
     rewardReputation: 4,
   },
@@ -89,22 +85,29 @@ export const CAMPAIGN_MILESTONES: CampaignMilestoneDefinition[] = [
     id: 'hire_first_ops_specialist',
     title: 'Hire Ops Specialist',
     description: 'Hire a QA or Security team member.',
-    rewardMoney: 5000,
+    rewardMoney: 6500,
     rewardReputation: 3,
   },
   {
     id: 'improve_satisfaction',
     title: 'Raise Satisfaction',
     description: 'Reach product satisfaction of 70% or more.',
-    rewardMoney: 9000,
+    rewardMoney: 11000,
     rewardReputation: 6,
   },
   {
     id: 'execute_first_mna',
     title: 'Execute First M&A Move',
     description: 'Complete any M&A lite action against a competitor.',
-    rewardMoney: 12000,
+    rewardMoney: 15000,
     rewardReputation: 8,
+  },
+  {
+    id: 'survive_first_overload',
+    title: 'Survive First Overload',
+    description: 'Experience server load above 100% and keep operating.',
+    rewardMoney: 12000,
+    rewardReputation: 5,
   },
 ];
 
@@ -120,4 +123,3 @@ export function createInitialCampaignState(): CampaignMilestoneState {
     },
   };
 }
-
