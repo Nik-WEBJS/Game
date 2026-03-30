@@ -26,7 +26,7 @@ export function ProductionPanel() {
     estimateProductionOutput,
   } = useGameStore();
   const [resource, setResource] = useState<ProductionResourceId>('code');
-  const [units, setUnits] = useState(40);
+  const [units, setUnits] = useState(30);
   const production = business.production;
   const weeklyOutput = estimateProductionOutput();
 
@@ -86,22 +86,22 @@ export function ProductionPanel() {
             Add queue item
           </Button>
           <button
-            onClick={() => setUnits(20)}
+            onClick={() => setUnits(15)}
             className="px-2 py-1 text-xs rounded bg-zinc-900 border border-zinc-700 text-zinc-300 hover:border-zinc-500"
           >
-            x20
+            x15
           </button>
           <button
-            onClick={() => setUnits(50)}
+            onClick={() => setUnits(30)}
             className="px-2 py-1 text-xs rounded bg-zinc-900 border border-zinc-700 text-zinc-300 hover:border-zinc-500"
           >
-            x50
+            x30
           </button>
           <button
-            onClick={() => setUnits(100)}
+            onClick={() => setUnits(60)}
             className="px-2 py-1 text-xs rounded bg-zinc-900 border border-zinc-700 text-zinc-300 hover:border-zinc-500"
           >
-            x100
+            x60
           </button>
         </div>
       </div>
@@ -183,4 +183,3 @@ export function ProductionPanel() {
 function formatBundle(bundle: ProductionResourceBundle): string {
   return `C${bundle.code} D${bundle.design} O${bundle.ops} S${bundle.support}`;
 }
-

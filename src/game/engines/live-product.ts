@@ -3,6 +3,7 @@ import { MONETIZATIONS } from '../data';
 import { getFeatureTemplateById, PRODUCT_FEATURE_TEMPLATES } from '../data-product';
 import { normalizeResourceRequirements } from '../data-production';
 import { canConsumeProductionResources, consumeProductionResources } from './production';
+import { BALANCE } from '../config/balance';
 
 const ACTIVE_USERS_AUDIENCE_SCALE = 200000;
 
@@ -43,25 +44,30 @@ function getUsedSlots(features: ProductFeatureState[]): number {
 
 function scaleRequirements(
   required: Partial<ProductionResourceBundle> | undefined,
-  levelScale: number,
+  scale: number,
 ): ProductionResourceBundle {
   const normalized = normalizeResourceRequirements(required);
+  const minimum = BALANCE.production.requirements.minimumUnits;
   return {
-    code: Math.ceil(normalized.code * levelScale),
-    design: Math.ceil(normalized.design * levelScale),
-    ops: Math.ceil(normalized.ops * levelScale),
-    support: Math.ceil(normalized.support * levelScale),
+    code: normalized.code > 0 ? Math.max(minimum, Math.ceil(normalized.code * scale)) : 0,
+    design: normalized.design > 0 ? Math.max(minimum, Math.ceil(normalized.design * scale)) : 0,
+    ops: normalized.ops > 0 ? Math.max(minimum, Math.ceil(normalized.ops * scale)) : 0,
+    support: normalized.support > 0 ? Math.max(minimum, Math.ceil(normalized.support * scale)) : 0,
   };
 }
 
 export function getFeatureInstallRequirements(featureId: string): ProductionResourceBundle {
   const tpl = getFeatureTemplateById(featureId);
-  return normalizeResourceRequirements(tpl?.installRequirements);
+  return scaleRequirements(
+    tpl?.installRequirements,
+    BALANCE.production.requirements.installMultiplier,
+  );
 }
 
 export function getFeatureUpgradeRequirements(featureId: string, currentLevel: number): ProductionResourceBundle {
   const tpl = getFeatureTemplateById(featureId);
-  const levelScale = 1 + Math.max(0, currentLevel - 1) * 0.45;
+  const { installMultiplier, upgradePerLevelMultiplier } = BALANCE.production.requirements;
+  const levelScale = installMultiplier + Math.max(0, currentLevel - 1) * upgradePerLevelMultiplier;
   return scaleRequirements(tpl?.levelUpRequirements, levelScale);
 }
 
@@ -394,4 +400,3 @@ export function getAvailableFeatureTemplates(state: GameState): ProductFeatureTe
     return true;
   });
 }
-

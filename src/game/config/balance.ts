@@ -11,6 +11,36 @@ export const BALANCE = {
     pointsPerWeek: 0.02,
     workCycleWeeks: 1,
   },
+  production: {
+    initialInventory: {
+      code: 6,
+      design: 6,
+      ops: 4,
+      support: 4,
+    },
+    roleBaseOutput: {
+      developer: { code: 10, design: 1, ops: 1, support: 0.5 },
+      manager: { code: 1.5, design: 2.5, ops: 3, support: 3 },
+      qa: { code: 1, design: 0.5, ops: 2.5, support: 6 },
+      security: { code: 1, design: 0.25, ops: 6.5, support: 1.5 },
+      marketing: { code: 0.5, design: 5.5, ops: 0.75, support: 2 },
+    },
+    outputModel: {
+      experienceBase: 0.65,
+      experienceRange: 0.75,
+      moraleBase: 0.75,
+      moraleRange: 0.45,
+      burnoutDivisor: 180,
+      burnoutMin: 0.3,
+      talentBase: 0.85,
+      talentRange: 0.55,
+    },
+    requirements: {
+      installMultiplier: 0.85,
+      upgradePerLevelMultiplier: 0.3,
+      minimumUnits: 1,
+    },
+  },
   economy: {
     baseRevenueScale: 18000,
     infrastructureRate: 0.03,

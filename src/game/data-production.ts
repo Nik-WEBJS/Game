@@ -1,14 +1,9 @@
 import { EMPLOYEE_LEVEL_OUTPUT_MULT, ProductionResourceBundle, ProductionResourceId, ProductionState, TeamMember, TeamRole } from './types';
+import { BALANCE } from './config/balance';
 
 export const PRODUCTION_RESOURCES: ProductionResourceId[] = ['code', 'design', 'ops', 'support'];
 
-export const ROLE_WEEKLY_RESOURCE_BASE: Record<TeamRole, ProductionResourceBundle> = {
-  developer: { code: 10, design: 1, ops: 1, support: 0.5 },
-  manager: { code: 1.5, design: 2.5, ops: 3, support: 3 },
-  qa: { code: 1, design: 0.5, ops: 2.5, support: 6 },
-  security: { code: 1, design: 0.25, ops: 6.5, support: 1.5 },
-  marketing: { code: 0.5, design: 5.5, ops: 0.75, support: 2 },
-};
+export const ROLE_WEEKLY_RESOURCE_BASE: Record<TeamRole, ProductionResourceBundle> = BALANCE.production.roleBaseOutput;
 
 export function createEmptyResourceBundle(value = 0): ProductionResourceBundle {
   return { code: value, design: value, ops: value, support: value };
@@ -69,18 +64,20 @@ export function normalizeResourceRequirements(required: Partial<ProductionResour
 
 export function getMemberProductionOutput(member: TeamMember): ProductionResourceBundle {
   const base = ROLE_WEEKLY_RESOURCE_BASE[member.role] ?? createEmptyResourceBundle();
+  const model = BALANCE.production.outputModel;
   const levelMult = EMPLOYEE_LEVEL_OUTPUT_MULT[(member.level || 1) - 1] ?? 1;
-  const experienceMult = 0.6 + (member.experience / 100) * 0.8;
-  const moraleMult = 0.7 + (member.morale / 100) * 0.5;
-  const burnoutMult = Math.max(0.25, 1 - member.burnout / 160);
-  const talentMult = 0.8 + Math.max(0, member.talent) * 0.6;
+  const experienceMult = model.experienceBase + (member.experience / 100) * model.experienceRange;
+  const moraleMult = model.moraleBase + (member.morale / 100) * model.moraleRange;
+  const burnoutMult = Math.max(model.burnoutMin, 1 - member.burnout / model.burnoutDivisor);
+  const talentMult = model.talentBase + Math.max(0, member.talent) * model.talentRange;
   const totalMult = levelMult * experienceMult * moraleMult * burnoutMult * talentMult;
   return scaleResourceBundle(base, totalMult);
 }
 
 export function createInitialProductionState(): ProductionState {
+  const startInventory = BALANCE.production.initialInventory;
   return {
-    inventory: createEmptyResourceBundle(),
+    inventory: { ...startInventory },
     queue: [],
     nextQueueSeq: 1,
     pendingConsumed: createEmptyResourceBundle(),
