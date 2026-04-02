@@ -11,6 +11,7 @@ import { FUNDING_ROUND_ORDER, FUNDING_ROUND_LABEL } from '@/game/data-corporate'
 import { FundingRoundId } from '@/game/types';
 import { BALANCE } from '@/game/config/balance';
 import { Landmark, LineChart, ShieldCheck } from 'lucide-react';
+import { evaluateBoardGoal, getBoardGoalLabel } from '@/game/engines/corporate';
 
 function roundReason(reason?: string): string {
   switch (reason) {
@@ -61,6 +62,47 @@ export function CorporatePanel() {
         <StatChip label="Founder Equity" value={`${(corporate.founderEquity * 100).toFixed(1)}%`} tone="success" />
         <StatChip label="Investor Equity" value={`${(corporate.investorEquity * 100).toFixed(1)}%`} tone="warning" />
         <StatChip label="Cash Raised" value={formatMoney(corporate.cumulativeCashRaised)} tone="default" />
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
+        <StatChip label="Goals Completed" value={`${corporate.goalsCompleted}`} tone="success" />
+        <StatChip label="Goals Failed" value={`${corporate.goalsFailed}`} tone="warning" />
+        <StatChip label="Next Goal Week" value={`W${corporate.nextGoalWeek}`} tone="default" />
+        <StatChip label="Current Week" value={`W${player.currentWeek}`} tone="info" />
+      </div>
+
+      <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-3 mb-4">
+        <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Board Goal</div>
+        {corporate.activeGoal ? (
+          (() => {
+            const goal = corporate.activeGoal;
+            const goalEval = evaluateBoardGoal({ player, business }, goal);
+            return (
+              <div className="space-y-2">
+                <div className="text-sm text-zinc-100">{getBoardGoalLabel(goal)}</div>
+                <ProgressBar
+                  value={Math.round(goalEval.progress * 100)}
+                  color={goalEval.progress >= 1 ? 'emerald' : goalEval.progress >= 0.55 ? 'amber' : 'red'}
+                  label={`${goalEval.currentText} / ${goalEval.targetText}`}
+                  showValue
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 text-[11px]">
+                  <Badge variant="info">Due: W{goal.dueWeek}</Badge>
+                  <Badge variant="success">Reward: {formatMoney(goal.rewardMoney)} +{goal.rewardReputation} rep</Badge>
+                  <Badge variant="warning">Fail: -{goal.penaltyReputation} rep</Badge>
+                  <Badge variant="warning">Pressure +{Math.round(goal.pressureIncrease * 100)}%</Badge>
+                </div>
+              </div>
+            );
+          })()
+        ) : (
+          <div className="text-sm text-zinc-500">
+            {corporate.investorEquity >= BALANCE.corporate.boardGoals.minInvestorEquityToActivate
+              ? `No active goal. Next assignment expected around W${corporate.nextGoalWeek}.`
+              : `Board goals unlock after investor equity reaches ${(BALANCE.corporate.boardGoals.minInvestorEquityToActivate * 100).toFixed(0)}%+.`
+            }
+          </div>
+        )}
       </div>
 
       <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-3 mb-4">

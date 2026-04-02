@@ -27,6 +27,11 @@ export function createInitialCorporateState(): CorporateState {
     cumulativeCashRaised: 0,
     valuation: 120000,
     boardPressure: 0,
+    activeGoal: null,
+    goalsCompleted: 0,
+    goalsFailed: 0,
+    nextGoalWeek: 8,
+    nextGoalSeq: 1,
     rounds: createInitialCorporateRounds(),
     lastWeek: {
       valuationDelta: 0,
@@ -34,4 +39,3 @@ export function createInitialCorporateState(): CorporateState {
     },
   };
 }
-

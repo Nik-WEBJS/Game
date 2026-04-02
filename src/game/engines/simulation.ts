@@ -307,9 +307,20 @@ function validateSimulationState(state: GameState, step: number): string[] {
   checkFinite(corporate.founderEquity, 'corporate_founder_equity');
   checkFinite(corporate.investorEquity, 'corporate_investor_equity');
   checkFinite(corporate.boardPressure, 'corporate_board_pressure');
+  checkFinite(corporate.goalsCompleted, 'corporate_goals_completed');
+  checkFinite(corporate.goalsFailed, 'corporate_goals_failed');
+  checkFinite(corporate.nextGoalWeek, 'corporate_next_goal_week');
+  checkFinite(corporate.nextGoalSeq, 'corporate_next_goal_seq');
   if (corporate.founderEquity < 0 || corporate.founderEquity > 1) issues.push(`${tag}:corporate_founder_equity_out_of_bounds`);
   if (corporate.investorEquity < 0 || corporate.investorEquity > 1) issues.push(`${tag}:corporate_investor_equity_out_of_bounds`);
   if (corporate.boardPressure < 0 || corporate.boardPressure > 1) issues.push(`${tag}:corporate_board_pressure_out_of_bounds`);
+  if (corporate.goalsCompleted < 0) issues.push(`${tag}:corporate_goals_completed_negative`);
+  if (corporate.goalsFailed < 0) issues.push(`${tag}:corporate_goals_failed_negative`);
+  if (corporate.nextGoalSeq < 1) issues.push(`${tag}:corporate_next_goal_seq_invalid`);
+  if (corporate.activeGoal) {
+    if (corporate.activeGoal.dueWeek < corporate.activeGoal.startWeek) issues.push(`${tag}:corporate_goal_deadline_invalid`);
+    if (corporate.activeGoal.target <= 0) issues.push(`${tag}:corporate_goal_target_invalid`);
+  }
 
   if (m.risk < 0 || m.risk > 1) issues.push(`${tag}:risk_out_of_bounds`);
   if (m.quality < 0 || m.quality > 1) issues.push(`${tag}:quality_out_of_bounds`);

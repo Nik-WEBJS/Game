@@ -388,12 +388,32 @@ export interface CorporateRoundState {
   postMoneyValuation: number;
 }
 
+export type BoardGoalType = 'active_users' | 'satisfaction' | 'low_churn' | 'weekly_profit';
+
+export interface BoardGoal {
+  id: string;
+  type: BoardGoalType;
+  target: number;
+  startWeek: number;
+  dueWeek: number;
+  rewardMoney: number;
+  rewardReputation: number;
+  pressureRelief: number;
+  penaltyReputation: number;
+  pressureIncrease: number;
+}
+
 export interface CorporateState {
   founderEquity: number;       // 0..1
   investorEquity: number;      // 0..1
   cumulativeCashRaised: number;
   valuation: number;
   boardPressure: number;       // 0..1
+  activeGoal: BoardGoal | null;
+  goalsCompleted: number;
+  goalsFailed: number;
+  nextGoalWeek: number;
+  nextGoalSeq: number;
   rounds: CorporateRoundState[];
   lastWeek: {
     valuationDelta: number;
