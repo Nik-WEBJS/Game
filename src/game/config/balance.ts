@@ -1,5 +1,5 @@
 export const BALANCE = {
-  saveVersion: 6,
+  saveVersion: 7,
   start: {
     money: 100000,
     reputation: 10,
@@ -387,6 +387,26 @@ export const BALANCE = {
       pressureCarry: 0.65,
       repPenaltyScale: 2.8,
       riskPenaltyScale: 0.06,
+    },
+    offers: {
+      minWeek: 6,
+      baseCooldownWeeks: 9,
+      pressureCooldownReductionWeeks: 4,
+      offerDurationWeeks: 6,
+      minValuationFloor: 90000,
+      minValuationRatioBase: 0.78,
+      minValuationRatioPressureScale: 0.2,
+      cashBaseMultiplier: 0.86,
+      cashPressureBonus: 0.28,
+      cashVariance: 0.08,
+      equityBaseMultiplier: 1.05,
+      equityPressureBonus: 0.22,
+      equityVariance: 0.04,
+      pressureReliefOnAccept: 0.07,
+      pressureIncreaseOnReject: 0.04,
+      pressureIncreaseOnExpire: 0.06,
+      reputationPenaltyOnReject: 1,
+      reputationPenaltyOnExpire: 2,
     },
     boardGoals: {
       minInvestorEquityToActivate: 0.08,

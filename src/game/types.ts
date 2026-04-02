@@ -388,6 +388,16 @@ export interface CorporateRoundState {
   postMoneyValuation: number;
 }
 
+export interface InvestorOffer {
+  id: string;
+  roundId: FundingRoundId;
+  cash: number;
+  equity: number;           // 0..1
+  minValuation: number;
+  createdWeek: number;
+  expiresWeek: number;
+}
+
 export type BoardGoalType = 'active_users' | 'satisfaction' | 'low_churn' | 'weekly_profit';
 
 export interface BoardGoal {
@@ -409,6 +419,12 @@ export interface CorporateState {
   cumulativeCashRaised: number;
   valuation: number;
   boardPressure: number;       // 0..1
+  activeOffer: InvestorOffer | null;
+  offersAccepted: number;
+  offersRejected: number;
+  offersExpired: number;
+  nextOfferWeek: number;
+  nextOfferSeq: number;
   activeGoal: BoardGoal | null;
   goalsCompleted: number;
   goalsFailed: number;

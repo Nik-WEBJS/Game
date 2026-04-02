@@ -1,6 +1,6 @@
 import { BALANCE } from '../config/balance';
 import { FUNDING_ROUND_LABEL, FUNDING_ROUND_ORDER } from '../data-corporate';
-import { BoardGoal, BoardGoalType, FundingRoundId, GameState } from '../types';
+import { BoardGoal, BoardGoalType, FundingRoundId, GameState, InvestorOffer } from '../types';
 
 function clamp(min: number, max: number, value: number): number {
   return Math.max(min, Math.min(max, value));
@@ -176,6 +176,57 @@ function getRoundDef(roundId: FundingRoundId) {
   return BALANCE.corporate.rounds[roundId];
 }
 
+function getOfferCooldownWeeks(pressure: number): number {
+  const cfg = BALANCE.corporate.offers;
+  const reduction = Math.round(cfg.pressureCooldownReductionWeeks * pressure);
+  return Math.max(2, cfg.baseCooldownWeeks - reduction);
+}
+
+function getOfferRoundId(state: GameState): FundingRoundId | null {
+  for (const roundId of FUNDING_ROUND_ORDER) {
+    if (isRoundRaised(state, roundId)) continue;
+    const def = getRoundDef(roundId);
+    if (state.player.currentWeek >= def.minWeek) return roundId;
+    return null;
+  }
+  return null;
+}
+
+function buildInvestorOffer(state: GameState, roundId: FundingRoundId, seq: number): InvestorOffer {
+  const cfg = BALANCE.corporate.offers;
+  const roundDef = getRoundDef(roundId);
+  const valuation = calculateCompanyValuation(state);
+  const pressure = state.business.corporate.boardPressure;
+
+  const cashRoll = (Math.random() * 2 - 1) * cfg.cashVariance;
+  const cashMultiplier = clamp(
+    0.6,
+    1.4,
+    cfg.cashBaseMultiplier + pressure * cfg.cashPressureBonus + cashRoll,
+  );
+  const equityRoll = (Math.random() * 2 - 1) * cfg.equityVariance;
+  const equityMultiplier = clamp(
+    0.85,
+    1.6,
+    cfg.equityBaseMultiplier + pressure * cfg.equityPressureBonus + equityRoll,
+  );
+  const minValuationRatio = clamp(
+    0.55,
+    0.99,
+    cfg.minValuationRatioBase + pressure * cfg.minValuationRatioPressureScale,
+  );
+
+  return {
+    id: `offer_${seq}`,
+    roundId,
+    cash: Math.max(10000, Math.round(roundDef.cash * cashMultiplier)),
+    equity: clamp(0.05, 0.45, roundDef.equity * equityMultiplier),
+    minValuation: Math.round(Math.max(cfg.minValuationFloor, valuation * minValuationRatio)),
+    createdWeek: state.player.currentWeek,
+    expiresWeek: state.player.currentWeek + cfg.offerDurationWeeks,
+  };
+}
+
 export function canRaiseFundingRound(
   state: GameState,
   roundId: FundingRoundId,
@@ -204,6 +255,130 @@ export function canRaiseFundingRound(
     return { ok: false, reason: 'founder_equity_too_low', valuation };
   }
   return { ok: true, valuation };
+}
+
+export function canAcceptInvestorOffer(
+  state: GameState,
+): { ok: boolean; reason?: string; valuation?: number } {
+  const offer = state.business.corporate.activeOffer;
+  if (!offer) {
+    return { ok: false, reason: 'no_active_offer' };
+  }
+  if (state.player.currentWeek >= offer.expiresWeek) {
+    return { ok: false, reason: 'offer_expired' };
+  }
+  if (isRoundRaised(state, offer.roundId)) {
+    return { ok: false, reason: 'round_already_raised' };
+  }
+  const roundIdx = FUNDING_ROUND_ORDER.indexOf(offer.roundId);
+  if (roundIdx > 0) {
+    const prevRoundId = FUNDING_ROUND_ORDER[roundIdx - 1];
+    if (!isRoundRaised(state, prevRoundId)) {
+      return { ok: false, reason: 'previous_round_required' };
+    }
+  }
+
+  const valuation = calculateCompanyValuation(state);
+  if (valuation < offer.minValuation) {
+    return { ok: false, reason: 'valuation_too_low', valuation };
+  }
+  if (state.business.corporate.founderEquity <= offer.equity + 0.03) {
+    return { ok: false, reason: 'founder_equity_too_low', valuation };
+  }
+
+  return { ok: true, valuation };
+}
+
+export function acceptInvestorOffer(state: GameState): GameState {
+  const check = canAcceptInvestorOffer(state);
+  if (!check.ok) return state;
+
+  const offer = state.business.corporate.activeOffer;
+  if (!offer) return state;
+
+  const valuation = check.valuation ?? calculateCompanyValuation(state);
+  const corporate = state.business.corporate;
+  const oldFounder = corporate.founderEquity;
+  const newFounder = clamp(0, 1, oldFounder * (1 - offer.equity));
+  const newInvestor = clamp(0, 1, 1 - newFounder);
+  const pressure = clamp(0, 1, corporate.boardPressure - BALANCE.corporate.offers.pressureReliefOnAccept);
+
+  return {
+    ...state,
+    player: {
+      ...state.player,
+      money: Math.round(state.player.money + offer.cash),
+    },
+    business: {
+      ...state.business,
+      corporate: {
+        ...corporate,
+        founderEquity: newFounder,
+        investorEquity: newInvestor,
+        cumulativeCashRaised: Math.round(corporate.cumulativeCashRaised + offer.cash),
+        valuation,
+        boardPressure: pressure,
+        activeOffer: null,
+        offersAccepted: corporate.offersAccepted + 1,
+        nextOfferWeek: state.player.currentWeek + getOfferCooldownWeeks(pressure),
+        rounds: corporate.rounds.map((entry) => (
+          entry.id === offer.roundId
+            ? {
+              ...entry,
+              raised: true,
+              weekRaised: state.player.currentWeek,
+              cashRaised: offer.cash,
+              equitySold: offer.equity,
+              postMoneyValuation: valuation,
+            }
+            : entry
+        )),
+      },
+    },
+    logs: [
+      ...state.logs,
+      {
+        week: state.player.currentWeek,
+        type: 'success',
+        message: `Investor offer accepted: ${FUNDING_ROUND_LABEL[offer.roundId]} +$${offer.cash.toLocaleString()} for ${(offer.equity * 100).toFixed(1)}% equity.`,
+      },
+    ],
+  };
+}
+
+export function rejectInvestorOffer(state: GameState): GameState {
+  const offer = state.business.corporate.activeOffer;
+  if (!offer) return state;
+
+  const cfg = BALANCE.corporate.offers;
+  const corporate = state.business.corporate;
+  const pressure = clamp(0, 1, corporate.boardPressure + cfg.pressureIncreaseOnReject);
+
+  return {
+    ...state,
+    player: {
+      ...state.player,
+      reputation: clamp(0, 100, state.player.reputation - cfg.reputationPenaltyOnReject),
+    },
+    business: {
+      ...state.business,
+      corporate: {
+        ...corporate,
+        boardPressure: pressure,
+        activeOffer: null,
+        offersRejected: corporate.offersRejected + 1,
+        nextOfferWeek: state.player.currentWeek + getOfferCooldownWeeks(pressure),
+      },
+    },
+    logs: [
+      ...state.logs,
+      {
+        week: state.player.currentWeek,
+        type: 'warning',
+        message: `Investor offer rejected: ${FUNDING_ROUND_LABEL[offer.roundId]} proposal declined.`,
+      },
+    ],
+  };
 }
 
 export function raiseFundingRound(state: GameState, roundId: FundingRoundId): GameState {
@@ -359,6 +534,41 @@ export function tickCorporateGovernance(state: GameState): GameState {
   };
   const nextLogs = [...state.logs];
 
+  if (nextCorporate.activeOffer) {
+    const offer = nextCorporate.activeOffer;
+    if (isRoundRaised(state, offer.roundId)) {
+      nextCorporate = {
+        ...nextCorporate,
+        activeOffer: null,
+        nextOfferWeek: state.player.currentWeek + getOfferCooldownWeeks(adjustedPressure),
+      };
+      nextLogs.push({
+        week: state.player.currentWeek,
+        type: 'info',
+        message: `Investor offer withdrawn: ${FUNDING_ROUND_LABEL[offer.roundId]} round is already closed.`,
+      });
+    } else if (state.player.currentWeek >= offer.expiresWeek) {
+      const cfg = BALANCE.corporate.offers;
+      adjustedPressure = clamp(0, 1, adjustedPressure + cfg.pressureIncreaseOnExpire);
+      nextPlayer = {
+        ...nextPlayer,
+        reputation: clamp(0, 100, nextPlayer.reputation - cfg.reputationPenaltyOnExpire),
+      };
+      nextCorporate = {
+        ...nextCorporate,
+        boardPressure: adjustedPressure,
+        activeOffer: null,
+        offersExpired: nextCorporate.offersExpired + 1,
+        nextOfferWeek: state.player.currentWeek + getOfferCooldownWeeks(adjustedPressure),
+      };
+      nextLogs.push({
+        week: state.player.currentWeek,
+        type: 'warning',
+        message: `Investor offer expired: ${FUNDING_ROUND_LABEL[offer.roundId]} terms were not accepted in time.`,
+      });
+    }
+  }
+
   if (nextCorporate.activeGoal) {
     const goal = nextCorporate.activeGoal;
     const goalEval = evaluateBoardGoal(state, goal);
@@ -421,6 +631,28 @@ export function tickCorporateGovernance(state: GameState): GameState {
       type: 'info',
       message: `Board goal assigned: ${getBoardGoalLabel(goal)} (due W${goal.dueWeek}).`,
     });
+  }
+
+  if (
+    !nextCorporate.activeOffer
+    && state.player.currentWeek >= nextCorporate.nextOfferWeek
+    && state.player.currentWeek >= BALANCE.corporate.offers.minWeek
+  ) {
+    const offerSourceState = { ...state, player: nextPlayer, business: { ...state.business, corporate: nextCorporate } };
+    const offerRoundId = getOfferRoundId(offerSourceState);
+    if (offerRoundId) {
+      const offer = buildInvestorOffer(offerSourceState, offerRoundId, nextCorporate.nextOfferSeq);
+      nextCorporate = {
+        ...nextCorporate,
+        activeOffer: offer,
+        nextOfferSeq: nextCorporate.nextOfferSeq + 1,
+      };
+      nextLogs.push({
+        week: state.player.currentWeek,
+        type: 'info',
+        message: `New investor offer: ${FUNDING_ROUND_LABEL[offer.roundId]} +$${offer.cash.toLocaleString()} for ${(offer.equity * 100).toFixed(1)}% equity (expires W${offer.expiresWeek}).`,
+      });
+    }
   }
 
   const repPenalty = Math.round(adjustedPressure * pressureCfg.repPenaltyScale);

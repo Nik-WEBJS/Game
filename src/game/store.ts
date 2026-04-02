@@ -33,11 +33,14 @@ import {
   getMnaActionCost as compGetMnaActionCost,
 } from './engines/competition';
 import {
+  acceptInvestorOffer as corpAcceptInvestorOffer,
   calculateCompanyValuation as corpCalculateCompanyValuation,
   canExecuteBuyback as corpCanExecuteBuyback,
+  canAcceptInvestorOffer as corpCanAcceptInvestorOffer,
   canRaiseFundingRound as corpCanRaiseFundingRound,
   executeBuyback as corpExecuteBuyback,
   getBuybackCost as corpGetBuybackCost,
+  rejectInvestorOffer as corpRejectInvestorOffer,
   raiseFundingRound as corpRaiseFundingRound,
 } from './engines/corporate';
 import { startPlacement } from '../office/furnitureState';
@@ -318,6 +321,9 @@ interface GameStore extends GameState {
   getMnaActionCost: (action: MnaActionType, competitorId: string) => number | null;
   raiseFundingRound: (roundId: FundingRoundId) => void;
   canRaiseFundingRound: (roundId: FundingRoundId) => { ok: boolean; reason?: string; valuation?: number };
+  acceptInvestorOffer: () => void;
+  rejectInvestorOffer: () => void;
+  canAcceptInvestorOffer: () => { ok: boolean; reason?: string; valuation?: number };
   executeBuyback: (pct: number) => void;
   canExecuteBuyback: (pct: number) => { ok: boolean; reason?: string; cost?: number; adjustedPct?: number };
   getBuybackCost: (pct: number) => number;
@@ -497,6 +503,13 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
     set(corpRaiseFundingRound(toGameState(get()), roundId));
   },
   canRaiseFundingRound: (roundId) => corpCanRaiseFundingRound(toGameState(get()), roundId),
+  acceptInvestorOffer: () => {
+    set(corpAcceptInvestorOffer(toGameState(get())));
+  },
+  rejectInvestorOffer: () => {
+    set(corpRejectInvestorOffer(toGameState(get())));
+  },
+  canAcceptInvestorOffer: () => corpCanAcceptInvestorOffer(toGameState(get())),
   executeBuyback: (pct) => {
     set(corpExecuteBuyback(toGameState(get()), pct));
   },

@@ -307,6 +307,11 @@ function validateSimulationState(state: GameState, step: number): string[] {
   checkFinite(corporate.founderEquity, 'corporate_founder_equity');
   checkFinite(corporate.investorEquity, 'corporate_investor_equity');
   checkFinite(corporate.boardPressure, 'corporate_board_pressure');
+  checkFinite(corporate.offersAccepted, 'corporate_offers_accepted');
+  checkFinite(corporate.offersRejected, 'corporate_offers_rejected');
+  checkFinite(corporate.offersExpired, 'corporate_offers_expired');
+  checkFinite(corporate.nextOfferWeek, 'corporate_next_offer_week');
+  checkFinite(corporate.nextOfferSeq, 'corporate_next_offer_seq');
   checkFinite(corporate.goalsCompleted, 'corporate_goals_completed');
   checkFinite(corporate.goalsFailed, 'corporate_goals_failed');
   checkFinite(corporate.nextGoalWeek, 'corporate_next_goal_week');
@@ -314,9 +319,19 @@ function validateSimulationState(state: GameState, step: number): string[] {
   if (corporate.founderEquity < 0 || corporate.founderEquity > 1) issues.push(`${tag}:corporate_founder_equity_out_of_bounds`);
   if (corporate.investorEquity < 0 || corporate.investorEquity > 1) issues.push(`${tag}:corporate_investor_equity_out_of_bounds`);
   if (corporate.boardPressure < 0 || corporate.boardPressure > 1) issues.push(`${tag}:corporate_board_pressure_out_of_bounds`);
+  if (corporate.offersAccepted < 0) issues.push(`${tag}:corporate_offers_accepted_negative`);
+  if (corporate.offersRejected < 0) issues.push(`${tag}:corporate_offers_rejected_negative`);
+  if (corporate.offersExpired < 0) issues.push(`${tag}:corporate_offers_expired_negative`);
+  if (corporate.nextOfferSeq < 1) issues.push(`${tag}:corporate_next_offer_seq_invalid`);
   if (corporate.goalsCompleted < 0) issues.push(`${tag}:corporate_goals_completed_negative`);
   if (corporate.goalsFailed < 0) issues.push(`${tag}:corporate_goals_failed_negative`);
   if (corporate.nextGoalSeq < 1) issues.push(`${tag}:corporate_next_goal_seq_invalid`);
+  if (corporate.activeOffer) {
+    if (corporate.activeOffer.expiresWeek < corporate.activeOffer.createdWeek) issues.push(`${tag}:corporate_offer_deadline_invalid`);
+    if (corporate.activeOffer.cash <= 0) issues.push(`${tag}:corporate_offer_cash_invalid`);
+    if (corporate.activeOffer.equity <= 0 || corporate.activeOffer.equity >= 1) issues.push(`${tag}:corporate_offer_equity_invalid`);
+    if (corporate.activeOffer.minValuation <= 0) issues.push(`${tag}:corporate_offer_valuation_invalid`);
+  }
   if (corporate.activeGoal) {
     if (corporate.activeGoal.dueWeek < corporate.activeGoal.startWeek) issues.push(`${tag}:corporate_goal_deadline_invalid`);
     if (corporate.activeGoal.target <= 0) issues.push(`${tag}:corporate_goal_target_invalid`);

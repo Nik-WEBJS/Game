@@ -31,6 +31,18 @@ function buybackReason(reason?: string): string {
   }
 }
 
+function offerReason(reason?: string): string {
+  switch (reason) {
+    case 'no_active_offer': return 'No active offer';
+    case 'offer_expired': return 'Offer already expired';
+    case 'previous_round_required': return 'Raise previous round first';
+    case 'round_already_raised': return 'Round already raised';
+    case 'valuation_too_low': return 'Valuation requirement not met';
+    case 'founder_equity_too_low': return 'Founder equity is too low';
+    default: return 'Unavailable';
+  }
+}
+
 export function CorporatePanel() {
   const {
     player,
@@ -38,6 +50,9 @@ export function CorporatePanel() {
     getCompanyValuation,
     canRaiseFundingRound,
     raiseFundingRound,
+    canAcceptInvestorOffer,
+    acceptInvestorOffer,
+    rejectInvestorOffer,
     getBuybackCost,
     canExecuteBuyback,
     executeBuyback,
@@ -49,6 +64,8 @@ export function CorporatePanel() {
   const buybackFraction = Math.max(0.01, Math.min(0.1, buybackPct / 100));
   const buybackCost = getBuybackCost(buybackFraction);
   const buybackCheck = canExecuteBuyback(buybackFraction);
+  const offerCheck = canAcceptInvestorOffer();
+  const offer = corporate.activeOffer;
 
   return (
     <Card className="p-4">
@@ -69,6 +86,49 @@ export function CorporatePanel() {
         <StatChip label="Goals Failed" value={`${corporate.goalsFailed}`} tone="warning" />
         <StatChip label="Next Goal Week" value={`W${corporate.nextGoalWeek}`} tone="default" />
         <StatChip label="Current Week" value={`W${player.currentWeek}`} tone="info" />
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
+        <StatChip label="Offers Accepted" value={`${corporate.offersAccepted}`} tone="success" />
+        <StatChip label="Offers Rejected" value={`${corporate.offersRejected}`} tone="warning" />
+        <StatChip label="Offers Expired" value={`${corporate.offersExpired}`} tone="warning" />
+        <StatChip label="Next Offer Week" value={`W${corporate.nextOfferWeek}`} tone="default" />
+      </div>
+
+      <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-3 mb-4">
+        <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Investor Offer</div>
+        {offer ? (
+          <div className="space-y-2">
+            <div className="text-sm text-zinc-100">
+              {FUNDING_ROUND_LABEL[offer.roundId]}: {formatMoney(offer.cash)} for {(offer.equity * 100).toFixed(1)}% equity
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 text-[11px]">
+              <Badge variant="info">Expires: W{offer.expiresWeek}</Badge>
+              <Badge variant="warning">Min valuation: {formatMoney(offer.minValuation)}</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant={offerCheck.ok ? 'primary' : 'secondary'}
+                disabled={!offerCheck.ok}
+                onClick={() => acceptInvestorOffer()}
+                title={offerCheck.ok ? '' : offerReason(offerCheck.reason)}
+              >
+                Accept offer
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => rejectInvestorOffer()}>
+                Reject
+              </Button>
+            </div>
+            {!offerCheck.ok && (
+              <div className="text-[11px] text-amber-300">{offerReason(offerCheck.reason)}</div>
+            )}
+          </div>
+        ) : (
+          <div className="text-sm text-zinc-500">
+            No active offer. Next investor outreach expected around W{corporate.nextOfferWeek}.
+          </div>
+        )}
       </div>
 
       <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-3 mb-4">
