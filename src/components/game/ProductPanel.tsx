@@ -26,7 +26,6 @@ function reasonText(reason?: string): string {
     case 'incompatible_product': return 'Incompatible with this product type';
     case 'reputation_required': return 'Reputation requirement not met';
     case 'missing_prerequisites': return 'Missing prerequisite feature';
-    case 'not_enough_money': return 'Not enough money';
     case 'not_enough_resources': return 'Not enough production resources';
     case 'no_slots': return 'No free feature slots';
     case 'not_installed': return 'Install feature first';
@@ -37,7 +36,6 @@ function reasonText(reason?: string): string {
 
 export function ProductPanel() {
   const {
-    player,
     business,
     installProductFeature,
     upgradeProductFeature,
@@ -120,7 +118,6 @@ export function ProductPanel() {
         <Button
           size="sm"
           onClick={buyProductFeatureSlot}
-          disabled={player.money < slotCost}
           className="text-xs"
         >
           <PlusCircle className="w-3.5 h-3.5" />

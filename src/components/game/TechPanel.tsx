@@ -11,7 +11,7 @@ import { TECHNOLOGIES } from '@/game/data';
 import { Cpu, Plus, Minus } from 'lucide-react';
 
 export function TechPanel() {
-  const { business, player, adoptTechnology, removeTechnology } = useGameStore();
+  const { business, adoptTechnology, removeTechnology } = useGameStore();
   const { t } = useI18n();
 
   return (
@@ -24,7 +24,6 @@ export function TechPanel() {
       <div className="space-y-2">
         {TECHNOLOGIES.map(tech => {
           const adopted = business.technologies.includes(tech.id);
-          const canAfford = player.money >= tech.cost;
           const hasSynergy = tech.synergyWith.some(s => business.technologies.includes(s));
 
           return (
@@ -50,7 +49,6 @@ export function TechPanel() {
                   <Button
                     size="sm"
                     variant="secondary"
-                    disabled={!canAfford}
                     onClick={() => adoptTechnology(tech.id)}
                   >
                     <Plus className="w-3.5 h-3.5" />

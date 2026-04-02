@@ -20,7 +20,6 @@ const SERVER_LABEL: Record<InfrastructureServerType, string> = {
 
 export function InfrastructurePanel() {
   const {
-    player,
     business,
     previewEconomyBreakdown,
     setHostingMode,
@@ -84,7 +83,7 @@ export function InfrastructurePanel() {
               <Button
                 size="sm"
                 onClick={upgradeCloudTier}
-                disabled={cloudUpgradeCost == null || player.money < (cloudUpgradeCost ?? 0)}
+                disabled={cloudUpgradeCost == null}
               >
                 Upgrade {cloudUpgradeCost == null ? '(MAX)' : `(${formatMoney(cloudUpgradeCost)})`}
               </Button>
@@ -182,4 +181,3 @@ export function InfrastructurePanel() {
     </Card>
   );
 }
-

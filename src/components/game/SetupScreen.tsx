@@ -191,7 +191,6 @@ export function SetupScreen() {
                   key={tech.id}
                   selected={adopted}
                   onClick={() => adopted ? removeTechnology(tech.id) : adoptTechnology(tech.id)}
-                  disabled={!adopted && player.money < tech.cost}
                 >
                   <CardTitle className="text-sm">{techName(tech.id, t, tech.name)}</CardTitle>
                   <CardDescription className="text-xs">{techDesc(tech.id, t, tech.description)}</CardDescription>

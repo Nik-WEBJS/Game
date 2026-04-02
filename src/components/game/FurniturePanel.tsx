@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/lib/utils';
 import { Armchair, Monitor, Server, Coffee, Presentation, Move, X, MapPin, ArrowUpCircle, Layers } from 'lucide-react';
-import { FurnitureType, OFFICE_LEVELS, WallMaterial } from '@/game/types';
+import { FurnitureType, OFFICE_LEVELS } from '@/game/types';
 import { FURNITURE_CATALOG } from '@/game/data-advanced';
 import { startPlacement, cancelPlacement, furniturePlacement, subscribePlacement } from '@/office/furnitureState';
 import { furnitureName, furnitureDesc } from '@/i18n/game-text';
@@ -24,7 +24,7 @@ const TYPE_ICONS: Record<FurnitureType, typeof Monitor> = {
 const WALL_KEYS: ('back' | 'left' | 'right')[] = ['back', 'left', 'right'];
 
 export function FurniturePanel() {
-  const { business, player, buyFurniture, unplaceFurniture, upgradeOffice, setWallMaterial } = useGameStore();
+  const { business, buyFurniture, unplaceFurniture, upgradeOffice, setWallMaterial } = useGameStore();
   const { t } = useI18n();
   const owned = business.furniture;
   const [placingId, setPlacingId] = useState<string | null>(null);
@@ -70,8 +70,7 @@ export function FurniturePanel() {
             ) : (
               <Button
                 size="sm"
-                variant={player.money >= nextLevelDef.upgradeCost ? 'primary' : 'secondary'}
-                disabled={player.money < nextLevelDef.upgradeCost}
+                variant="primary"
                 onClick={() => upgradeOffice()}
                 className="w-full text-xs"
               >
@@ -198,7 +197,6 @@ export function FurniturePanel() {
       <div className="space-y-2">
         {FURNITURE_CATALOG.map(item => {
           const Icon = TYPE_ICONS[item.type];
-          const canAfford = player.money >= item.cost;
           const effectEntries = Object.entries(item.effects).filter(([, v]) => v !== 0);
 
           return (
@@ -223,8 +221,7 @@ export function FurniturePanel() {
               </div>
               <Button
                 size="sm"
-                variant={canAfford ? 'primary' : 'secondary'}
-                disabled={!canAfford}
+                variant="primary"
                 onClick={() => buyFurniture(item.type)}
                 className="shrink-0 text-xs"
               >

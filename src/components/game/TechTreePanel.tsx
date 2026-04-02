@@ -37,17 +37,18 @@ export function TechTreePanel() {
           const meta = BRANCH_META[branchId];
           const BranchIcon = meta.icon;
           const nodes = tree.filter(n => n.branch === branchId);
+          const branchLabelValue = t[meta.labelKey as keyof typeof t];
+          const branchLabel = typeof branchLabelValue === 'string' ? branchLabelValue : meta.labelKey;
 
           return (
             <div key={branchId}>
               <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${meta.color}`}>
                 <BranchIcon className="w-3.5 h-3.5" />
-                {(t as any)[meta.labelKey]}
+                {branchLabel}
               </h3>
               <div className="space-y-2">
                 {nodes.map(node => {
                   const canStart = node.unlocked && !node.completed && !node.researching && !isResearching
-                    && player.money >= node.cost
                     && (!node.requiredReputation || player.reputation >= node.requiredReputation);
 
                   return (

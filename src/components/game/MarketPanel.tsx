@@ -43,6 +43,12 @@ const ROLE_TAB_COLORS: Record<TeamRole, string> = {
 };
 
 const ROLES_ORDER: TeamRole[] = ['developer', 'manager', 'qa', 'security', 'marketing'];
+const RARITY_TRANSLATION_KEY: Record<CandidateRarity, string> = {
+  common: 'common',
+  uncommon: 'uncommon',
+  rare: 'rare',
+  legendary: 'legendary',
+};
 
 export function MarketPanel() {
   const { business, player, hireFromMarket } = useGameStore();
@@ -106,7 +112,8 @@ export function MarketPanel() {
             const style = RARITY_STYLES[c.rarity];
             const Icon = RARITY_ICONS[c.rarity];
             const traitDef = c.trait ? TRAITS.find(t => t.id === c.trait) : null;
-            const canAfford = player.money >= c.hireCost;
+            const rarityLabelValue = t[RARITY_TRANSLATION_KEY[c.rarity] as keyof typeof t];
+            const rarityLabel = typeof rarityLabelValue === 'string' ? rarityLabelValue : c.rarity;
 
             return (
               <div
@@ -118,7 +125,7 @@ export function MarketPanel() {
                     <div className="flex items-center gap-2 mb-1">
                       <Icon className={`w-3.5 h-3.5 ${style.text}`} />
                       <span className="font-medium text-sm text-zinc-100 truncate">{c.name}</span>
-                      <Badge className={`text-[10px] ${style.text} ${style.bg}`}>{(t as any)[c.rarity]}</Badge>
+                      <Badge className={`text-[10px] ${style.text} ${style.bg}`}>{rarityLabel}</Badge>
                     </div>
                     <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-[11px]">
                       <div><span className="text-zinc-500">{t.experience}:</span> <span className="text-zinc-300">{c.experience}</span></div>
@@ -136,8 +143,7 @@ export function MarketPanel() {
                   </div>
                   <Button
                     size="sm"
-                    variant={canAfford ? 'primary' : 'secondary'}
-                    disabled={!canAfford}
+                    variant="primary"
                     onClick={() => hireFromMarket(c.id)}
                     className="shrink-0 text-xs"
                   >

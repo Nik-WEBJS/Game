@@ -1,4 +1,4 @@
-# Business Tycoon — Полная спецификация (v2.0)
+# Business Tycoon — Полная спецификация (v2.1)
 
 ## Обзор
 
@@ -11,6 +11,17 @@
 **Стек:** Next.js 16, React, TypeScript, TailwindCSS, Zustand, Lucide Icons, React Three Fiber, Drei
 
 > Подробные формулы расчёта всех игровых механик — см. [FORMULAS.md](./FORMULAS.md)
+
+---
+
+## Статус по релизам (Roadmap)
+
+- `R0: Simulation Foundation` — реализовано (versioned save, миграция сохранений, debug sandbox, formula inspector, event log причин).
+- `R1: Product Core` — реализовано (live product, feature slots/classes, explainability и bottleneck-алерты).
+- `R2: Production Chain` — реализовано (ресурсы `code/design/ops/support`, очереди, инвентарь, требования фич).
+- `R3: Infrastructure + Support Base` — реализовано (cloud/own hosting, web/db/cache capacity, latency/outage loop, support queue).
+- `R4: Competition + Guided Progression` — реализовано (конкуренты, рейтинг, market pressure, milestones, M&A-lite).
+- `R5: Corporate + Late Game` — в плане (инвесторы/cap table/dilution/buyback, расширенный HR и late-game).
 
 ---
 
@@ -39,7 +50,7 @@ UI (React Components)
 ### Игрок (Player)
 | Поле | Тип | Описание |
 |------|-----|----------|
-| `money` | number | Текущий баланс (старт: $25,000) |
+| `money` | number | Текущий баланс (старт: $100,000) |
 | `reputation` | number | 0–100, влияет на события и условия победы |
 | `experience` | number | Накопленный опыт |
 | `currentWeek` | number | Текущая неделя (номер прошедших недель) |
@@ -150,6 +161,11 @@ UI (React Components)
 **Стартовый капитал:** $100,000. Начальная репутация: 10 (никто не знает о компании).
 
 **Нет дохода без сотрудников.** Revenue = 0 если в офисе нет ни одного сотрудника.
+
+**Кредитный контур (обновлено):**
+- Баланс может уходить в минус: траты не блокируются при недостатке кэша.
+- Проигрыш по банкротству срабатывает только при `баланс <= -$500,000`.
+- Практически это работает как операционный долг: можно пережить просадку, но нужен план возврата в плюс.
 
 **Спрос (Demand) зависит от аудитории**, которую строят маркетологи. Без маркетологов спрос = 0, даже если продукт хороший.
 
@@ -396,7 +412,7 @@ Revenue = Demand × Quality × MonetizationEff × TechSynergy × LifecycleMult �
 
 ### Progression Engine
 **Условия поражения:**
-- Банкротство (баланс ≤ −$50,000)
+- Банкротство (баланс ≤ −$500,000)
 - Репутация = 0
 
 **Условия победы (soft-win):**
@@ -778,17 +794,15 @@ Office View (Canvas / WebGL, fullscreen)
 - Мультиплеер
 - Несколько стандартов ISO (ISO 27001, ISO 14001)
 - Инвесторы и раунды финансирования
-- M&A (слияния и поглощения)
+- Полноценные сделки M&A (покупка компаний целиком, а не M&A-lite действия)
 - Эпохи и технологические революции
 - AI-советник
 - Drag & Drop мебели в 3D-сцене (размещение через клик по сетке PlacementGrid)
 - Drag & Drop сотрудников в 3D (назначение через дропдаун в TeamPanel)
 - Запуск нескольких продуктов одновременно (UI не реализован)
 - Загрузка glTF/glb моделей (используются low-poly примитивы)
-- Сохранение прогресса (localStorage / БД)
 - Дополнительные языки (кроме EN/RU)
 - Система достижений
-- Конкуренты с ИИ
 
 ---
 
