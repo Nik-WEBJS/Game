@@ -59,10 +59,10 @@ export const BALANCE = {
     },
     cloud: {
       tiers: [
-        { tier: 1, capacity: { web: 70, db: 52, cache: 60 }, baseCost: 1800, variableCostPerLoad: 440 },
-        { tier: 2, capacity: { web: 120, db: 90, cache: 106 }, baseCost: 3600, variableCostPerLoad: 590 },
-        { tier: 3, capacity: { web: 220, db: 170, cache: 190 }, baseCost: 6900, variableCostPerLoad: 820 },
-        { tier: 4, capacity: { web: 360, db: 290, cache: 320 }, baseCost: 11500, variableCostPerLoad: 980 },
+        { tier: 1, capacity: { web: 70, db: 52, cache: 60 }, baseCost: 900, variableCostPerLoad: 260 },
+        { tier: 2, capacity: { web: 120, db: 90, cache: 106 }, baseCost: 2400, variableCostPerLoad: 420 },
+        { tier: 3, capacity: { web: 220, db: 170, cache: 190 }, baseCost: 5200, variableCostPerLoad: 700 },
+        { tier: 4, capacity: { web: 360, db: 290, cache: 320 }, baseCost: 9000, variableCostPerLoad: 900 },
       ] as const,
       upgradeCost: [0, 18000, 36000, 65000] as const, // index == current tier, value == upgrade to next
       autoscale: {
@@ -266,7 +266,7 @@ export const BALANCE = {
     },
   },
   economy: {
-    baseRevenueScale: 18000,
+    baseRevenueScale: 350000,
     infrastructureRate: 0.03,
     techComplexityCostMult: 500,
   },
@@ -292,7 +292,7 @@ export const BALANCE = {
   product: {
     qualityPerDevPerWeek: 0.008,
     qualityPerQaPerWeek: 0.005,
-    audiencePerMarketingPerWeek: 0.012,
+    audiencePerMarketingPerWeek: 0.022,
     releaseStageIndex: 2,
     releaseToGrowthWeeks: 8,
     releaseQualityThreshold: 0.5,

@@ -5,7 +5,7 @@ import { normalizeResourceRequirements } from '../data-production';
 import { canConsumeProductionResources, consumeProductionResources } from './production';
 import { BALANCE } from '../config/balance';
 
-const ACTIVE_USERS_AUDIENCE_SCALE = 200000;
+const ACTIVE_USERS_AUDIENCE_SCALE = 12000;
 
 function clamp(min: number, max: number, value: number): number {
   return Math.max(min, Math.min(max, value));
@@ -231,7 +231,7 @@ export function tickLiveProduct(state: GameState): GameState {
 
   const audienceRatio = clamp(0, 1, updatedLive.metrics.activeUsers / ACTIVE_USERS_AUDIENCE_SCALE);
   const updatedProducts = state.business.companyProducts.map((cp, idx) =>
-    idx === 0 ? { ...cp, audience: audienceRatio } : cp,
+    idx === 0 ? { ...cp, audience: Math.max(cp.audience, audienceRatio) } : cp,
   );
 
   const logs = [...state.logs];

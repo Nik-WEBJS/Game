@@ -22,6 +22,7 @@ export interface CombinationBreakdown {
     techTreeGrowth: number;
     techTreeRisk: number;
     avgAudience: number;
+    marketReach: number;
     lifecycleMult: number;
     clientTierMult: number;
     isoStabilization: number;
@@ -74,6 +75,7 @@ export function calculateCombinationBreakdown(state: GameState): CombinationBrea
         techTreeGrowth: 0,
         techTreeRisk: 0,
         avgAudience: 0,
+        marketReach: 0,
         lifecycleMult: 0,
         clientTierMult: 0,
         isoStabilization: 0,
@@ -164,7 +166,12 @@ export function calculateCombinationBreakdown(state: GameState): CombinationBrea
   const liveChurn = live?.metrics.churn ?? 0.1;
 
   const satisfactionDemandMod = 0.75 + liveSatisfaction * 0.5;
-  const demand = Math.min(1, baseDemand * productFit * marketAccess * avgAudience * satisfactionDemandMod);
+  const marketReach = clamp(
+    0.12,
+    1,
+    0.16 + avgAudience * 1.6 + liveActiveUsers / 18000,
+  );
+  const demand = Math.min(1, baseDemand * productFit * marketAccess * marketReach * satisfactionDemandMod);
 
   // Product lifecycle revenue multiplier (from company products)
   let lifecycleMult = 0;
@@ -180,8 +187,8 @@ export function calculateCombinationBreakdown(state: GameState): CombinationBrea
   const rep = state.player.reputation;
   const weeksPlayed = state.player.currentWeek;
   const timeFactor = Math.min(1, weeksPlayed / 52); // ramps over ~1 year
-  const repTier = rep < 30 ? 0.3 : rep < 60 ? 0.7 : rep < 80 ? 1.0 : 1.3;
-  const clientTierMult = repTier * (0.4 + timeFactor * 0.6); // starts at 40% of tier, grows to 100%
+  const repTier = rep < 30 ? 0.65 : rep < 60 ? 0.9 : rep < 80 ? 1.1 : 1.35;
+  const clientTierMult = repTier * (0.75 + timeFactor * 0.25); // starts at 75% of tier, grows to 100%
 
   // Live-product multipliers: active base and paid quality of demand
   const paidRatio = liveActiveUsers > 0 ? livePayingUsers / liveActiveUsers : 0;
@@ -237,6 +244,7 @@ export function calculateCombinationBreakdown(state: GameState): CombinationBrea
       techTreeGrowth: ttGrowth,
       techTreeRisk: ttRisk,
       avgAudience,
+      marketReach,
       lifecycleMult,
       clientTierMult,
       isoStabilization,

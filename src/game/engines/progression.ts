@@ -24,16 +24,6 @@ export function checkWinLose(state: GameState): GameState {
     return { ...state, phase: 'lost', logs: newLogs };
   }
 
-  // Reputation = 0
-  if (state.player.reputation <= 0) {
-    newLogs.push({
-      week: state.player.currentWeek,
-      message: getT().reputationCollapsed,
-      type: 'danger',
-    });
-    return { ...state, phase: 'lost', logs: newLogs };
-  }
-
   // --- Win conditions (soft-win) ---
   // IPO
   if (state.player.money >= IPO_THRESHOLD && state.player.reputation >= IPO_REPUTATION) {
