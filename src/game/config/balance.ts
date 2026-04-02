@@ -1,5 +1,5 @@
 export const BALANCE = {
-  saveVersion: 4,
+  saveVersion: 5,
   start: {
     money: 100000,
     reputation: 10,
@@ -331,6 +331,63 @@ export const BALANCE = {
     ipoReputationThreshold: 80,
     marketDominanceReputation: 95,
     marketDominanceQuality: 0.9,
+  },
+  corporate: {
+    valuation: {
+      base: 120000,
+      activeUserWeight: 24,
+      payingUserWeight: 170,
+      reputationWeight: 1500,
+      profitWeight: 16,
+      negativeProfitWeight: 7,
+      min: 80000,
+      max: 50000000,
+    },
+    rounds: {
+      pre_seed: {
+        minWeek: 4,
+        minValuation: 100000,
+        cash: 75000,
+        equity: 0.12,
+      },
+      seed: {
+        minWeek: 12,
+        minValuation: 250000,
+        cash: 180000,
+        equity: 0.15,
+      },
+      series_a: {
+        minWeek: 28,
+        minValuation: 900000,
+        cash: 500000,
+        equity: 0.18,
+      },
+      growth: {
+        minWeek: 52,
+        minValuation: 2500000,
+        cash: 1200000,
+        equity: 0.2,
+      },
+    },
+    buyback: {
+      premium: 1.3,
+      minPct: 0.01,
+      maxPctPerAction: 0.1,
+    },
+    boardPressure: {
+      investorEquityFreeBand: 0.16,
+      investorEquityScale: 1.6,
+      lowGrowthThreshold: 0.015,
+      lowGrowthPenalty: 0.12,
+      negativeProfitPenalty: 0.1,
+      highChurnThreshold: 0.12,
+      highChurnPenalty: 0.08,
+      highSatisfactionThreshold: 0.75,
+      highSatisfactionRelief: 0.06,
+      pressureCarry: 0.65,
+      repPenaltyScale: 2.8,
+      riskPenaltyScale: 0.06,
+    },
   },
 } as const;
 

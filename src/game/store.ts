@@ -1,6 +1,6 @@
 ﻿import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType, ProductionResourceBundle, ProductionResourceId, HostingMode, InfrastructureServerType, MnaActionType } from './types';
+import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType, ProductionResourceBundle, ProductionResourceId, HostingMode, InfrastructureServerType, MnaActionType, FundingRoundId } from './types';
 import { BALANCE } from './config/balance';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, EVENTS_POOL, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, FURNITURE_CATALOG } from './data-advanced';
@@ -8,6 +8,7 @@ import { createInitialLiveProduct } from './data-product';
 import { createInitialProductionState } from './data-production';
 import { createInitialInfrastructureState, createInitialSupportState } from './data-infrastructure';
 import { createInitialCampaignState, createInitialCompetitionState } from './data-competition';
+import { createInitialCorporateState } from './data-corporate';
 import { calculateEconomy, calculateEconomyWithBreakdown, EconomyBreakdown } from './engines/economy';
 import { simulateWeek, runDeterministicSimulationTest, DeterministicSimulationResult } from './engines/simulation';
 import { startISO, advanceISO, canStartISO, canAdvanceISO, isManagerBusyWithISO } from './engines/iso';
@@ -31,6 +32,14 @@ import {
   executeMnaAction as compExecuteMnaAction,
   getMnaActionCost as compGetMnaActionCost,
 } from './engines/competition';
+import {
+  calculateCompanyValuation as corpCalculateCompanyValuation,
+  canExecuteBuyback as corpCanExecuteBuyback,
+  canRaiseFundingRound as corpCanRaiseFundingRound,
+  executeBuyback as corpExecuteBuyback,
+  getBuybackCost as corpGetBuybackCost,
+  raiseFundingRound as corpRaiseFundingRound,
+} from './engines/corporate';
 import { startPlacement } from '../office/furnitureState';
 import { getT } from '../i18n';
 import { ttNodeName, furnitureName as furnName, techName as tName } from '../i18n/game-text';
@@ -92,6 +101,7 @@ function createInitialState(): GameState {
       support: createInitialSupportState(),
       competition: createInitialCompetitionState(null),
       campaign: createInitialCampaignState(),
+      corporate: createInitialCorporateState(),
     },
     phase: 'setup',
     logs: [
@@ -210,6 +220,17 @@ function mergeWithInitialState(persisted: Partial<GameState> | undefined): GameS
           flags: { ...baseCampaign.flags, ...(source.flags ?? {}) },
         };
       })(),
+      corporate: (() => {
+        const source = business.corporate;
+        const baseCorporate = base.business.corporate;
+        if (!source) return baseCorporate;
+        return {
+          ...baseCorporate,
+          ...source,
+          rounds: source.rounds ?? baseCorporate.rounds,
+          lastWeek: { ...baseCorporate.lastWeek, ...(source.lastWeek ?? {}) },
+        };
+      })(),
       liveProduct: (() => {
         const fallback = (persisted.phase === 'playing' && business.productId)
           ? createInitialLiveProduct(business.productId)
@@ -295,6 +316,12 @@ interface GameStore extends GameState {
   executeMnaAction: (action: MnaActionType, competitorId: string) => void;
   canExecuteMnaAction: (action: MnaActionType, competitorId: string) => { ok: boolean; reason?: string; cost?: number };
   getMnaActionCost: (action: MnaActionType, competitorId: string) => number | null;
+  raiseFundingRound: (roundId: FundingRoundId) => void;
+  canRaiseFundingRound: (roundId: FundingRoundId) => { ok: boolean; reason?: string; valuation?: number };
+  executeBuyback: (pct: number) => void;
+  canExecuteBuyback: (pct: number) => { ok: boolean; reason?: string; cost?: number; adjustedPct?: number };
+  getBuybackCost: (pct: number) => number;
+  getCompanyValuation: () => number;
   // Time
   setGameSpeed: (speed: GameSpeed) => void;
   gameTick: (deltaSec: number) => void;
@@ -466,6 +493,16 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
   },
   canExecuteMnaAction: (action, competitorId) => compCanExecuteMnaAction(toGameState(get()), action, competitorId),
   getMnaActionCost: (action, competitorId) => compGetMnaActionCost(toGameState(get()), action, competitorId),
+  raiseFundingRound: (roundId) => {
+    set(corpRaiseFundingRound(toGameState(get()), roundId));
+  },
+  canRaiseFundingRound: (roundId) => corpCanRaiseFundingRound(toGameState(get()), roundId),
+  executeBuyback: (pct) => {
+    set(corpExecuteBuyback(toGameState(get()), pct));
+  },
+  canExecuteBuyback: (pct) => corpCanExecuteBuyback(toGameState(get()), pct),
+  getBuybackCost: (pct) => corpGetBuybackCost(toGameState(get()), pct),
+  getCompanyValuation: () => corpCalculateCompanyValuation(toGameState(get())),
 
   setGameSpeed: (speed) => {
     set(s => ({ player: { ...s.player, gameSpeed: speed } }));

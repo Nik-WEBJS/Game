@@ -18,6 +18,7 @@ import { ProductPanel } from './ProductPanel';
 import { ProductionPanel } from './ProductionPanel';
 import { InfrastructurePanel } from './InfrastructurePanel';
 import { CompetitionPanel } from './CompetitionPanel';
+import { CorporatePanel } from './CorporatePanel';
 import { MarketPanel } from './MarketPanel';
 import { TechTreePanel } from './TechTreePanel';
 import { FurniturePanel } from './FurniturePanel';
@@ -32,9 +33,10 @@ import { formatMoney } from '@/lib/utils';
 import {
   BarChart3, Users, ClipboardCheck, Cpu, ScrollText,
   ShoppingBag, FlaskConical, Armchair, X, DollarSign, Star, Globe, BookOpen, TrendingUp, Factory, Server, Trophy,
+  Landmark,
 } from 'lucide-react';
 
-type MenuId = 'overview' | 'product' | 'production' | 'infra' | 'competition' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log' | 'wiki' | null;
+type MenuId = 'overview' | 'product' | 'production' | 'infra' | 'competition' | 'corporate' | 'team' | 'market' | 'tech' | 'research' | 'iso' | 'office' | 'log' | 'wiki' | null;
 
 type MenuItem = { id: Exclude<MenuId, null>; icon: typeof BarChart3; color: string; labelKey: keyof TranslationKeys };
 
@@ -50,6 +52,7 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'production', icon: Factory, color: 'from-cyan-500 to-cyan-700', labelKey: 'tabProduction' },
   { id: 'infra', icon: Server, color: 'from-sky-500 to-sky-700', labelKey: 'tabInfra' },
   { id: 'competition', icon: Trophy, color: 'from-amber-500 to-amber-700', labelKey: 'tabCompetition' },
+  { id: 'corporate', icon: Landmark, color: 'from-yellow-500 to-yellow-700', labelKey: 'tabCorporate' },
   { id: 'team', icon: Users, color: 'from-cyan-500 to-cyan-700', labelKey: 'tabTeam' },
   { id: 'market', icon: ShoppingBag, color: 'from-purple-500 to-purple-700', labelKey: 'tabMarket' },
   { id: 'tech', icon: Cpu, color: 'from-blue-500 to-blue-700', labelKey: 'tabTech' },
@@ -247,6 +250,12 @@ export function GameDashboard() {
                 {openMenu === 'competition' && (
                   <>
                     <div className="lg:col-span-2"><CompetitionPanel /></div>
+                    <div className="space-y-4"><MetricsPanel /></div>
+                  </>
+                )}
+                {openMenu === 'corporate' && (
+                  <>
+                    <div className="lg:col-span-2"><CorporatePanel /></div>
                     <div className="space-y-4"><MetricsPanel /></div>
                   </>
                 )}

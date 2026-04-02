@@ -10,6 +10,7 @@ import {
 } from '../src/game/data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool } from '../src/game/data-advanced';
 import { createInitialCampaignState, createInitialCompetitionState } from '../src/game/data-competition';
+import { createInitialCorporateState } from '../src/game/data-corporate';
 import { BALANCE } from '../src/game/config/balance';
 import { createInitialInfrastructureState, createInitialSupportState } from '../src/game/data-infrastructure';
 import { createInitialLiveProduct } from '../src/game/data-product';
@@ -151,6 +152,7 @@ function createBalanceState(): GameState {
       support: createInitialSupportState(),
       competition: createInitialCompetitionState('fintech'),
       campaign: createInitialCampaignState(),
+      corporate: createInitialCorporateState(),
     },
     phase: 'playing',
     logs: [{ week: 1, message: 'R4 balance scenario start', type: 'info' }],

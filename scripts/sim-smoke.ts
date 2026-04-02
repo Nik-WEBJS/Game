@@ -8,6 +8,7 @@ import { createInitialLiveProduct } from '../src/game/data-product';
 import { createInitialProductionState } from '../src/game/data-production';
 import { createInitialInfrastructureState, createInitialSupportState } from '../src/game/data-infrastructure';
 import { createInitialCampaignState, createInitialCompetitionState } from '../src/game/data-competition';
+import { createInitialCorporateState } from '../src/game/data-corporate';
 
 function createMember(id: string, role: TeamRole, experience: number, talent: number): TeamMember {
   return {
@@ -90,6 +91,7 @@ function createSmokeState(): GameState {
       support: createInitialSupportState(),
       competition: createInitialCompetitionState('fintech'),
       campaign: createInitialCampaignState(),
+      corporate: createInitialCorporateState(),
     },
     phase: 'playing',
     logs: [{ week: 1, message: 'Smoke test start', type: 'info' }],

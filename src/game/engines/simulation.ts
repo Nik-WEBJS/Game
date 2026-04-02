@@ -12,6 +12,7 @@ import { tickLiveProduct } from './live-product';
 import { tickProduction } from './production';
 import { tickInfrastructureAndSupport } from './infrastructure-support';
 import { tickCampaignMilestones, tickCompetition } from './competition';
+import { tickCorporateGovernance } from './corporate';
 import { getT } from '../../i18n';
 import { ttNodeName } from '../../i18n/game-text';
 import { BALANCE } from '../config/balance';
@@ -34,6 +35,7 @@ export function simulateWeek(state: GameState): GameState {
   gs = tickLiveProduct(gs);
   gs = tickInfrastructureAndSupport(gs);
   gs = tickCompetition(gs);
+  gs = tickCorporateGovernance(gs);
 
   const beforeMetrics = gs.business.metrics;
   const econ = calculateEconomyWithBreakdown(gs);
@@ -265,6 +267,7 @@ function validateSimulationState(state: GameState, step: number): string[] {
   const support = state.business.support;
   const competition = state.business.competition;
   const campaign = state.business.campaign;
+  const corporate = state.business.corporate;
   checkFinite(prod.inventory.code, 'production_inventory_code');
   checkFinite(prod.inventory.design, 'production_inventory_design');
   checkFinite(prod.inventory.ops, 'production_inventory_ops');
@@ -300,6 +303,13 @@ function validateSimulationState(state: GameState, step: number): string[] {
   if (competition.lastWeek.marketPressure < 0 || competition.lastWeek.marketPressure > 1) issues.push(`${tag}:competition_market_pressure_out_of_bounds`);
   if (competition.lastWeek.playerRank < 1) issues.push(`${tag}:competition_player_rank_invalid`);
   if (campaign.completedIds.length > 20) issues.push(`${tag}:campaign_completed_overflow`);
+  checkFinite(corporate.valuation, 'corporate_valuation');
+  checkFinite(corporate.founderEquity, 'corporate_founder_equity');
+  checkFinite(corporate.investorEquity, 'corporate_investor_equity');
+  checkFinite(corporate.boardPressure, 'corporate_board_pressure');
+  if (corporate.founderEquity < 0 || corporate.founderEquity > 1) issues.push(`${tag}:corporate_founder_equity_out_of_bounds`);
+  if (corporate.investorEquity < 0 || corporate.investorEquity > 1) issues.push(`${tag}:corporate_investor_equity_out_of_bounds`);
+  if (corporate.boardPressure < 0 || corporate.boardPressure > 1) issues.push(`${tag}:corporate_board_pressure_out_of_bounds`);
 
   if (m.risk < 0 || m.risk > 1) issues.push(`${tag}:risk_out_of_bounds`);
   if (m.quality < 0 || m.quality > 1) issues.push(`${tag}:quality_out_of_bounds`);

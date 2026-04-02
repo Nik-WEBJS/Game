@@ -376,6 +376,31 @@ export interface CampaignMilestoneState {
   };
 }
 
+// --- Corporate / Investors (R5 base) ---
+export type FundingRoundId = 'pre_seed' | 'seed' | 'series_a' | 'growth';
+
+export interface CorporateRoundState {
+  id: FundingRoundId;
+  raised: boolean;
+  weekRaised: number | null;
+  cashRaised: number;
+  equitySold: number; // 0..1 (fraction of company sold in this round)
+  postMoneyValuation: number;
+}
+
+export interface CorporateState {
+  founderEquity: number;       // 0..1
+  investorEquity: number;      // 0..1
+  cumulativeCashRaised: number;
+  valuation: number;
+  boardPressure: number;       // 0..1
+  rounds: CorporateRoundState[];
+  lastWeek: {
+    valuationDelta: number;
+    boardPressureDelta: number;
+  };
+}
+
 // --- Technology / Influence Tree ---
 export type TechBranch = 'tech_core' | 'marketing_influence' | 'operations_process';
 
@@ -557,6 +582,7 @@ export interface Business {
   support: SupportState;
   competition: CompetitionState;
   campaign: CampaignMilestoneState;
+  corporate: CorporateState;
 }
 
 // --- Events ---
