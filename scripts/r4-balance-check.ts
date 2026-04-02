@@ -90,6 +90,10 @@ function createMember(id: string, role: TeamRole, experience: number, talent: nu
     freelanceTask: null,
     workProgress: 0,
     workCyclesCompleted: 0,
+    salaryTarget: Math.round(ROLE_SALARIES[role] * 1.1),
+    workplaceExpectation: 52,
+    retentionRisk: 0,
+    pendingCounterOffer: null,
   };
 }
 

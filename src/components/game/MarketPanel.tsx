@@ -50,10 +50,20 @@ const RARITY_TRANSLATION_KEY: Record<CandidateRarity, string> = {
   legendary: 'legendary',
 };
 
+function offerReason(reason?: string): string {
+  switch (reason) {
+    case 'salary_below_min': return 'Offer is below minimum expectation';
+    case 'office_full': return 'No free office slots';
+    case 'candidate_not_found': return 'Candidate no longer available';
+    default: return 'Offer unavailable';
+  }
+}
+
 export function MarketPanel() {
-  const { business, player, hireFromMarket } = useGameStore();
+  const { business, player, makeCandidateOffer, evaluateCandidateOffer } = useGameStore();
   const { t } = useI18n();
   const [activeRole, setActiveRole] = useState<TeamRole>('developer');
+  const [offerByCandidate, setOfferByCandidate] = useState<Record<string, number>>({});
   const candidates = business.employeeMarket;
   const weeksUntilRefresh = Math.max(0, business.marketRefreshWeek + 4 - player.currentWeek);
   const roleCandidates = candidates.filter(c => c.role === activeRole);
@@ -75,7 +85,6 @@ export function MarketPanel() {
         </div>
       </div>
 
-      {/* Role tabs */}
       <div className="flex gap-1.5 mb-4">
         {ROLES_ORDER.map(role => {
           const Icon = ROLE_TAB_ICONS[role];
@@ -103,7 +112,6 @@ export function MarketPanel() {
         })}
       </div>
 
-      {/* Candidates for selected role */}
       {roleCandidates.length === 0 ? (
         <p className="text-sm text-zinc-500 text-center py-6">{t.noCandidates}</p>
       ) : (
@@ -111,9 +119,11 @@ export function MarketPanel() {
           {roleCandidates.map(c => {
             const style = RARITY_STYLES[c.rarity];
             const Icon = RARITY_ICONS[c.rarity];
-            const traitDef = c.trait ? TRAITS.find(t => t.id === c.trait) : null;
+            const traitDef = c.trait ? TRAITS.find(trait => trait.id === c.trait) : null;
             const rarityLabelValue = t[RARITY_TRANSLATION_KEY[c.rarity] as keyof typeof t];
             const rarityLabel = typeof rarityLabelValue === 'string' ? rarityLabelValue : c.rarity;
+            const offerSalary = offerByCandidate[c.id] ?? c.salaryIdeal ?? c.salary;
+            const check = evaluateCandidateOffer(c.id, offerSalary);
 
             return (
               <div
@@ -131,24 +141,39 @@ export function MarketPanel() {
                       <div><span className="text-zinc-500">{t.experience}:</span> <span className="text-zinc-300">{c.experience}</span></div>
                       <div><span className="text-zinc-500">{t.talent}:</span> <span className="text-zinc-300">{Math.round(c.talent * 100)}%</span></div>
                       <div><span className="text-zinc-500">{t.resist}:</span> <span className="text-zinc-300">{Math.round(c.burnoutResistance * 100)}%</span></div>
-                      <div><span className="text-zinc-500">{t.salary}:</span> <span className="text-zinc-300">{formatMoney(c.salary)}{t.perWeek}</span></div>
-                      <div className="col-span-2">
-                        {traitDef && (
-                          <span className="text-amber-400" title={traitDef.description}>
-                            ✦ {traitDef.name}
-                          </span>
-                        )}
+                      <div><span className="text-zinc-500">Min:</span> <span className="text-zinc-300">{formatMoney(c.salaryMin)}{t.perWeek}</span></div>
+                      <div><span className="text-zinc-500">Ideal:</span> <span className="text-zinc-300">{formatMoney(c.salaryIdeal)}{t.perWeek}</span></div>
+                      <div><span className="text-zinc-500">WER:</span> <span className="text-zinc-300">{c.workplaceRequirement}/100</span></div>
+                      <div className="col-span-3 text-zinc-400">
+                        {traitDef ? <span className="text-amber-400" title={traitDef.description}>* {traitDef.name}</span> : null}
                       </div>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => hireFromMarket(c.id)}
-                    className="shrink-0 text-xs"
-                  >
-                    {t.hireFor} {formatMoney(c.hireCost)}
-                  </Button>
+                  <div className="shrink-0 flex flex-col items-end gap-1.5">
+                    <Badge variant={check.ok ? 'success' : 'warning'} className="text-[10px]">
+                      {check.ok ? `${Math.round(check.chance * 100)}% accept` : offerReason(check.reason)}
+                    </Badge>
+                    <input
+                      type="number"
+                      min={Math.max(1, c.salaryMin)}
+                      value={offerSalary}
+                      onChange={(e) => {
+                        const value = Math.max(1, Math.round(Number(e.target.value || 0)));
+                        setOfferByCandidate(prev => ({ ...prev, [c.id]: value }));
+                      }}
+                      className="w-28 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200"
+                    />
+                    <Button
+                      size="sm"
+                      variant={check.ok ? 'primary' : 'secondary'}
+                      disabled={!check.ok}
+                      onClick={() => makeCandidateOffer(c.id, offerSalary)}
+                      className="shrink-0 text-xs"
+                      title={check.ok ? '' : offerReason(check.reason)}
+                    >
+                      Offer ({formatMoney(c.hireCost)} sign-on)
+                    </Button>
+                  </div>
                 </div>
               </div>
             );

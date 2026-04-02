@@ -347,6 +347,27 @@ function validateSimulationState(state: GameState, step: number): string[] {
     if (member.morale < 0 || member.morale > 100) issues.push(`${tag}:member_morale_out_of_bounds`);
     if (member.experience < 0 || member.experience > 100) issues.push(`${tag}:member_experience_out_of_bounds`);
     if (member.level < 1 || member.level > 5) issues.push(`${tag}:member_level_out_of_bounds`);
+    checkFinite(member.salaryTarget, 'member_salary_target');
+    checkFinite(member.workplaceExpectation, 'member_workplace_expectation');
+    checkFinite(member.retentionRisk, 'member_retention_risk');
+    if (member.salaryTarget < 1) issues.push(`${tag}:member_salary_target_invalid`);
+    if (member.workplaceExpectation < 0 || member.workplaceExpectation > 100) issues.push(`${tag}:member_workplace_expectation_out_of_bounds`);
+    if (member.retentionRisk < 0 || member.retentionRisk > 1) issues.push(`${tag}:member_retention_risk_out_of_bounds`);
+    if (member.pendingCounterOffer) {
+      if (member.pendingCounterOffer.requestedSalary <= 0) issues.push(`${tag}:member_counter_offer_salary_invalid`);
+      if (member.pendingCounterOffer.expiresWeek < state.player.currentWeek - 1) issues.push(`${tag}:member_counter_offer_expired_unresolved`);
+    }
+  }
+
+  for (const candidate of state.business.employeeMarket) {
+    checkFinite(candidate.salaryMin, 'candidate_salary_min');
+    checkFinite(candidate.salaryIdeal, 'candidate_salary_ideal');
+    checkFinite(candidate.workplaceRequirement, 'candidate_workplace_requirement');
+    checkFinite(candidate.negotiationFlex, 'candidate_negotiation_flex');
+    if (candidate.salaryMin <= 0) issues.push(`${tag}:candidate_salary_min_invalid`);
+    if (candidate.salaryIdeal < candidate.salaryMin) issues.push(`${tag}:candidate_salary_ideal_below_min`);
+    if (candidate.workplaceRequirement < 0 || candidate.workplaceRequirement > 100) issues.push(`${tag}:candidate_workplace_requirement_out_of_bounds`);
+    if (candidate.negotiationFlex < 0 || candidate.negotiationFlex > 1) issues.push(`${tag}:candidate_negotiation_flex_out_of_bounds`);
   }
 
   return issues;

@@ -82,6 +82,11 @@ export interface FreelanceTask {
   startedAtWeek: number;
 }
 
+export interface CounterOffer {
+  requestedSalary: number;
+  expiresWeek: number;
+}
+
 export type EmployeeStatus = 'office' | 'freelance';
 
 export interface TeamMember {
@@ -102,6 +107,10 @@ export interface TeamMember {
   freelanceTask: FreelanceTask | null;
   workProgress: number;               // 0..1, auto-cycling work task progress
   workCyclesCompleted: number;         // total completed work cycles
+  salaryTarget: number;               // expected fair salary for retention
+  workplaceExpectation: number;       // 0..100 expected office environment
+  retentionRisk: number;              // 0..1 retention pressure
+  pendingCounterOffer: CounterOffer | null;
 }
 
 // Employee level thresholds: experience needed to reach each level
@@ -123,6 +132,10 @@ export interface MarketCandidate {
   burnoutResistance: number;
   trait: TraitId | null;
   rarity: CandidateRarity;
+  salaryMin: number;
+  salaryIdeal: number;
+  workplaceRequirement: number; // 0..100
+  negotiationFlex: number;      // 0..1 where higher means easier to close
 }
 
 // --- Niche Subtypes ---

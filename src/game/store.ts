@@ -1,6 +1,6 @@
 ﻿import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState, GameSpeed, TeamRole, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType, ProductionResourceBundle, ProductionResourceId, HostingMode, InfrastructureServerType, MnaActionType, FundingRoundId } from './types';
+import { GameState, GameSpeed, TeamRole, TeamMember, MarketCandidate, BusinessMetrics, BusinessStyleId, ZoneId, FurnitureItem, LogoId, WallMaterial, OFFICE_LEVELS, EMPLOYEE_LEVEL_OUTPUT_MULT, FreelanceTaskType, ProductionResourceBundle, ProductionResourceId, HostingMode, InfrastructureServerType, MnaActionType, FundingRoundId } from './types';
 import { BALANCE } from './config/balance';
 import { NICHES, PRODUCTS, TECHNOLOGIES, MARKETS, MONETIZATIONS, EVENTS_POOL, createISO9001 } from './data';
 import { NICHE_VARIANTS, BUSINESS_STYLES, createTechTree, generateMarketPool, FURNITURE_CATALOG } from './data-advanced';
@@ -13,7 +13,7 @@ import { calculateEconomy, calculateEconomyWithBreakdown, EconomyBreakdown } fro
 import { simulateWeek, runDeterministicSimulationTest, DeterministicSimulationResult } from './engines/simulation';
 import { startISO, advanceISO, canStartISO, canAdvanceISO, isManagerBusyWithISO } from './engines/iso';
 import { applyEvents } from './engines/events';
-import { hireMember, fireMember, canHire, getHireCost, hireFromMarket, assignZone, assignDesk } from './engines/team';
+import { hireMember, fireMember, canHire, getHireCost, hireFromMarket, makeCandidateOffer, evaluateCandidateOffer, respondToCounterOffer, getOfficeEnvironmentScore as teamGetOfficeEnvironmentScore, assignZone, assignDesk } from './engines/team';
 import { createInitialProduct } from './engines/product';
 import { sendToFreelance as sendFreelance, canSendToFreelance } from './engines/freelance';
 import { installFeature, upgradeFeature, canInstallFeature, canUpgradeFeature, upgradeFeatureSlots, getFeatureSlotUpgradeCost } from './engines/live-product';
@@ -51,6 +51,37 @@ const INITIAL_MONEY = BALANCE.start.money;
 const SAVE_VERSION = BALANCE.saveVersion;
 const SAVE_KEY = 'business-tycoon-save';
 export type DebugSelfTestResult = DeterministicSimulationResult;
+
+function normalizeTeamMember(member: TeamMember): TeamMember {
+  const fallbackSalaryTarget = Math.max(1, Math.round((member.salary || 1) * 1.08));
+  const fallbackExpectation = Math.max(30, Math.min(95, Math.round(42 + (member.level || 1) * 5 + (member.talent || 0) * 16)));
+  return {
+    ...member,
+    salaryTarget: Math.max(1, Math.round(member.salaryTarget ?? fallbackSalaryTarget)),
+    workplaceExpectation: Math.max(20, Math.min(100, Math.round(member.workplaceExpectation ?? fallbackExpectation))),
+    retentionRisk: Math.max(0, Math.min(1, Number(member.retentionRisk ?? 0))),
+    pendingCounterOffer: member.pendingCounterOffer
+      ? {
+        requestedSalary: Math.max(1, Math.round(member.pendingCounterOffer.requestedSalary)),
+        expiresWeek: Math.max(0, Math.round(member.pendingCounterOffer.expiresWeek)),
+      }
+      : null,
+  };
+}
+
+function normalizeMarketCandidate(candidate: MarketCandidate): MarketCandidate {
+  const salaryMin = Math.max(1, Math.round(candidate.salaryMin ?? Math.round(candidate.salary * 0.9)));
+  const salaryIdeal = Math.max(salaryMin, Math.round(candidate.salaryIdeal ?? candidate.salary));
+  const workplaceRequirement = Math.max(20, Math.min(100, Math.round(candidate.workplaceRequirement ?? 55)));
+  const negotiationFlex = Math.max(0.2, Math.min(1, Number(candidate.negotiationFlex ?? 0.6)));
+  return {
+    ...candidate,
+    salaryMin,
+    salaryIdeal,
+    workplaceRequirement,
+    negotiationFlex,
+  };
+}
 
 function createInitialState(): GameState {
   return {
@@ -146,12 +177,12 @@ function mergeWithInitialState(persisted: Partial<GameState> | undefined): GameS
       },
       metrics: { ...base.business.metrics, ...(business.metrics ?? {}) },
       technologies: business.technologies ?? base.business.technologies,
-      team: business.team ?? base.business.team,
+      team: (Array.isArray(business.team) ? business.team : base.business.team).map(normalizeTeamMember),
       isoStandards: business.isoStandards ?? base.business.isoStandards,
       companyProducts: business.companyProducts ?? base.business.companyProducts,
       techTree: business.techTree ?? base.business.techTree,
       furniture: business.furniture ?? base.business.furniture,
-      employeeMarket: business.employeeMarket ?? base.business.employeeMarket,
+      employeeMarket: (Array.isArray(business.employeeMarket) ? business.employeeMarket : base.business.employeeMarket).map(normalizeMarketCandidate),
       production: (() => {
         const source = business.production;
         const baseProduction = base.business.production;
@@ -335,6 +366,10 @@ interface GameStore extends GameState {
   hireTeamMember: (role: TeamRole) => void;
   fireTeamMember: (memberId: string) => void;
   hireFromMarket: (candidateId: string) => void;
+  makeCandidateOffer: (candidateId: string, salaryOffer: number) => void;
+  evaluateCandidateOffer: (candidateId: string, salaryOffer: number) => { ok: boolean; reason?: string; chance: number; salaryMin: number; salaryIdeal: number; officeScore: number };
+  respondCounterOffer: (memberId: string, accept: boolean) => void;
+  getOfficeEnvironmentScore: () => number;
   assignEmployeeZone: (memberId: string, zoneId: ZoneId | null) => void;
   assignEmployeeDesk: (memberId: string, deskId: string | null) => void;
   // ISO
@@ -559,6 +594,14 @@ export const useGameStore = create<GameStore>()(persist((set, get) => ({
   hireFromMarket: (candidateId) => {
     set(hireFromMarket(toGameState(get()), candidateId));
   },
+  makeCandidateOffer: (candidateId, salaryOffer) => {
+    set(makeCandidateOffer(toGameState(get()), candidateId, salaryOffer));
+  },
+  evaluateCandidateOffer: (candidateId, salaryOffer) => evaluateCandidateOffer(toGameState(get()), candidateId, salaryOffer),
+  respondCounterOffer: (memberId, accept) => {
+    set(respondToCounterOffer(toGameState(get()), memberId, accept));
+  },
+  getOfficeEnvironmentScore: () => teamGetOfficeEnvironmentScore(toGameState(get())),
 
   assignEmployeeZone: (memberId, zoneId) => {
     set(assignZone(toGameState(get()), memberId, zoneId));

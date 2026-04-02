@@ -480,19 +480,32 @@ export function generateCandidate(role?: TeamRole, reputation?: number): MarketC
   const trait = hasTrait ? ALL_TRAIT_IDS[Math.floor(Math.random() * ALL_TRAIT_IDS.length)] : null;
   const experience = Math.round(randRange(10, 40) + talent * 40);
   const burnoutResistance = Math.round(randRange(0.2, 0.5 + talent * 0.3) * 100) / 100;
+  const baseSalary = Math.round(BASE_SALARIES[candidateRole] * rarityDef.salaryMul);
+  const negotiationFlex = Math.round(randRange(0.42, 0.92) * 100) / 100;
+  const salaryMin = Math.round(baseSalary * randRange(0.9, 1.0));
+  const salaryIdeal = Math.max(salaryMin, Math.round(baseSalary * randRange(1.02, 1.2)));
+  const workplaceRequirement = Math.round(clamp01(0.34 + talent * 0.3 + (rarityDef.rarity === 'legendary' ? 0.08 : 0)) * 100);
 
   return {
     id: `cand_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     role: candidateRole,
     name: generateTeamMemberName(),
-    salary: Math.round(BASE_SALARIES[candidateRole] * rarityDef.salaryMul),
+    salary: baseSalary,
     hireCost: Math.round(BASE_HIRE_COSTS[candidateRole] * rarityDef.hireCostMul),
     experience,
     talent,
     burnoutResistance,
     trait,
     rarity: rarityDef.rarity,
+    salaryMin,
+    salaryIdeal,
+    workplaceRequirement,
+    negotiationFlex,
   };
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
 }
 
 // Generate 5 candidates per role (25 total), quality scales with reputation

@@ -9,12 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { formatMoney } from '@/lib/utils';
-import { TeamRole, ZoneId, FreelanceTaskType, TeamMember } from '@/game/types';
+import { ZoneId, FreelanceTaskType, TeamMember } from '@/game/types';
 import { ZONES, TRAITS } from '@/game/data-advanced';
 import { calculateOutsourcingReward } from '@/game/engines/freelance';
-import { Users, UserPlus, UserMinus, MapPin, Monitor, Briefcase, FlaskConical, Undo2, AlertTriangle } from 'lucide-react';
-
-const ROLES: TeamRole[] = ['developer', 'manager', 'qa', 'security', 'marketing'];
+import { Users, UserMinus, MapPin, Monitor, Briefcase, FlaskConical, Undo2, AlertTriangle } from 'lucide-react';
 
 function FreelanceModal({ member, onClose }: { member: TeamMember; onClose: () => void }) {
   const { business, sendToFreelance, canSendFreelance } = useGameStore();
@@ -27,10 +25,10 @@ function FreelanceModal({ member, onClose }: { member: TeamMember; onClose: () =
 
   const errorMsg = !check.ok
     ? check.reason === 'lastEmployee' ? t.freelanceCantLast
-    : check.reason === 'tooMuchBurnout' ? t.freelanceCantBurnout
-    : check.reason === 'crisisActive' ? t.freelanceCantCrisis
-    : check.reason === 'alreadyFreelance' ? t.freelanceAlready
-    : ''
+      : check.reason === 'tooMuchBurnout' ? t.freelanceCantBurnout
+        : check.reason === 'crisisActive' ? t.freelanceCantCrisis
+          : check.reason === 'alreadyFreelance' ? t.freelanceAlready
+            : ''
     : null;
 
   const handleSend = () => {
@@ -53,7 +51,6 @@ function FreelanceModal({ member, onClose }: { member: TeamMember; onClose: () =
         </div>
       )}
 
-      {/* Task type selector */}
       <div className="flex gap-2">
         <button
           onClick={() => setTaskType('outsourcing')}
@@ -80,20 +77,18 @@ function FreelanceModal({ member, onClose }: { member: TeamMember; onClose: () =
         </button>
       </div>
 
-      {/* Product selector for internal_help */}
       {taskType === 'internal_help' && business.companyProducts.length > 0 && (
         <select
           value={productId}
           onChange={(e) => setProductId(e.target.value)}
           className="w-full text-xs bg-zinc-700/50 border border-zinc-600/50 rounded px-2 py-1 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
         >
-          {business.companyProducts.map(p => (
-            <option key={p.id} value={p.id}>{p.name} ({p.lifecycle})</option>
+          {business.companyProducts.map(product => (
+            <option key={product.id} value={product.id}>{product.name} ({product.lifecycle})</option>
           ))}
         </select>
       )}
 
-      {/* Info */}
       <div className="text-[11px] text-zinc-400 space-y-1">
         {taskType === 'outsourcing' && (
           <div>{t.freelanceExpectedReward}: <span className="text-amber-400 font-semibold">{formatMoney(reward)}</span></div>
@@ -107,10 +102,9 @@ function FreelanceModal({ member, onClose }: { member: TeamMember; onClose: () =
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex gap-2">
         <Button size="sm" variant="secondary" onClick={onClose} className="flex-1 text-xs">
-          ✕
+          X
         </Button>
         <Button
           size="sm"
@@ -128,14 +122,19 @@ function FreelanceModal({ member, onClose }: { member: TeamMember; onClose: () =
 
 export function TeamPanel() {
   const {
-    business, hireTeamMember, fireTeamMember, canHireMember, getHireCost,
-    assignEmployeeZone, assignEmployeeDesk, recallFromFreelance,
+    business,
+    fireTeamMember,
+    assignEmployeeZone,
+    assignEmployeeDesk,
+    recallFromFreelance,
+    respondCounterOffer,
+    getOfficeEnvironmentScore,
   } = useGameStore();
-  const [freelanceModalId, setFreelanceModalId] = useState<string | null>(null);
-
-  // Desks that are placed in the office
-  const placedDesks = business.furniture.filter(f => f.type === 'desk' && f.position);
   const { t } = useI18n();
+  const [freelanceModalId, setFreelanceModalId] = useState<string | null>(null);
+  const officeEnvironment = getOfficeEnvironmentScore();
+
+  const placedDesks = business.furniture.filter(item => item.type === 'desk' && item.position);
 
   return (
     <Card>
@@ -143,8 +142,10 @@ export function TeamPanel() {
         <Users className="w-5 h-5 text-cyan-400" />
         {t.team} ({business.team.length})
       </CardTitle>
+      <div className="mb-3 rounded-lg border border-zinc-700/40 bg-zinc-900/30 p-2.5 text-xs text-zinc-400">
+        Office environment: <span className="text-zinc-100 font-medium">{officeEnvironment}/100</span>
+      </div>
 
-      {/* Team members */}
       {business.team.length === 0 ? (
         <p className="text-zinc-500 text-sm text-center py-4">{t.noTeamYet}</p>
       ) : (
@@ -175,9 +176,9 @@ export function TeamPanel() {
                       </Badge>
                     )}
                     {member.trait && (() => {
-                      const traitDef = TRAITS.find(tr => tr.id === member.trait);
+                      const traitDef = TRAITS.find(trait => trait.id === member.trait);
                       return traitDef ? (
-                        <span className="text-[10px] text-amber-400" title={traitDef.description}>✦ {traitDef.name}</span>
+                        <span className="text-[10px] text-amber-400" title={traitDef.description}>* {traitDef.name}</span>
                       ) : null;
                     })()}
                   </div>
@@ -196,7 +197,6 @@ export function TeamPanel() {
                   </div>
                 </div>
 
-                {/* Freelance progress */}
                 {isFreelance && task && (
                   <div className="mb-2 space-y-1">
                     <div className="flex items-center justify-between text-[11px]">
@@ -229,7 +229,6 @@ export function TeamPanel() {
                   </div>
                 )}
 
-                {/* Zone & Desk assignment — only for office employees */}
                 {!isFreelance && (
                   <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <div className="flex items-center gap-1.5">
@@ -240,8 +239,8 @@ export function TeamPanel() {
                         className="text-xs bg-zinc-700/50 border border-zinc-600/50 rounded px-2 py-0.5 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
                       >
                         <option value="">{t.noZone}</option>
-                        {ZONES.map(z => (
-                          <option key={z.id} value={z.id}>{z.name}</option>
+                        {ZONES.map(zone => (
+                          <option key={zone.id} value={zone.id}>{zone.name}</option>
                         ))}
                       </select>
                     </div>
@@ -253,9 +252,9 @@ export function TeamPanel() {
                         className="text-xs bg-zinc-700/50 border border-zinc-600/50 rounded px-2 py-0.5 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
                       >
                         <option value="">{t.noDesk}</option>
-                        {placedDesks.map(d => (
-                          <option key={d.id} value={d.id} disabled={!!d.assignedEmployeeId && d.assignedEmployeeId !== member.id}>
-                            {d.name} {d.assignedEmployeeId && d.assignedEmployeeId !== member.id ? `(${t.occupied})` : ''}
+                        {placedDesks.map(desk => (
+                          <option key={desk.id} value={desk.id} disabled={!!desk.assignedEmployeeId && desk.assignedEmployeeId !== member.id}>
+                            {desk.name} {desk.assignedEmployeeId && desk.assignedEmployeeId !== member.id ? `(${t.occupied})` : ''}
                           </option>
                         ))}
                       </select>
@@ -266,7 +265,6 @@ export function TeamPanel() {
                   </div>
                 )}
 
-                {/* Stats */}
                 <div className="space-y-1.5">
                   <ProgressBar
                     value={member.experience}
@@ -289,9 +287,46 @@ export function TeamPanel() {
                     label={t.morale}
                     showValue
                   />
+                  <ProgressBar
+                    value={Math.round((member.retentionRisk ?? 0) * 100)}
+                    color={(member.retentionRisk ?? 0) > 0.65 ? 'red' : (member.retentionRisk ?? 0) > 0.4 ? 'amber' : 'emerald'}
+                    size="sm"
+                    label="Retention risk"
+                    showValue
+                  />
+                  <div className="text-[11px] text-zinc-500">
+                    Target salary: <span className="text-zinc-300">{formatMoney(member.salaryTarget ?? member.salary)}{t.perWeek}</span>
+                    {' | '}
+                    Workplace expectation: <span className="text-zinc-300">{Math.round(member.workplaceExpectation ?? 50)}/100</span>
+                  </div>
                 </div>
 
-                {/* Freelance send button */}
+                {member.pendingCounterOffer && !isFreelance && (
+                  <div className="mt-2 rounded-md border border-amber-700/40 bg-amber-900/10 p-2">
+                    <div className="text-[11px] text-amber-300 mb-1">
+                      Counter-offer: {formatMoney(member.pendingCounterOffer.requestedSalary)}{t.perWeek}, deadline W{member.pendingCounterOffer.expiresWeek}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        className="text-[11px]"
+                        onClick={() => respondCounterOffer(member.id, true)}
+                      >
+                        Accept raise
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="text-[11px]"
+                        onClick={() => respondCounterOffer(member.id, false)}
+                      >
+                        Let go
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {!isFreelance && (
                   <div className="mt-2">
                     {freelanceModalId === member.id ? (
