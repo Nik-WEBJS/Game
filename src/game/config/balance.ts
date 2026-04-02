@@ -1,5 +1,5 @@
 export const BALANCE = {
-  saveVersion: 7,
+  saveVersion: 8,
   start: {
     money: 100000,
     reputation: 10,
@@ -62,8 +62,16 @@ export const BALANCE = {
         { tier: 1, capacity: { web: 70, db: 52, cache: 60 }, baseCost: 1800, variableCostPerLoad: 440 },
         { tier: 2, capacity: { web: 120, db: 90, cache: 106 }, baseCost: 3600, variableCostPerLoad: 590 },
         { tier: 3, capacity: { web: 220, db: 170, cache: 190 }, baseCost: 6900, variableCostPerLoad: 820 },
+        { tier: 4, capacity: { web: 360, db: 290, cache: 320 }, baseCost: 11500, variableCostPerLoad: 980 },
       ] as const,
-      upgradeCost: [0, 18000, 36000] as const, // index == tier-1
+      upgradeCost: [0, 18000, 36000, 65000] as const, // index == current tier, value == upgrade to next
+      autoscale: {
+        enabledFromTier: 4,
+        triggerLoad: 0.92,
+        boostPerLoad: 1.4,
+        maxBoost: 0.65,
+        costPerBoostShare: 5200,
+      },
     },
     own: {
       baseCapacity: { web: 30, db: 24, cache: 26 },

@@ -6,14 +6,17 @@ export function createCapacity(web = 0, db = 0, cache = 0): InfrastructureCapaci
 }
 
 export function createInitialInfrastructureState(): InfrastructureState {
-  const base = BALANCE.infrastructure.own.baseCapacity;
+  const ownBase = BALANCE.infrastructure.own.baseCapacity;
+  const cloudBase = BALANCE.infrastructure.cloud.tiers[0].capacity;
   const empty = createCapacity();
-  const initialCapacity = createCapacity(base.web, base.db, base.cache);
+  const ownCapacity = createCapacity(ownBase.web, ownBase.db, ownBase.cache);
+  const initialCloudCapacity = createCapacity(cloudBase.web, cloudBase.db, cloudBase.cache);
   const initialReport: InfrastructureWeekReport = {
     demand: empty,
-    capacity: initialCapacity,
+    capacity: initialCloudCapacity,
     utilization: empty,
     load: 0,
+    autoscaleBoost: 0,
     latencyMs: BALANCE.infrastructure.latency.baseMs,
     outageRisk: 0,
     outage: false,
@@ -22,7 +25,7 @@ export function createInitialInfrastructureState(): InfrastructureState {
   return {
     hostingMode: 'cloud',
     cloudTier: 1,
-    ownCapacity: initialCapacity,
+    ownCapacity,
     lastWeek: initialReport,
   };
 }
@@ -37,4 +40,3 @@ export function createInitialSupportState(): SupportState {
     backlogPressure: 0,
   };
 }
-

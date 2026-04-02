@@ -1,4 +1,4 @@
-import { GameState, HostingMode, InfrastructureCapacity, InfrastructureServerType } from '../types';
+import { GameState, HostingMode, InfrastructureCapacity, InfrastructureServerType, InfrastructureState } from '../types';
 import { BALANCE } from '../config/balance';
 import { canConsumeProductionResources, consumeProductionResources } from './production';
 import { isManagerBusyWithISO } from './iso';
@@ -15,8 +15,14 @@ function unique(values: string[]): string[] {
   return Array.from(new Set(values));
 }
 
-function getCloudTierConfig(tier: 1 | 2 | 3) {
+type CloudTier = InfrastructureState['cloudTier'];
+
+function getCloudTierConfig(tier: CloudTier) {
   return BALANCE.infrastructure.cloud.tiers[tier - 1] ?? BALANCE.infrastructure.cloud.tiers[0];
+}
+
+function getCloudAutoscaleConfig() {
+  return BALANCE.infrastructure.cloud.autoscale;
 }
 
 function getCurrentCapacity(state: GameState): InfrastructureCapacity {
@@ -57,9 +63,8 @@ function getUtilization(demand: InfrastructureCapacity, capacity: Infrastructure
 
 export function getCloudTierUpgradeCost(state: GameState): number | null {
   const tier = state.business.infrastructure.cloudTier;
-  if (tier === 1) return BALANCE.infrastructure.cloud.upgradeCost[1];
-  if (tier === 2) return BALANCE.infrastructure.cloud.upgradeCost[2];
-  return null;
+  const cost = (BALANCE.infrastructure.cloud.upgradeCost as readonly number[])[tier];
+  return typeof cost === 'number' ? cost : null;
 }
 
 export function setHostingMode(state: GameState, mode: HostingMode): GameState {
@@ -84,10 +89,11 @@ export function setHostingMode(state: GameState, mode: HostingMode): GameState {
 
 export function upgradeCloudTier(state: GameState): GameState {
   const infra = state.business.infrastructure;
-  if (infra.cloudTier >= 3) return state;
+  const maxTier = BALANCE.infrastructure.cloud.tiers.length as CloudTier;
+  if (infra.cloudTier >= maxTier) return state;
   const cost = getCloudTierUpgradeCost(state);
   if (cost == null) return state;
-  const nextTier = (infra.cloudTier + 1) as 1 | 2 | 3;
+  const nextTier = (infra.cloudTier + 1) as CloudTier;
   return {
     ...state,
     player: { ...state.player, money: state.player.money - cost },
@@ -205,7 +211,11 @@ export function getHostingWeeklyCost(state: GameState): number {
   const load = Math.max(0, infra.lastWeek.load);
   if (infra.hostingMode === 'cloud') {
     const tierCfg = getCloudTierConfig(infra.cloudTier);
-    return tierCfg.baseCost + Math.max(0, load - 0.5) * tierCfg.variableCostPerLoad;
+    const autoscaleCfg = getCloudAutoscaleConfig();
+    const autoscaleCost = infra.cloudTier >= autoscaleCfg.enabledFromTier
+      ? infra.lastWeek.autoscaleBoost * autoscaleCfg.costPerBoostShare
+      : 0;
+    return tierCfg.baseCost + Math.max(0, load - 0.5) * tierCfg.variableCostPerLoad + autoscaleCost;
   }
 
   const cap = capValues(infra.ownCapacity);
@@ -221,9 +231,31 @@ export function tickInfrastructureAndSupport(state: GameState): GameState {
   const infra = state.business.infrastructure;
   const support = state.business.support;
   const demand = getDemandFromLiveProduct(state);
-  const capacity = getCurrentCapacity(state);
-  const utilization = getUtilization(demand, capacity);
-  const load = Math.max(utilization.web, utilization.db, utilization.cache);
+  const baseCapacity = getCurrentCapacity(state);
+  let capacity = baseCapacity;
+  let utilization = getUtilization(demand, capacity);
+  let load = Math.max(utilization.web, utilization.db, utilization.cache);
+
+  let autoscaleBoost = 0;
+  const autoscaleCfg = getCloudAutoscaleConfig();
+  if (
+    infra.hostingMode === 'cloud'
+    && infra.cloudTier >= autoscaleCfg.enabledFromTier
+    && load > autoscaleCfg.triggerLoad
+  ) {
+    autoscaleBoost = clamp(
+      0,
+      autoscaleCfg.maxBoost,
+      (load - autoscaleCfg.triggerLoad) * autoscaleCfg.boostPerLoad,
+    );
+    capacity = {
+      web: baseCapacity.web * (1 + autoscaleBoost),
+      db: baseCapacity.db * (1 + autoscaleBoost),
+      cache: baseCapacity.cache * (1 + autoscaleBoost),
+    };
+    utilization = getUtilization(demand, capacity);
+    load = Math.max(utilization.web, utilization.db, utilization.cache);
+  }
 
   const latencyCfg = BALANCE.infrastructure.latency;
   const overload = Math.max(0, load - 1);
@@ -401,6 +433,7 @@ export function tickInfrastructureAndSupport(state: GameState): GameState {
       capacity,
       utilization,
       load,
+      autoscaleBoost,
       latencyMs: Math.round(latencyMs),
       outageRisk,
       outage,
@@ -429,6 +462,13 @@ export function tickInfrastructureAndSupport(state: GameState): GameState {
       week: state.player.currentWeek,
       type: 'warning',
       message: `Hosting overload: load ${(load * 100).toFixed(0)}%, latency ${Math.round(latencyMs)}ms.`,
+    });
+  }
+  if (autoscaleBoost > 0.01) {
+    logs.push({
+      week: state.player.currentWeek,
+      type: 'info',
+      message: `Cloud autoscale activated: +${Math.round(autoscaleBoost * 100)}% burst capacity.`,
     });
   }
   if (openTickets > 120) {

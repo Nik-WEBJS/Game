@@ -91,6 +91,11 @@ export function InfrastructurePanel() {
             <div className="text-xs text-zinc-500">
               Capacity: W{Math.round(report.capacity.web)} / D{Math.round(report.capacity.db)} / C{Math.round(report.capacity.cache)}
             </div>
+            {report.autoscaleBoost > 0.01 && (
+              <div className="text-[11px] text-cyan-300 mt-1">
+                Autoscale burst: +{Math.round(report.autoscaleBoost * 100)}%
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-2">

@@ -208,9 +208,13 @@ function mergeWithInitialState(persisted: Partial<GameState> | undefined): GameS
         const source = business.infrastructure;
         const baseInfra = base.business.infrastructure;
         if (!source) return baseInfra;
+        const maxCloudTier = BALANCE.infrastructure.cloud.tiers.length as 1 | 2 | 3 | 4;
+        const sourceTier = Number(source.cloudTier ?? baseInfra.cloudTier);
+        const cloudTier = Math.max(1, Math.min(maxCloudTier, Math.round(sourceTier))) as 1 | 2 | 3 | 4;
         return {
           ...baseInfra,
           ...source,
+          cloudTier,
           ownCapacity: { ...baseInfra.ownCapacity, ...(source.ownCapacity ?? {}) },
           lastWeek: {
             ...baseInfra.lastWeek,

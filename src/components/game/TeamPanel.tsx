@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useGameStore } from '@/game/store';
 import { useI18n } from '@/i18n';
+import type { TranslationKeys } from '@/i18n/en';
 import { roleName } from '@/i18n/game-text';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,17 @@ import { ZONES, TRAITS } from '@/game/data-advanced';
 import { calculateOutsourcingReward } from '@/game/engines/freelance';
 import { Users, UserMinus, MapPin, Monitor, Briefcase, FlaskConical, Undo2, AlertTriangle } from 'lucide-react';
 
+function freelanceErrorMessage(reason: string | undefined, t: TranslationKeys): string {
+  switch (reason) {
+    case 'lastEmployee': return t.freelanceCantLast;
+    case 'tooMuchBurnout': return t.freelanceCantBurnout;
+    case 'crisisActive': return t.freelanceCantCrisis;
+    case 'alreadyFreelance': return t.freelanceAlready;
+    case 'pendingCounterOffer': return t.freelanceCantCounterOffer;
+    default: return '';
+  }
+}
+
 function FreelanceModal({ member, onClose }: { member: TeamMember; onClose: () => void }) {
   const { business, sendToFreelance, canSendFreelance } = useGameStore();
   const { t } = useI18n();
@@ -23,13 +35,7 @@ function FreelanceModal({ member, onClose }: { member: TeamMember; onClose: () =
   const check = canSendFreelance(member.id);
   const reward = calculateOutsourcingReward(member);
 
-  const errorMsg = !check.ok
-    ? check.reason === 'lastEmployee' ? t.freelanceCantLast
-      : check.reason === 'tooMuchBurnout' ? t.freelanceCantBurnout
-        : check.reason === 'crisisActive' ? t.freelanceCantCrisis
-          : check.reason === 'alreadyFreelance' ? t.freelanceAlready
-            : ''
-    : null;
+  const errorMsg = !check.ok ? freelanceErrorMessage(check.reason, t) : null;
 
   const handleSend = () => {
     if (!check.ok) return;
@@ -129,6 +135,7 @@ export function TeamPanel() {
     recallFromFreelance,
     respondCounterOffer,
     getOfficeEnvironmentScore,
+    canSendFreelance,
   } = useGameStore();
   const { t } = useI18n();
   const [freelanceModalId, setFreelanceModalId] = useState<string | null>(null);
@@ -143,7 +150,7 @@ export function TeamPanel() {
         {t.team} ({business.team.length})
       </CardTitle>
       <div className="mb-3 rounded-lg border border-zinc-700/40 bg-zinc-900/30 p-2.5 text-xs text-zinc-400">
-        Office environment: <span className="text-zinc-100 font-medium">{officeEnvironment}/100</span>
+        {t.officeEnvironmentLabel}: <span className="text-zinc-100 font-medium">{officeEnvironment}/100</span>
       </div>
 
       {business.team.length === 0 ? (
@@ -154,6 +161,7 @@ export function TeamPanel() {
             const isFreelance = member.status === 'freelance';
             const task = member.freelanceTask;
             const weeksLeft = task ? Math.max(1, Math.ceil(task.durationWeeks * (1 - task.progress))) : 0;
+            const freelanceCheck = canSendFreelance(member.id);
 
             return (
               <div
@@ -291,20 +299,20 @@ export function TeamPanel() {
                     value={Math.round((member.retentionRisk ?? 0) * 100)}
                     color={(member.retentionRisk ?? 0) > 0.65 ? 'red' : (member.retentionRisk ?? 0) > 0.4 ? 'amber' : 'emerald'}
                     size="sm"
-                    label="Retention risk"
+                    label={t.retentionRiskLabel}
                     showValue
                   />
                   <div className="text-[11px] text-zinc-500">
-                    Target salary: <span className="text-zinc-300">{formatMoney(member.salaryTarget ?? member.salary)}{t.perWeek}</span>
+                    {t.targetSalaryLabel}: <span className="text-zinc-300">{formatMoney(member.salaryTarget ?? member.salary)}{t.perWeek}</span>
                     {' | '}
-                    Workplace expectation: <span className="text-zinc-300">{Math.round(member.workplaceExpectation ?? 50)}/100</span>
+                    {t.workplaceExpectationLabel}: <span className="text-zinc-300">{Math.round(member.workplaceExpectation ?? 50)}/100</span>
                   </div>
                 </div>
 
                 {member.pendingCounterOffer && !isFreelance && (
                   <div className="mt-2 rounded-md border border-amber-700/40 bg-amber-900/10 p-2">
                     <div className="text-[11px] text-amber-300 mb-1">
-                      Counter-offer: {formatMoney(member.pendingCounterOffer.requestedSalary)}{t.perWeek}, deadline W{member.pendingCounterOffer.expiresWeek}
+                      {t.counterOfferLabel}: {formatMoney(member.pendingCounterOffer.requestedSalary)}{t.perWeek}, {t.counterOfferDeadline(member.pendingCounterOffer.expiresWeek)}
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Button
@@ -313,7 +321,7 @@ export function TeamPanel() {
                         className="text-[11px]"
                         onClick={() => respondCounterOffer(member.id, true)}
                       >
-                        Accept raise
+                        {t.counterOfferAcceptRaise}
                       </Button>
                       <Button
                         size="sm"
@@ -321,7 +329,7 @@ export function TeamPanel() {
                         className="text-[11px]"
                         onClick={() => respondCounterOffer(member.id, false)}
                       >
-                        Let go
+                        {t.counterOfferLetGo}
                       </Button>
                     </div>
                   </div>
@@ -336,6 +344,8 @@ export function TeamPanel() {
                         size="sm"
                         variant="secondary"
                         onClick={() => setFreelanceModalId(member.id)}
+                        disabled={!freelanceCheck.ok}
+                        title={!freelanceCheck.ok ? freelanceErrorMessage(freelanceCheck.reason, t) : ''}
                         className="text-[11px] gap-1"
                       >
                         <Briefcase className="w-3 h-3" />

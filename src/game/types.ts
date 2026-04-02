@@ -326,6 +326,7 @@ export interface InfrastructureWeekReport {
   capacity: InfrastructureCapacity;
   utilization: InfrastructureCapacity; // 0..n where 1 == full load
   load: number;       // max utilization
+  autoscaleBoost: number; // 0..1 extra temporary capacity share
   latencyMs: number;
   outageRisk: number; // 0..1
   outage: boolean;
@@ -334,7 +335,7 @@ export interface InfrastructureWeekReport {
 
 export interface InfrastructureState {
   hostingMode: HostingMode;
-  cloudTier: 1 | 2 | 3;
+  cloudTier: 1 | 2 | 3 | 4;
   ownCapacity: InfrastructureCapacity;
   lastWeek: InfrastructureWeekReport;
 }

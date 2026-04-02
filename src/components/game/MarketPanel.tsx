@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useGameStore } from '@/game/store';
 import { useI18n } from '@/i18n';
+import type { TranslationKeys } from '@/i18n/en';
 import { roleName } from '@/i18n/game-text';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,12 +51,12 @@ const RARITY_TRANSLATION_KEY: Record<CandidateRarity, string> = {
   legendary: 'legendary',
 };
 
-function offerReason(reason?: string): string {
+function offerReason(reason: string | undefined, t: TranslationKeys): string {
   switch (reason) {
-    case 'salary_below_min': return 'Offer is below minimum expectation';
-    case 'office_full': return 'No free office slots';
-    case 'candidate_not_found': return 'Candidate no longer available';
-    default: return 'Offer unavailable';
+    case 'salary_below_min': return t.marketOfferReasonSalaryBelowMin;
+    case 'office_full': return t.marketOfferReasonOfficeFull;
+    case 'candidate_not_found': return t.marketOfferReasonCandidateGone;
+    default: return t.marketOfferReasonUnavailable;
   }
 }
 
@@ -141,9 +142,9 @@ export function MarketPanel() {
                       <div><span className="text-zinc-500">{t.experience}:</span> <span className="text-zinc-300">{c.experience}</span></div>
                       <div><span className="text-zinc-500">{t.talent}:</span> <span className="text-zinc-300">{Math.round(c.talent * 100)}%</span></div>
                       <div><span className="text-zinc-500">{t.resist}:</span> <span className="text-zinc-300">{Math.round(c.burnoutResistance * 100)}%</span></div>
-                      <div><span className="text-zinc-500">Min:</span> <span className="text-zinc-300">{formatMoney(c.salaryMin)}{t.perWeek}</span></div>
-                      <div><span className="text-zinc-500">Ideal:</span> <span className="text-zinc-300">{formatMoney(c.salaryIdeal)}{t.perWeek}</span></div>
-                      <div><span className="text-zinc-500">WER:</span> <span className="text-zinc-300">{c.workplaceRequirement}/100</span></div>
+                      <div><span className="text-zinc-500">{t.marketSalaryMinLabel}:</span> <span className="text-zinc-300">{formatMoney(c.salaryMin)}{t.perWeek}</span></div>
+                      <div><span className="text-zinc-500">{t.marketSalaryIdealLabel}:</span> <span className="text-zinc-300">{formatMoney(c.salaryIdeal)}{t.perWeek}</span></div>
+                      <div><span className="text-zinc-500">{t.marketWerLabel}:</span> <span className="text-zinc-300">{c.workplaceRequirement}/100</span></div>
                       <div className="col-span-3 text-zinc-400">
                         {traitDef ? <span className="text-amber-400" title={traitDef.description}>* {traitDef.name}</span> : null}
                       </div>
@@ -151,7 +152,7 @@ export function MarketPanel() {
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-1.5">
                     <Badge variant={check.ok ? 'success' : 'warning'} className="text-[10px]">
-                      {check.ok ? `${Math.round(check.chance * 100)}% accept` : offerReason(check.reason)}
+                      {check.ok ? t.marketOfferAcceptChance(Math.round(check.chance * 100)) : offerReason(check.reason, t)}
                     </Badge>
                     <input
                       type="number"
@@ -169,9 +170,9 @@ export function MarketPanel() {
                       disabled={!check.ok}
                       onClick={() => makeCandidateOffer(c.id, offerSalary)}
                       className="shrink-0 text-xs"
-                      title={check.ok ? '' : offerReason(check.reason)}
+                      title={check.ok ? '' : offerReason(check.reason, t)}
                     >
-                      Offer ({formatMoney(c.hireCost)} sign-on)
+                      {t.marketOfferAction(formatMoney(c.hireCost))}
                     </Button>
                   </div>
                 </div>

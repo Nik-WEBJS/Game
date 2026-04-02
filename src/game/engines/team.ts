@@ -38,14 +38,15 @@ export function getOfficeEnvironmentScore(state: GameState): number {
   const levelIdx = Math.max(0, Math.min(cfg.baseByOfficeLevel.length - 1, state.business.office.level - 1));
   const base = cfg.baseByOfficeLevel[levelIdx];
   const team = state.business.team;
+  const placedFurniture = state.business.furniture.filter(item => item.position);
   const avgMorale = team.length > 0
     ? team.reduce((sum, member) => sum + member.morale, 0) / team.length
     : 62;
   const avgBurnout = team.length > 0
     ? team.reduce((sum, member) => sum + member.burnout, 0) / team.length
     : 18;
-  const furnitureMorale = state.business.furniture.reduce((sum, item) => sum + (item.effects.moraleMod ?? 0), 0);
-  const furnitureBurnoutRelief = state.business.furniture.reduce((sum, item) => {
+  const furnitureMorale = placedFurniture.reduce((sum, item) => sum + (item.effects.moraleMod ?? 0), 0);
+  const furnitureBurnoutRelief = placedFurniture.reduce((sum, item) => {
     const burnoutMod = item.effects.burnoutMod ?? 0;
     return sum + (burnoutMod < 0 ? -burnoutMod : 0);
   }, 0);
@@ -144,25 +145,43 @@ export function evaluateCandidateOffer(
 
 export function makeCandidateOffer(state: GameState, candidateId: string, salaryOffer: number): GameState {
   const candidate = state.business.employeeMarket.find(c => c.id === candidateId);
-  if (!candidate) return state;
+  const t = getT();
+  if (!candidate) {
+    return {
+      ...state,
+      logs: [
+        ...state.logs,
+        {
+          week: state.player.currentWeek,
+          type: 'warning',
+          message: t.candidateOfferRejectedUnavailable(),
+        },
+      ],
+    };
+  }
 
   const roundedOffer = Math.max(1, Math.round(salaryOffer));
   const check = evaluateCandidateOffer(state, candidateId, roundedOffer);
   if (!check.ok) {
+    let message: string;
     if (check.reason === 'salary_below_min') {
-      return {
-        ...state,
-        logs: [
-          ...state.logs,
-          {
-            week: state.player.currentWeek,
-            type: 'warning',
-            message: `Offer rejected instantly: ${candidate.name} expects at least $${check.salaryMin.toLocaleString()}/week.`,
-          },
-        ],
-      };
+      message = t.candidateOfferRejectedSalaryBelowMin(candidate.name, `$${check.salaryMin.toLocaleString()}`);
+    } else if (check.reason === 'office_full') {
+      message = t.candidateOfferRejectedOfficeFull(candidate.name);
+    } else {
+      message = t.candidateOfferRejectedUnavailable(candidate.name);
     }
-    return state;
+    return {
+      ...state,
+      logs: [
+        ...state.logs,
+        {
+          week: state.player.currentWeek,
+          type: 'warning',
+          message,
+        },
+      ],
+    };
   }
 
   const accepted = Math.random() <= check.chance;
@@ -203,7 +222,12 @@ export function makeCandidateOffer(state: GameState, candidateId: string, salary
         ...state.logs,
         {
           week: state.player.currentWeek,
-          message: `Offer accepted: ${candidate.name} joined as ${roleName(member.role, getT())} for $${roundedOffer.toLocaleString()}/week (close chance ${(check.chance * 100).toFixed(0)}%).`,
+          message: t.candidateOfferAccepted(
+            candidate.name,
+            roleName(member.role, t),
+            `$${roundedOffer.toLocaleString()}`,
+            Math.round(check.chance * 100),
+          ),
           type: 'success',
         },
       ],
@@ -224,7 +248,11 @@ export function makeCandidateOffer(state: GameState, candidateId: string, salary
       {
         week: state.player.currentWeek,
         type: 'warning',
-        message: `Offer declined: ${candidate.name} rejected $${roundedOffer.toLocaleString()}/week (${(check.chance * 100).toFixed(0)}% expected chance).`,
+        message: t.candidateOfferDeclined(
+          candidate.name,
+          `$${roundedOffer.toLocaleString()}`,
+          Math.round(check.chance * 100),
+        ),
       },
     ],
   };
@@ -339,9 +367,10 @@ export function fireMember(state: GameState, memberId: string): GameState {
 
 export function respondToCounterOffer(state: GameState, memberId: string, accept: boolean): GameState {
   const member = state.business.team.find(m => m.id === memberId);
-  if (!member || !member.pendingCounterOffer) return state;
+  if (!member || !member.pendingCounterOffer || member.status === 'freelance') return state;
   const offer = member.pendingCounterOffer;
   const cfg = BALANCE.hr.retention;
+  const t = getT();
 
   if (accept) {
     return {
@@ -366,7 +395,7 @@ export function respondToCounterOffer(state: GameState, memberId: string, accept
         {
           week: state.player.currentWeek,
           type: 'success',
-          message: `Counter-offer accepted: ${member.name} stays for $${offer.requestedSalary.toLocaleString()}/week.`,
+          message: t.counterOfferAcceptedLog(member.name, `$${offer.requestedSalary.toLocaleString()}`),
         },
       ],
     };
@@ -392,7 +421,7 @@ export function respondToCounterOffer(state: GameState, memberId: string, accept
       {
         week: state.player.currentWeek,
         type: 'warning',
-        message: `Counter-offer declined: ${member.name} left the company.`,
+        message: t.counterOfferDeclinedLog(member.name),
       },
     ],
   };
@@ -406,11 +435,16 @@ export function tickTeam(state: GameState): GameState {
   const newCounterOffers: Array<{ memberId: string; name: string; requestedSalary: number; expiresWeek: number }> = [];
 
   const newTeam = state.business.team.map(member => {
+    if (member.status === 'freelance') {
+      if (member.pendingCounterOffer) {
+        return { ...member, pendingCounterOffer: null };
+      }
+      return member;
+    }
     if (member.pendingCounterOffer && state.player.currentWeek >= member.pendingCounterOffer.expiresWeek) {
       quitByCounterExpiry.add(member.id);
       return member;
     }
-    if (member.status === 'freelance') return member;
 
     const levelPenalty = 1 / (1 + (member.level - 1) * BALANCE.team.levelPenaltyPerLevel);
     const expGain = (
@@ -529,7 +563,7 @@ export function tickTeam(state: GameState): GameState {
     newLogs.push({
       week: state.player.currentWeek,
       type: 'warning',
-      message: `Retention alert: ${offer.name} requests $${offer.requestedSalary.toLocaleString()}/week by W${offer.expiresWeek}.`,
+      message: getT().retentionAlertLog(offer.name, `$${offer.requestedSalary.toLocaleString()}`, offer.expiresWeek),
     });
   }
   for (const quitter of burnoutQuitters) {
@@ -543,7 +577,7 @@ export function tickTeam(state: GameState): GameState {
     newLogs.push({
       week: state.player.currentWeek,
       type: 'danger',
-      message: `Employee left: ${quitter.name} walked away after unresolved counter-offer.`,
+      message: getT().counterOfferExpiredLeaveLog(quitter.name),
     });
   }
 

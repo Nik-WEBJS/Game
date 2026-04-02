@@ -70,6 +70,7 @@ export function canSendToFreelance(state: GameState, memberId: string): { ok: bo
   const member = state.business.team.find(m => m.id === memberId);
   if (!member) return { ok: false, reason: 'notFound' };
   if (member.status === 'freelance') return { ok: false, reason: 'alreadyFreelance' };
+  if (member.pendingCounterOffer) return { ok: false, reason: 'pendingCounterOffer' };
 
   // Can't send last office employee
   const officeCount = state.business.team.filter(m => m.status === 'office').length;
@@ -110,7 +111,7 @@ export function sendToFreelance(
       ...state.business,
       team: state.business.team.map(m =>
         m.id === memberId
-          ? { ...m, status: 'freelance' as const, freelanceTask: task }
+          ? { ...m, status: 'freelance' as const, freelanceTask: task, pendingCounterOffer: null }
           : m
       ),
     },

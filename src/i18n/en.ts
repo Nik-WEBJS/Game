@@ -81,6 +81,15 @@ export const en = {
   resist: 'Resist',
   salary: 'Salary',
   hireFor: 'Hire',
+  marketSalaryMinLabel: 'Min',
+  marketSalaryIdealLabel: 'Ideal',
+  marketWerLabel: 'WER',
+  marketOfferAcceptChance: (pct: number) => `${pct}% accept`,
+  marketOfferAction: (signOn: string) => `Offer (${signOn} sign-on)`,
+  marketOfferReasonSalaryBelowMin: 'Offer is below minimum expectation',
+  marketOfferReasonOfficeFull: 'No free office slots',
+  marketOfferReasonCandidateGone: 'Candidate no longer available',
+  marketOfferReasonUnavailable: 'Offer unavailable',
 
   // Rarity
   common: 'common',
@@ -158,6 +167,14 @@ export const en = {
   experience: 'Experience',
   burnout: 'Burnout',
   morale: 'Morale',
+  officeEnvironmentLabel: 'Office environment',
+  retentionRiskLabel: 'Retention risk',
+  targetSalaryLabel: 'Target salary',
+  workplaceExpectationLabel: 'Workplace expectation',
+  counterOfferLabel: 'Counter-offer',
+  counterOfferDeadline: (week: number) => `deadline W${week}`,
+  counterOfferAcceptRaise: 'Accept raise',
+  counterOfferLetGo: 'Let go',
 
   // Roles
   roleDeveloper: 'Developer',
@@ -241,6 +258,25 @@ export const en = {
   officeUpgradedMessage: (level: number, maxEmp: number) => `Office upgraded to level ${level}! Max employees: ${maxEmp}.`,
   purchasedFurnitureMessage: (name: string, cost: string) => `Purchased ${name} for ${cost}.`,
   marketRefreshedMessage: 'Employee market refreshed with new candidates.',
+  candidateOfferRejectedUnavailable: (name?: string) => name
+    ? `Offer failed: ${name} is no longer available.`
+    : 'Offer failed: candidate is no longer available.',
+  candidateOfferRejectedSalaryBelowMin: (name: string, minSalary: string) =>
+    `Offer rejected instantly: ${name} expects at least ${minSalary}/week.`,
+  candidateOfferRejectedOfficeFull: (name: string) =>
+    `Offer failed: no free office slots for ${name}.`,
+  candidateOfferAccepted: (name: string, role: string, salary: string, chancePct: number) =>
+    `Offer accepted: ${name} joined as ${role} for ${salary}/week (close chance ${chancePct}%).`,
+  candidateOfferDeclined: (name: string, salary: string, chancePct: number) =>
+    `Offer declined: ${name} rejected ${salary}/week (${chancePct}% expected chance).`,
+  counterOfferAcceptedLog: (name: string, salary: string) =>
+    `Counter-offer accepted: ${name} stays for ${salary}/week.`,
+  counterOfferDeclinedLog: (name: string) =>
+    `Counter-offer declined: ${name} left the company.`,
+  retentionAlertLog: (name: string, salary: string, week: number) =>
+    `Retention alert: ${name} requests ${salary}/week by W${week}.`,
+  counterOfferExpiredLeaveLog: (name: string) =>
+    `Employee left: ${name} walked away after unresolved counter-offer.`,
   launchedPrototypeMessage: '🚀 Your business is launched! Your product starts in prototype stage.',
   bankruptMessage: '💸 BANKRUPT! Debt limit reached (-$500,000).',
   reputationCollapsed: '📉 Your reputation has collapsed. Game over.',
@@ -264,6 +300,7 @@ export const en = {
   freelanceCantBurnout: 'Too much burnout (≥85) to freelance.',
   freelanceCantCrisis: 'Cannot freelance during a crisis event.',
   freelanceAlready: 'Already on freelance.',
+  freelanceCantCounterOffer: 'Cannot send employee with pending counter-offer.',
   freelanceWorking: 'Working',
   freelanceSentOutsourcing: (name: string, role: string, reward: string, weeks: number) =>
     `💼 ${name} (${role}) sent on outsourcing contract. Reward: ${reward}, ${weeks} weeks.`,

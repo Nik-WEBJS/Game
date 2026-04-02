@@ -83,6 +83,15 @@ export const ru: TranslationKeys = {
   resist: 'Стойкость',
   salary: 'Зарплата',
   hireFor: 'Нанять',
+  marketSalaryMinLabel: 'Мин',
+  marketSalaryIdealLabel: 'Идеал',
+  marketWerLabel: 'WER',
+  marketOfferAcceptChance: (pct: number) => `${pct}% примет`,
+  marketOfferAction: (signOn: string) => `Оффер (${signOn} бонус)`,
+  marketOfferReasonSalaryBelowMin: 'Оффер ниже минимальных ожиданий',
+  marketOfferReasonOfficeFull: 'Нет свободных офисных слотов',
+  marketOfferReasonCandidateGone: 'Кандидат больше недоступен',
+  marketOfferReasonUnavailable: 'Оффер недоступен',
 
   // Rarity
   common: 'обычный',
@@ -160,6 +169,14 @@ export const ru: TranslationKeys = {
   experience: 'Опыт',
   burnout: 'Выгорание',
   morale: 'Мораль',
+  officeEnvironmentLabel: 'Среда офиса',
+  retentionRiskLabel: 'Риск удержания',
+  targetSalaryLabel: 'Целевая зарплата',
+  workplaceExpectationLabel: 'Ожидание к офису',
+  counterOfferLabel: 'Контр-оффер',
+  counterOfferDeadline: (week: number) => `дедлайн Н${week}`,
+  counterOfferAcceptRaise: 'Принять повышение',
+  counterOfferLetGo: 'Отпустить',
 
   // Roles
   roleDeveloper: 'Разработчик',
@@ -243,6 +260,25 @@ export const ru: TranslationKeys = {
   officeUpgradedMessage: (level: number, maxEmp: number) => `Офис улучшен до уровня ${level}! Макс. сотрудников: ${maxEmp}.`,
   purchasedFurnitureMessage: (name: string, cost: string) => `Куплено: ${name} за ${cost}.`,
   marketRefreshedMessage: 'Рынок сотрудников обновлён новыми кандидатами.',
+  candidateOfferRejectedUnavailable: (name?: string) => name
+    ? `Оффер сорван: ${name} больше недоступен.`
+    : 'Оффер сорван: кандидат больше недоступен.',
+  candidateOfferRejectedSalaryBelowMin: (name: string, minSalary: string) =>
+    `Оффер отклонён сразу: ${name} ожидает минимум ${minSalary}/нед.`,
+  candidateOfferRejectedOfficeFull: (name: string) =>
+    `Оффер сорван: нет свободных офисных слотов для ${name}.`,
+  candidateOfferAccepted: (name: string, role: string, salary: string, chancePct: number) =>
+    `Оффер принят: ${name} присоединился как ${role} за ${salary}/нед (шанс закрытия ${chancePct}%).`,
+  candidateOfferDeclined: (name: string, salary: string, chancePct: number) =>
+    `Оффер отклонён: ${name} отказался от ${salary}/нед (${chancePct}% ожидаемый шанс).`,
+  counterOfferAcceptedLog: (name: string, salary: string) =>
+    `Контр-оффер принят: ${name} остаётся за ${salary}/нед.`,
+  counterOfferDeclinedLog: (name: string) =>
+    `Контр-оффер отклонён: ${name} покинул компанию.`,
+  retentionAlertLog: (name: string, salary: string, week: number) =>
+    `Сигнал удержания: ${name} требует ${salary}/нед до Н${week}.`,
+  counterOfferExpiredLeaveLog: (name: string) =>
+    `Сотрудник ушёл: ${name} покинул компанию после неразрешённого контр-оффера.`,
   launchedPrototypeMessage: '🚀 Ваш бизнес запущен! Продукт начинает со стадии прототипа.',
   bankruptMessage: '💸 БАНКРОТСТВО! Достигнут лимит долга (−$500,000).',
   reputationCollapsed: '📉 Ваша репутация рухнула. Игра окончена.',
@@ -266,6 +302,7 @@ export const ru: TranslationKeys = {
   freelanceCantBurnout: 'Слишком высокое выгорание (≥85) для фриланса.',
   freelanceCantCrisis: 'Нельзя отправить во время кризиса.',
   freelanceAlready: 'Уже на фрилансе.',
+  freelanceCantCounterOffer: 'Нельзя отправить сотрудника с активным контр-оффером.',
   freelanceWorking: 'Работает',
   freelanceSentOutsourcing: (name: string, role: string, reward: string, weeks: number) =>
     `💼 ${name} (${role}) отправлен на аутсорсинг. Награда: ${reward}, ${weeks} нед.`,
