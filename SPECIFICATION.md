@@ -45,6 +45,17 @@ UI (React Components)
 
 ---
 
+### Актуальный engine stack (v2.1)
+
+- `Simulation loop`: `tickTeam` -> `tickProducts` -> `tickISO` -> `tickProduction` -> `tickLiveProduct` -> `tickInfrastructureAndSupport` -> `tickCompetition` -> economy -> events -> progression -> campaign -> freelance -> research -> market refresh.
+- `R0 foundation`: versioned save (`saveVersion`), persist+migrate, export/import save, debug sandbox, self-test.
+- `R1 core`: live product metrics (traffic/signups/active/paying/satisfaction/conversion/churn), feature slots/classes, explainability.
+- `R2 production`: resources (`code/design/ops/support`), production queue, inventory consumption by feature install/upgrade.
+- `R3 infra/support`: cloud vs own hosting, web/db/cache capacity bottlenecks, latency/outage degradation, support queue and burst actions.
+- `R4 competition/campaign`: ranking and market pressure, competitor events, milestones, M&A-lite actions.
+
+---
+
 ## Реализованные игровые сущности
 
 ### Игрок (Player)
@@ -221,12 +232,18 @@ UI (React Components)
 ## Реализованные движки (Engines)
 
 ### Combination Engine
-Формула комбинации (v2.0):
-```
-Revenue = Demand × Quality × MonetizationEff × TechSynergy × LifecycleMult × BASE_SCALE($15,000)
+Формула комбинации (v2.1):
+```text
+Revenue =
+  Demand × Quality × MonetizationEff × TechSynergy × LifecycleMult
+  × ClientTierMult × UserScaleMult × MonetizationQualityMult
+  × BASE_SCALE($18,000)
 ```
 - Синергия технологий: +8% за каждую пару совместимых технологий
 - **LifecycleMult** — множитель от стадии продукта (0 в Prototype, 1.0 в Growth)
+- **ClientTierMult** зависит от репутации и недель игры
+- **UserScaleMult** зависит от active users
+- **MonetizationQualityMult** зависит от paid ratio/conversion/satisfaction/churn
 - Бонусы дерева исследований суммируются к Quality, Growth, Risk
 - Уровни сотрудников влияют на TeamEfficiency через `EMPLOYEE_LEVEL_OUTPUT_MULT`
 - Комбинации не жёсткие — через коэффициенты
@@ -297,6 +314,7 @@ Revenue = Demand × Quality × MonetizationEff × TechSynergy × LifecycleMult �
 | Release | ×0.6 | ~44% |
 | Growth | ×0.85 | ~29% |
 | Maturity | ×1.0 | ~20% |
+| Decline | ×1.0 | ~20% |
 
 **Технологии:** каждая внедрённая технология увеличивает множитель частоты (+0.15, от базы 0.4, макс 1.0).
 
@@ -304,11 +322,12 @@ Revenue = Demand × Quality × MonetizationEff × TechSynergy × LifecycleMult �
 
 | Стадия | Множитель штрафа | Пример: Data Breach |
 |--------|------------------|---------------------|
-| Prototype | ×0.2 | −$2,000 (вместо −$10,000) |
+| Prototype | ×0.15 | −$1,500 (вместо −$10,000) |
 | Beta | ×0.3 | −$3,000 |
 | Release | ×0.6 | −$6,000 |
 | Growth | ×0.85 | −$8,500 |
 | Maturity | ×1.0 | −$10,000 (полный штраф) |
+| Decline | ×1.0 | −$10,000 (полный штраф) |
 
 > Позитивные награды (деньги) **не уменьшаются** — только штрафы масштабируются.
 
@@ -828,7 +847,12 @@ src/
 │   │   ├── TechPanel.tsx         — управление технологиями
 │   │   ├── ISOPanel.tsx          — управление ISO
 │   │   ├── MarketPanel.tsx       — рынок сотрудников (кандидаты, редкость, найм)
-│   │   ├── TechTreePanel.tsx     — дерево исследований (tech_core + marketing_influence)
+│   │   ├── TechTreePanel.tsx     — дерево исследований (tech_core + marketing_influence + operations_process)
+│   │   ├── ProductPanel.tsx      — live product dashboard, фичи и explainability
+│   │   ├── ProductionPanel.tsx   — очередь производства и инвентарь ресурсов
+│   │   ├── InfrastructurePanel.tsx — hosting/sla/load/outage и support queue
+│   │   ├── CompetitionPanel.tsx  — рынок конкурентов, рейтинг, milestones, M&A-lite
+│   │   ├── WikiPanel.tsx         — внутриигровая wiki (events/lifecycle/strategy tips)
 │   │   ├── FurniturePanel.tsx    — покупка и размещение мебели
 │   │   ├── BusinessInfo.tsx      — карточка текущего бизнеса
 │   │   └── EventLog.tsx          — журнал событий
