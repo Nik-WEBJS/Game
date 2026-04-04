@@ -144,14 +144,21 @@ export function OfficeScene() {
             const desk = member.deskId
               ? business.furniture.find(f => f.id === member.deskId && f.position)
               : null;
+            const isSeated = !!desk && member.status === 'office';
             const pos: [number, number, number] = desk && desk.position
-              ? gridToWorld(desk.position[0], desk.position[1], desk.gridSize[0], desk.gridSize[1], grid.origin)
+              ? (() => {
+                const [x, y, z] = gridToWorld(desk.position![0], desk.position![1], desk.gridSize[0], desk.gridSize[1], grid.origin);
+                // Seat position for desk users: behind keyboard, facing monitor.
+                return [x, y, z + 0.28];
+              })()
               : getEmployeePosition(index);
             return (
               <Employee
                 key={member.id}
                 member={member}
                 position={pos}
+                rotationY={isSeated ? Math.PI : undefined}
+                seated={isSeated ? true : undefined}
               />
             );
           })}

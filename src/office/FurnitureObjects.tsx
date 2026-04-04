@@ -58,6 +58,26 @@ function DeskMesh() {
         <meshStandardMaterial color="#71717a" roughness={0.3} metalness={0.7} />
       </mesh>
 
+      {/* Office chair */}
+      <group position={[0, 0, 0.22]}>
+        <mesh position={[0, 0.2, 0]} castShadow>
+          <boxGeometry args={[0.26, 0.04, 0.26]} />
+          <meshStandardMaterial color="#1f2937" roughness={0.6} />
+        </mesh>
+        <mesh position={[0, 0.34, -0.11]} castShadow>
+          <boxGeometry args={[0.24, 0.28, 0.04]} />
+          <meshStandardMaterial color="#111827" roughness={0.6} />
+        </mesh>
+        <mesh position={[0, 0.1, 0]}>
+          <cylinderGeometry args={[0.015, 0.02, 0.16, 6]} />
+          <meshStandardMaterial color="#6b7280" roughness={0.3} metalness={0.6} />
+        </mesh>
+        <mesh position={[0, 0.01, 0]}>
+          <cylinderGeometry args={[0.12, 0.12, 0.02, 8]} />
+          <meshStandardMaterial color="#4b5563" roughness={0.3} metalness={0.5} />
+        </mesh>
+      </group>
+
       {/* Monitor */}
       <group position={[0, 0.46, -0.12]}>
         {/* Screen bezel */}

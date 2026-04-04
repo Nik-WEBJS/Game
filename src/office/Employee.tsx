@@ -10,6 +10,8 @@ import { getAnimationParams, ROLE_ANIMATIONS } from './animations';
 interface EmployeeProps {
   member: TeamMember;
   position: [number, number, number];
+  rotationY?: number;
+  seated?: boolean;
 }
 
 const SKIN = '#f0c8a0';
@@ -23,7 +25,7 @@ const HAIR_COLORS: Record<TeamRole, string> = {
   marketing: '#8b4513',
 };
 
-export function Employee({ member, position }: EmployeeProps) {
+export function Employee({ member, position, rotationY = 0, seated = false }: EmployeeProps) {
   const groupRef = useRef<THREE.Group>(null);
   const upperBodyRef = useRef<THREE.Group>(null);
   const leftArmRef = useRef<THREE.Group>(null);
@@ -54,6 +56,7 @@ export function Employee({ member, position }: EmployeeProps) {
     const t = state.clock.elapsedTime + phaseOffset;
 
     if (isFreelance) {
+      groupRef.current.rotation.y = rotationY;
       // Freelancers: gentle float + no walk
       const float = Math.sin(t * 1.5) * 0.02;
       groupRef.current.position.y = position[1] + float;
@@ -72,6 +75,23 @@ export function Employee({ member, position }: EmployeeProps) {
       return;
     }
 
+    if (seated) {
+      groupRef.current.rotation.y = rotationY;
+      const idle = Math.sin(t * 2.2) * 0.01;
+      groupRef.current.position.y = position[1] - 0.05 + idle;
+
+      if (upperBodyRef.current) {
+        upperBodyRef.current.position.y = 0;
+        upperBodyRef.current.rotation.x = 0.22 + Math.sin(t * 2.5) * 0.02;
+      }
+      if (leftArmRef.current) leftArmRef.current.rotation.x = -1.36 + Math.sin(t * 5.5) * 0.06;
+      if (rightArmRef.current) rightArmRef.current.rotation.x = -1.46 + Math.sin(t * 5.2 + 0.6) * 0.06;
+      return;
+    }
+
+    if (upperBodyRef.current) {
+      upperBodyRef.current.position.y = 0;
+    }
     // Work progress bar for office employees at desks
     if (workFillRef.current && isWorking) {
       const BAR_W = 0.4;
@@ -121,40 +141,41 @@ export function Employee({ member, position }: EmployeeProps) {
 
   return (
     <group ref={groupRef} position={position}>
-      {/* --- Legs --- */}
-      {/* Left leg */}
-      <group ref={leftLegRef} position={[-0.08, 0.28, 0]}>
-        {/* Thigh */}
-        <mesh position={[0, -0.02, 0]} castShadow>
-          <boxGeometry args={[0.1, 0.22, 0.1]} />
-          <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
-        </mesh>
-        {/* Shin */}
-        <mesh position={[0, -0.2, 0]} castShadow>
-          <boxGeometry args={[0.09, 0.18, 0.09]} />
-          <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
-        </mesh>
-        {/* Shoe */}
-        <mesh position={[0, -0.32, 0.02]} castShadow>
-          <boxGeometry args={[0.1, 0.06, 0.14]} />
-          <meshStandardMaterial color={SHOE_COLOR} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
-        </mesh>
-      </group>
-      {/* Right leg */}
-      <group ref={rightLegRef} position={[0.08, 0.28, 0]}>
-        <mesh position={[0, -0.02, 0]} castShadow>
-          <boxGeometry args={[0.1, 0.22, 0.1]} />
-          <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
-        </mesh>
-        <mesh position={[0, -0.2, 0]} castShadow>
-          <boxGeometry args={[0.09, 0.18, 0.09]} />
-          <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
-        </mesh>
-        <mesh position={[0, -0.32, 0.02]} castShadow>
-          <boxGeometry args={[0.1, 0.06, 0.14]} />
-          <meshStandardMaterial color={SHOE_COLOR} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
-        </mesh>
-      </group>
+      {/* --- Lower body --- */}
+      {!(seated && !isFreelance) && (
+        <>
+          {/* Left leg */}
+          <group ref={leftLegRef} position={[-0.08, 0.28, 0]}>
+            <mesh position={[0, -0.02, 0]} castShadow>
+              <boxGeometry args={[0.1, 0.22, 0.1]} />
+              <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
+            </mesh>
+            <mesh position={[0, -0.2, 0]} castShadow>
+              <boxGeometry args={[0.09, 0.18, 0.09]} />
+              <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
+            </mesh>
+            <mesh position={[0, -0.32, 0.02]} castShadow>
+              <boxGeometry args={[0.1, 0.06, 0.14]} />
+              <meshStandardMaterial color={SHOE_COLOR} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
+            </mesh>
+          </group>
+          {/* Right leg */}
+          <group ref={rightLegRef} position={[0.08, 0.28, 0]}>
+            <mesh position={[0, -0.02, 0]} castShadow>
+              <boxGeometry args={[0.1, 0.22, 0.1]} />
+              <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
+            </mesh>
+            <mesh position={[0, -0.2, 0]} castShadow>
+              <boxGeometry args={[0.09, 0.18, 0.09]} />
+              <meshStandardMaterial color={roleColor} roughness={0.7} transparent={isTransparent} opacity={bodyOpacity} />
+            </mesh>
+            <mesh position={[0, -0.32, 0.02]} castShadow>
+              <boxGeometry args={[0.1, 0.06, 0.14]} />
+              <meshStandardMaterial color={SHOE_COLOR} roughness={0.6} transparent={isTransparent} opacity={bodyOpacity} />
+            </mesh>
+          </group>
+        </>
+      )}
 
       {/* --- Upper body (affected by slouch) --- */}
       <group ref={upperBodyRef}>
@@ -168,16 +189,20 @@ export function Employee({ member, position }: EmployeeProps) {
           <boxGeometry args={[0.14, 0.04, 0.04]} />
           <meshStandardMaterial color="#ffffff" roughness={0.5} transparent={isTransparent} opacity={bodyOpacity} />
         </mesh>
-        {/* Belt */}
-        <mesh position={[0, 0.37, 0]} castShadow>
-          <boxGeometry args={[0.31, 0.03, 0.19]} />
-          <meshStandardMaterial color="#2a2a2a" roughness={0.4} metalness={0.3} transparent={isTransparent} opacity={bodyOpacity} />
-        </mesh>
-        {/* Belt buckle */}
-        <mesh position={[0, 0.37, 0.1]} castShadow>
-          <boxGeometry args={[0.04, 0.03, 0.01]} />
-          <meshStandardMaterial color="#c0a060" metalness={0.8} roughness={0.2} transparent={isTransparent} opacity={bodyOpacity} />
-        </mesh>
+        {!seated && (
+          <>
+            {/* Belt */}
+            <mesh position={[0, 0.37, 0]} castShadow>
+              <boxGeometry args={[0.31, 0.03, 0.19]} />
+              <meshStandardMaterial color="#2a2a2a" roughness={0.4} metalness={0.3} transparent={isTransparent} opacity={bodyOpacity} />
+            </mesh>
+            {/* Belt buckle */}
+            <mesh position={[0, 0.37, 0.1]} castShadow>
+              <boxGeometry args={[0.04, 0.03, 0.01]} />
+              <meshStandardMaterial color="#c0a060" metalness={0.8} roughness={0.2} transparent={isTransparent} opacity={bodyOpacity} />
+            </mesh>
+          </>
+        )}
 
         {/* --- Arms --- */}
         {/* Left arm */}
